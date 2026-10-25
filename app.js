@@ -638,8 +638,8 @@ async function checkAppUpdates(manual = false) {
           <div style="color:#166534;font-weight:700;font-size:14px;margin-bottom:6px">🎉 New Version v${esc(result.latestVersion)} is Available!</div>
           <div class="muted" style="font-size:11px;margin-bottom:8px">Published: ${result.publishedAt ? new Date(result.publishedAt).toLocaleDateString() : 'Recently'}</div>
           ${result.releaseNotes ? `<div style="background:#fff;padding:8px 12px;border-radius:6px;font-size:12px;max-height:100px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px;border:1px solid #dcfce7">${esc(result.releaseNotes)}</div>` : ''}
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn primary" style="background:#16a34a;padding:8px 16px;font-weight:700" onclick="downloadAppUpdate('${esc(result.downloadUrl || result.htmlUrl)}')">⬇ DOWNLOAD &amp; INSTALL UPDATE</button>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button id="inAppDownloadBtn" class="btn primary" style="background:#16a34a;padding:9px 18px;font-weight:800" onclick="startInAppUpdate('${esc(result.downloadUrl || result.htmlUrl)}')">⬇ DOWNLOAD &amp; INSTALL UPDATE (IN-APP)</button>
             <button class="btn secondary" style="font-size:11px;padding:8px 12px" onclick="openExternalUrl('${esc(result.htmlUrl)}')">View Release Details</button>
           </div>
         `;
@@ -669,6 +669,98 @@ async function checkAppUpdates(manual = false) {
     }
   } finally {
     if (checkBtn) checkBtn.disabled = false;
+  }
+}
+
+let isDownloadingUpdate = false;
+let downloadedUpdatePath = null;
+
+async function startInAppUpdate(downloadUrl) {
+  if (isDownloadingUpdate) return;
+
+  // If in web browser or electron helper not available, fallback to external download
+  if (!window.dentalApp || !window.dentalApp.downloadUpdate) {
+    downloadAppUpdate(downloadUrl);
+    return;
+  }
+
+  isDownloadingUpdate = true;
+  const downloadArea = document.getElementById('updateDownloadArea');
+  const statusText = document.getElementById('downloadStatusText');
+  const percentText = document.getElementById('downloadPercentText');
+  const bytesText = document.getElementById('downloadBytesText');
+  const progressBar = document.getElementById('updateProgressBar');
+  const inAppBtn = document.getElementById('inAppDownloadBtn');
+  const checkBtn = document.getElementById('checkUpdateBtn');
+  const closeBtn = document.getElementById('updateModalCloseBtn');
+  const installArea = document.getElementById('installActionsArea');
+
+  if (downloadArea) downloadArea.style.display = 'block';
+  if (inAppBtn) inAppBtn.disabled = true;
+  if (checkBtn) checkBtn.disabled = true;
+  if (installArea) installArea.style.display = 'none';
+
+  if (statusText) statusText.textContent = 'Downloading update directly inside the app...';
+  if (progressBar) progressBar.style.width = '0%';
+  if (percentText) percentText.textContent = '0%';
+  if (bytesText) bytesText.textContent = 'Connecting...';
+
+  // Listen to download progress
+  window.dentalApp.onDownloadProgress((data) => {
+    const p = data.percent || 0;
+    if (progressBar) progressBar.style.width = p + '%';
+    if (percentText) percentText.textContent = p + '%';
+    if (bytesText && data.totalBytes > 0) {
+      const dlMb = (data.downloadedBytes / 1024 / 1024).toFixed(1);
+      const totalMb = (data.totalBytes / 1024 / 1024).toFixed(1);
+      bytesText.textContent = `${dlMb} MB / ${totalMb} MB`;
+    }
+  });
+
+  try {
+    const res = await window.dentalApp.downloadUpdate(downloadUrl);
+    if (res && res.success) {
+      downloadedUpdatePath = res.filePath;
+      if (progressBar) progressBar.style.width = '100%';
+      if (percentText) percentText.textContent = '100%';
+      if (statusText) {
+        statusText.innerHTML = '🎉 <b>Update Downloaded Successfully!</b> Ready to install.';
+        statusText.style.color = '#15803d';
+      }
+      if (installArea) installArea.style.display = 'block';
+      if (inAppBtn) inAppBtn.style.display = 'none';
+    } else {
+      throw new Error(res?.error || 'Download failed');
+    }
+  } catch (err) {
+    if (statusText) {
+      statusText.innerHTML = `⚠️ Download failed: ${esc(err.message)}`;
+      statusText.style.color = '#b91c1c';
+    }
+    if (inAppBtn) inAppBtn.disabled = false;
+  } finally {
+    isDownloadingUpdate = false;
+    if (checkBtn) checkBtn.disabled = false;
+  }
+}
+
+async function applyUpdateAndRestart() {
+  const statusText = document.getElementById('downloadStatusText');
+  const restartBtn = document.getElementById('restartInstallBtn');
+  if (restartBtn) {
+    restartBtn.disabled = true;
+    restartBtn.textContent = 'Closing app & applying update...';
+  }
+  if (statusText) {
+    statusText.innerHTML = '⏳ <b>Restarting Infinity Dental Clinic to install update...</b>';
+  }
+
+  if (window.dentalApp && window.dentalApp.installAndRestart) {
+    const res = await window.dentalApp.installAndRestart(downloadedUpdatePath);
+    if (!res?.success) {
+      alert('Could not start update installer: ' + (res?.error || 'Unknown error'));
+      if (restartBtn) restartBtn.disabled = false;
+    }
   }
 }
 

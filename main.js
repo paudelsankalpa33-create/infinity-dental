@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const http = require('http');
+const { spawn } = require('child_process');
 const { DatabaseSync } = require('node:sqlite');
 
 const DATA_ROOT = 'C:\\Infiinity Dental Clinic';
@@ -276,6 +278,132 @@ ipcMain.handle('app:check-update', async (_event, repoSlug) => {
 
     req.end();
   });
+});
+
+// --- In-App Update Downloader & Auto-Installer ---
+let downloadedInstallerPath = null;
+
+function downloadFileWithRedirects(fileUrl, destPath, onProgress, onDone, onError, redirectCount = 0) {
+  if (redirectCount > 8) {
+    return onError(new Error('Too many redirects while downloading update.'));
+  }
+
+  try {
+    const parsedUrl = new URL(fileUrl);
+    const client = parsedUrl.protocol === 'http:' ? http : https;
+
+    const req = client.get(fileUrl, {
+      headers: {
+        'User-Agent': 'InfinityDentalClinic-Updater/' + app.getVersion(),
+        'Accept': 'application/octet-stream'
+      }
+    }, (res) => {
+      // Follow HTTP redirects (GitHub asset downloads redirect to objects.githubusercontent.com)
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const nextUrl = new URL(res.headers.location, fileUrl).toString();
+        return downloadFileWithRedirects(nextUrl, destPath, onProgress, onDone, onError, redirectCount + 1);
+      }
+
+      if (res.statusCode !== 200) {
+        return onError(new Error(`Download failed with server status HTTP ${res.statusCode}`));
+      }
+
+      const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+      let downloadedBytes = 0;
+      const fileStream = fs.createWriteStream(destPath);
+
+      let lastSend = 0;
+      res.on('data', (chunk) => {
+        downloadedBytes += chunk.length;
+        const now = Date.now();
+        if (now - lastSend > 120 || downloadedBytes === totalBytes) {
+          lastSend = now;
+          const percent = totalBytes > 0 ? Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100)) : 0;
+          onProgress({
+            percent,
+            downloadedBytes,
+            totalBytes
+          });
+        }
+      });
+
+      res.pipe(fileStream);
+
+      fileStream.on('finish', () => {
+        fileStream.close(() => {
+          onDone(destPath);
+        });
+      });
+
+      fileStream.on('error', (err) => {
+        fs.unlink(destPath, () => {});
+        onError(err);
+      });
+    });
+
+    req.on('error', (err) => {
+      fs.unlink(destPath, () => {});
+      onError(err);
+    });
+  } catch (err) {
+    onError(err);
+  }
+}
+
+ipcMain.handle('app:download-update', async (_event, downloadUrl) => {
+  if (!downloadUrl) return { success: false, error: 'No download URL provided.' };
+
+  const tempDir = app.getPath('temp');
+  const tempFile = path.join(tempDir, `InfinityDentalClinic_Update_${Date.now()}.exe`);
+
+  return new Promise((resolve) => {
+    downloadFileWithRedirects(
+      downloadUrl,
+      tempFile,
+      (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update:download-progress', progress);
+        }
+      },
+      (savedPath) => {
+        downloadedInstallerPath = savedPath;
+        resolve({ success: true, filePath: savedPath });
+      },
+      (err) => {
+        resolve({ success: false, error: err.message });
+      }
+    );
+  });
+});
+
+ipcMain.handle('app:install-and-restart', async (_event, customPath) => {
+  const installerPath = customPath || downloadedInstallerPath;
+  if (!installerPath || !fs.existsSync(installerPath)) {
+    return { success: false, error: 'Downloaded installer file not found on disk.' };
+  }
+
+  try {
+    console.log('[Updater] Launching installer:', installerPath);
+    // Launch installer detached from current Electron process
+    const child = spawn(installerPath, [], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    child.unref();
+
+    // Close SQLite db cleanly and quit
+    if (db) {
+      try { db.close(); } catch (_) {}
+    }
+    app.isQuitting = true;
+    setTimeout(() => {
+      app.quit();
+    }, 250);
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: 'Failed to launch update installer: ' + err.message };
+  }
 });
 
 app.whenReady().then(()=>{

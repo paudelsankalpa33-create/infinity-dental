@@ -249,8 +249,26 @@
       <!-- Dynamic update status info -->
     </div>
 
+    <!-- In-App Download Progress Area -->
+    <div id="updateDownloadArea" style="display:none;margin-top:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span id="downloadStatusText" style="font-size:12px;font-weight:700;color:#0369a1">Downloading update directly inside the app...</span>
+        <span id="downloadPercentText" style="font-size:13px;font-weight:800;color:#0284c7">0%</span>
+      </div>
+      <div class="update-progress-track">
+        <div id="updateProgressBar" class="update-progress-fill animated" style="width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <span class="muted" style="font-size:11px">Please do not close the app while downloading</span>
+        <span id="downloadBytesText" class="muted" style="font-size:11px;font-weight:600">0 MB / 0 MB</span>
+      </div>
+      <div id="installActionsArea" style="margin-top:12px;display:none;text-align:right">
+        <button id="restartInstallBtn" class="btn primary" style="background:#15803d;padding:10px 18px;font-weight:800;font-size:13px" onclick="applyUpdateAndRestart()">🚀 RESTART &amp; APPLY UPDATE NOW</button>
+      </div>
+    </div>
+
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
-      <button class="btn secondary" onclick="closeUpdateModal()">Close</button>
+      <button id="updateModalCloseBtn" class="btn secondary" onclick="closeUpdateModal()">Close</button>
       <button id="checkUpdateBtn" class="btn primary" onclick="checkAppUpdates(true)">Check for Updates Now</button>
     </div>
   </div>
