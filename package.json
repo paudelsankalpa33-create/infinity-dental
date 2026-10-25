@@ -37,6 +37,9 @@
       "assets/**/*",
       "data/**/*"
     ],
+    "asarUnpack": [
+      "assets/driver/**/*"
+    ],
     "win": {
       "target": [
         "nsis",

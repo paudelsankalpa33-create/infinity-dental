@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('dentalApp', {
     ipcRenderer.on('update:download-progress', (_e, data) => callback(data));
   },
   installAndRestart: (customPath) => ipcRenderer.invoke('app:install-and-restart', customPath),
+  installSoundboxDriver: () => ipcRenderer.invoke('app:install-soundbox-driver'),
   onSerialDeviceChanged: (callback) => {
     ipcRenderer.on('serial:device-changed', (_e, data) => callback(data));
   }

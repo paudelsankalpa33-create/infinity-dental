@@ -849,6 +849,26 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 11. Launch CH341 USB Soundbox Driver Installer
+  if (pathname === '/api/nizi/install-driver' && req.method === 'POST') {
+    try {
+      const driverExe = path.join(__dirname, 'assets', 'driver', 'CH341 Windows', 'SETUP.EXE');
+      if (!fs.existsSync(driverExe)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Driver installer not found at: ' + driverExe }));
+        return;
+      }
+      const { exec } = require('child_process');
+      exec(`start "" "${driverExe}"`, { windowsHide: false });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, path: driverExe }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
   // Default: Serve Static Frontend
   serveStatic(req, res, pathname);
 });

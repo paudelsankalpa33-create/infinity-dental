@@ -148,9 +148,12 @@
   <div class="grid2" style="margin-top:18px;grid-template-columns:360px 1fr;align-items:start">
     <!-- Left: NiZi POS B33 Device Simulator & USB Link -->
     <div class="nizi-device-card">
-      <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
         <div class="section-title" style="margin:0">NiZi POS B33 Device</div>
-        <button id="niziUsbConnectBtn" class="btn secondary" style="font-size:11px;padding:6px 10px" onclick="connectNiziUsb()">🔌 CONNECT USB</button>
+        <div style="display:flex;gap:6px">
+          <button id="niziDriverBtn" class="btn secondary" style="font-size:11px;padding:6px 10px" onclick="installSoundboxDriver()" title="Click to install official CH341 USB driver for Windows 10/8/7">📦 Install Driver</button>
+          <button id="niziUsbConnectBtn" class="btn secondary" style="font-size:11px;padding:6px 10px" onclick="connectNiziUsb()">🔌 CONNECT USB</button>
+        </div>
       </div>
       <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W Speaker Soundbox</div>
 

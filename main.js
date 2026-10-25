@@ -127,11 +127,26 @@ function createWindow(){
     })));
 
     if (portList && portList.length > 0) {
-      // Prioritize NiZi POS device or known USB-Serial chips (CH340, CP210x, FTDI, STM32, COM)
-      const preferred = portList.find(p => {
+      // 1. Filter out phantom Bluetooth serial links
+      const realPorts = portList.filter(p => {
         const text = `${p.displayName || ''} ${p.portName || ''}`.toLowerCase();
-        return text.includes('nizi') || text.includes('ch340') || text.includes('cp210') || text.includes('ftdi') || text.includes('usb') || text.includes('com') || text.includes('serial');
-      }) || portList[0];
+        return !text.includes('bluetooth') && !text.includes('bth');
+      });
+
+      const candidateList = realPorts.length > 0 ? realPorts : portList;
+
+      // 2. Prioritize NiZi POS hardware chips: CH340 (VID 1a86/6790), CP210x (VID 10c4), FTDI (VID 0403)
+      const preferred = candidateList.find(p => {
+        const vid = String(p.vendorId || '').toLowerCase();
+        const text = `${p.displayName || ''} ${p.portName || ''}`.toLowerCase();
+        return vid === '1a86' || vid === '6790' || vid === '10c4' || vid === '0403' ||
+               text.includes('nizi') || text.includes('ch340') || text.includes('ch341') ||
+               text.includes('cp210') || text.includes('ftdi') || text.includes('usb-serial') ||
+               text.includes('usb serial');
+      }) || candidateList.find(p => {
+        const text = `${p.displayName || ''} ${p.portName || ''}`.toLowerCase();
+        return text.includes('usb') || text.includes('com');
+      }) || candidateList[0];
 
       console.log('[WebSerial] Auto-selecting port:', preferred.portId, preferred.displayName || preferred.portName);
       callback(preferred.portId);
@@ -594,6 +609,27 @@ ipcMain.handle('app:install-and-restart', async (_event, customPath) => {
     return { success: true };
   } catch (err) {
     return { success: false, error: 'Failed to launch update installer: ' + err.message };
+  }
+});
+
+// Install CH341 USB Serial Driver for NiZi POS Soundbox (Windows 10/8/7)
+ipcMain.handle('app:install-soundbox-driver', async () => {
+  try {
+    let driverExe = path.join(__dirname, 'assets', 'driver', 'CH341 Windows', 'SETUP.EXE');
+    if (app.isPackaged) {
+      const unpackedExe = path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'driver', 'CH341 Windows', 'SETUP.EXE');
+      if (fs.existsSync(unpackedExe)) {
+        driverExe = unpackedExe;
+      }
+    }
+    if (!fs.existsSync(driverExe)) {
+      return { success: false, error: 'Driver installer not found at: ' + driverExe };
+    }
+    console.log('[Driver] Launching CH341 soundbox driver installer:', driverExe);
+    await shell.openPath(driverExe);
+    return { success: true, path: driverExe };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 });
 

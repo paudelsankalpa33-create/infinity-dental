@@ -1833,7 +1833,7 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
           if (label) label.textContent = 'Software Soundbox Simulator Active';
           sendNiziCommand({ command: 'display_logo', title: 'Infinity Dental' });
           speakVoicePayment(getActiveTestQrAmount());
-          alert('🔌 NiZi POS Hardware Notice:\n\nNo physical USB soundbox was selected.\n\nThe built-in Software Soundbox Simulator is ACTIVE:\n• You can test sound chimes (🔊 Test Sound)\n• You can push QR codes to the LCD screen\n• You can test voice announcements and simulated payments\n\nWhen your physical NiZi box is connected via USB, click this button once to grant USB access, and it will auto-connect automatically forever after!');
+          alert('🔌 NiZi POS Hardware Notice:\n\nNo physical USB soundbox was selected.\n\nThe built-in Software Soundbox Simulator is ACTIVE:\n• You can test sound chimes (🔊 Test Sound)\n• You can push QR codes to the LCD screen\n• You can test voice announcements and simulated payments\n\n💡 If your physical NiZi box is plugged in but Windows does not recognize it, click the "📦 Install Driver" button to install the official CH341 USB driver in 1 click!');
         }
         niziIsConnecting = false;
         return;
@@ -1886,6 +1886,46 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
     }
   } finally {
     niziIsConnecting = false;
+  }
+}
+
+async function installSoundboxDriver() {
+  const btn = document.getElementById('niziDriverBtn');
+  const originalText = btn ? btn.textContent : '📦 Install Driver';
+  if (btn) {
+    btn.textContent = '⏳ Launching...';
+    btn.disabled = true;
+  }
+
+  try {
+    let result = null;
+    if (window.dentalApp && typeof window.dentalApp.installSoundboxDriver === 'function') {
+      result = await window.dentalApp.installSoundboxDriver();
+    } else {
+      const resp = await fetch('/api/nizi/install-driver', { method: 'POST' });
+      result = await resp.json();
+    }
+
+    if (result && result.success) {
+      alert(
+        '📦 CH341 USB Driver Installer Launched!\n\n' +
+        'How to finish setup:\n' +
+        '1. Look for the "DriverSetup(X64)" window that just opened.\n' +
+        '2. Click the "INSTALL" button in that window.\n' +
+        '3. Wait ~2 seconds until it says "Driver install success!".\n' +
+        '4. Plug in your NiZi POS USB soundbox cable.\n' +
+        '5. Click "🔌 CONNECT USB" to connect!'
+      );
+    } else {
+      alert('Could not launch driver installer: ' + (result?.error || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Failed to launch driver installer: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
   }
 }
 
