@@ -1427,6 +1427,7 @@ async function checkAppUpdates(manual = false) {
           ${result.releaseNotes ? `<div style="background:#fff;padding:8px 12px;border-radius:6px;font-size:12px;max-height:100px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px;border:1px solid #dcfce7">${esc(result.releaseNotes)}</div>` : ''}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button id="inAppDownloadBtn" class="btn primary" style="background:#16a34a;padding:9px 18px;font-weight:800" onclick="startInAppUpdate('${esc(result.downloadUrl || result.htmlUrl)}')">⬇ DOWNLOAD &amp; INSTALL UPDATE (IN-APP)</button>
+            <a href="${esc(result.downloadUrl || result.htmlUrl)}" target="_blank" download class="btn secondary" style="font-size:12px;padding:9px 14px;text-decoration:none;display:inline-flex;align-items:center">📥 Direct Setup (.exe)</a>
             <button class="btn secondary" style="font-size:11px;padding:8px 12px" onclick="openExternalUrl('${esc(result.htmlUrl)}')">View Release Details</button>
           </div>
         `;
@@ -1465,13 +1466,6 @@ let downloadedUpdatePath = null;
 async function startInAppUpdate(downloadUrl) {
   if (isDownloadingUpdate) return;
 
-  // If in web browser or electron helper not available, fallback to external download
-  if (!window.dentalApp || !window.dentalApp.downloadUpdate) {
-    downloadAppUpdate(downloadUrl);
-    return;
-  }
-
-  isDownloadingUpdate = true;
   const downloadArea = document.getElementById('updateDownloadArea');
   const statusText = document.getElementById('downloadStatusText');
   const percentText = document.getElementById('downloadPercentText');
@@ -1479,56 +1473,133 @@ async function startInAppUpdate(downloadUrl) {
   const progressBar = document.getElementById('updateProgressBar');
   const inAppBtn = document.getElementById('inAppDownloadBtn');
   const checkBtn = document.getElementById('checkUpdateBtn');
-  const closeBtn = document.getElementById('updateModalCloseBtn');
   const installArea = document.getElementById('installActionsArea');
 
+  // Immediate visual feedback on click
+  if (inAppBtn) {
+    inAppBtn.disabled = true;
+    inAppBtn.innerHTML = '⏳ Preparing Update...';
+  }
   if (downloadArea) downloadArea.style.display = 'block';
-  if (inAppBtn) inAppBtn.disabled = true;
-  if (checkBtn) checkBtn.disabled = true;
   if (installArea) installArea.style.display = 'none';
+  if (checkBtn) checkBtn.disabled = true;
 
-  if (statusText) statusText.textContent = 'Downloading update directly inside the app...';
-  if (progressBar) progressBar.style.width = '0%';
-  if (percentText) percentText.textContent = '0%';
+  if (statusText) {
+    statusText.textContent = 'Connecting to update service...';
+    statusText.style.color = '#0369a1';
+  }
+  if (progressBar) progressBar.style.width = '15%';
+  if (percentText) percentText.textContent = '15%';
   if (bytesText) bytesText.textContent = 'Connecting...';
 
-  // Listen to download progress
-  window.dentalApp.onDownloadProgress((data) => {
-    const p = data.percent || 0;
-    if (progressBar) progressBar.style.width = p + '%';
-    if (percentText) percentText.textContent = p + '%';
-    if (bytesText && data.totalBytes > 0) {
-      const dlMb = (data.downloadedBytes / 1024 / 1024).toFixed(1);
-      const totalMb = (data.totalBytes / 1024 / 1024).toFixed(1);
-      bytesText.textContent = `${dlMb} MB / ${totalMb} MB`;
-    }
-  });
+  // 1. Electron Desktop Environment
+  if (window.dentalApp && window.dentalApp.downloadUpdate) {
+    isDownloadingUpdate = true;
+    if (statusText) statusText.textContent = 'Downloading update directly inside the app...';
 
+    window.dentalApp.onDownloadProgress((data) => {
+      const p = data.percent || 0;
+      if (progressBar) progressBar.style.width = p + '%';
+      if (percentText) percentText.textContent = p + '%';
+      if (bytesText && data.totalBytes > 0) {
+        const dlMb = (data.downloadedBytes / 1024 / 1024).toFixed(1);
+        const totalMb = (data.totalBytes / 1024 / 1024).toFixed(1);
+        bytesText.textContent = `${dlMb} MB / ${totalMb} MB`;
+      }
+    });
+
+    try {
+      const res = await window.dentalApp.downloadUpdate(downloadUrl);
+      if (res && res.success) {
+        downloadedUpdatePath = res.filePath;
+        if (progressBar) progressBar.style.width = '100%';
+        if (percentText) percentText.textContent = '100%';
+        if (statusText) {
+          statusText.innerHTML = '🎉 <b>Update Downloaded Successfully!</b> Ready to install.';
+          statusText.style.color = '#15803d';
+        }
+        if (bytesText) bytesText.textContent = 'Complete';
+        if (installArea) installArea.style.display = 'block';
+        if (inAppBtn) inAppBtn.style.display = 'none';
+      } else {
+        throw new Error(res?.error || 'Download failed');
+      }
+    } catch (err) {
+      if (statusText) {
+        statusText.innerHTML = `⚠️ Download failed: ${esc(err.message)}`;
+        statusText.style.color = '#b91c1c';
+      }
+      if (bytesText) {
+        bytesText.innerHTML = `<a href="${esc(downloadUrl)}" target="_blank" download style="color:var(--primary);font-weight:700">Click here to download setup file directly</a>`;
+      }
+      if (inAppBtn) {
+        inAppBtn.disabled = false;
+        inAppBtn.innerHTML = '⬇ RETRY IN-APP UPDATE';
+      }
+    } finally {
+      isDownloadingUpdate = false;
+      if (checkBtn) checkBtn.disabled = false;
+    }
+    return;
+  }
+
+  // 2. Web Browser / Localhost Server Mode
+  // Try to launch local installer directly on Windows through server.js
   try {
-    const res = await window.dentalApp.downloadUpdate(downloadUrl);
-    if (res && res.success) {
-      downloadedUpdatePath = res.filePath;
+    if (statusText) statusText.innerHTML = '🔍 Checking local installer on this PC...';
+    const launchRes = await fetch('/api/updates/launch-installer', { method: 'POST' }).then(r => r.json()).catch(() => null);
+    if (launchRes && launchRes.success && launchRes.launched) {
       if (progressBar) progressBar.style.width = '100%';
       if (percentText) percentText.textContent = '100%';
       if (statusText) {
-        statusText.innerHTML = '🎉 <b>Update Downloaded Successfully!</b> Ready to install.';
+        statusText.innerHTML = '🚀 <b>Installer Launched!</b> Follow the setup window on your screen to complete the update.';
         statusText.style.color = '#15803d';
       }
-      if (installArea) installArea.style.display = 'block';
-      if (inAppBtn) inAppBtn.style.display = 'none';
-    } else {
-      throw new Error(res?.error || 'Download failed');
+      if (bytesText) bytesText.textContent = 'Setup window opened';
+      if (inAppBtn) {
+        inAppBtn.disabled = false;
+        inAppBtn.innerHTML = '✓ Setup Launched (Click to re-launch)';
+      }
+      if (checkBtn) checkBtn.disabled = false;
+      return;
     }
-  } catch (err) {
-    if (statusText) {
-      statusText.innerHTML = `⚠️ Download failed: ${esc(err.message)}`;
-      statusText.style.color = '#b91c1c';
-    }
-    if (inAppBtn) inAppBtn.disabled = false;
-  } finally {
-    isDownloadingUpdate = false;
-    if (checkBtn) checkBtn.disabled = false;
+  } catch (_) {}
+
+  // If local launcher wasn't available (remote user or static deployment):
+  // Initiate browser direct download
+  if (statusText) {
+    statusText.innerHTML = '📥 <b>Downloading Setup Installer...</b>';
+    statusText.style.color = '#0369a1';
   }
+  if (progressBar) progressBar.style.width = '100%';
+  if (percentText) percentText.textContent = '100%';
+
+  // Trigger download via anchor element
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.setAttribute('download', '');
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => link.remove(), 1000);
+
+  if (bytesText) {
+    bytesText.innerHTML = `
+      <div style="margin-top:6px">
+        <a href="${esc(downloadUrl)}" target="_blank" download class="btn primary" style="background:#2563eb;padding:8px 16px;font-size:12px;font-weight:700;display:inline-block;text-decoration:none">
+          👉 If download didn't start, Click Here to Download .exe
+        </a>
+        <div class="muted" style="margin-top:4px;font-size:11px">Once downloaded, double-click to install the update.</div>
+      </div>
+    `;
+  }
+
+  if (inAppBtn) {
+    inAppBtn.disabled = false;
+    inAppBtn.innerHTML = '⬇ Download Again';
+  }
+  if (checkBtn) checkBtn.disabled = false;
 }
 
 async function applyUpdateAndRestart() {

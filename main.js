@@ -347,7 +347,7 @@ function compareSemver(v1, v2) {
   return 0;
 }
 
-ipcMain.handle('app:check-update', async (_event, repoSlug) => {
+function checkAppUpdatesInternal(repoSlug) {
   const currentVersion = app.getVersion();
   const repo = (repoSlug || 'Sankalpannt/dental-').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
 
@@ -447,7 +447,10 @@ ipcMain.handle('app:check-update', async (_event, repoSlug) => {
 
     req.end();
   });
-});
+}
+
+ipcMain.handle('app:check-update', async (_event, repoSlug) => checkAppUpdatesInternal(repoSlug));
+ipcMain.handle('app:check-updates', async (_event, repoSlug) => checkAppUpdatesInternal(repoSlug));
 
 // --- In-App Update Downloader & Auto-Installer ---
 let downloadedInstallerPath = null;
@@ -469,6 +472,7 @@ function downloadFileWithRedirects(fileUrl, destPath, onProgress, onDone, onErro
     }, (res) => {
       // Follow HTTP redirects (GitHub asset downloads redirect to objects.githubusercontent.com)
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
         const nextUrl = new URL(res.headers.location, fileUrl).toString();
         return downloadFileWithRedirects(nextUrl, destPath, onProgress, onDone, onError, redirectCount + 1);
       }

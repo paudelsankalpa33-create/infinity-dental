@@ -521,6 +521,43 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 0.35 Updates: Launch local update installer
+  if (pathname === '/api/updates/launch-installer' && req.method === 'POST') {
+    try {
+      const { spawn } = require('child_process');
+      const releaseDir = path.join(ROOT_DIR, 'release');
+      let installerPath = null;
+      if (fs.existsSync(releaseDir)) {
+        const files = fs.readdirSync(releaseDir);
+        const setups = files.filter(f => f.endsWith('.exe') && f.toLowerCase().includes('setup')).sort().reverse();
+        if (setups.length > 0) {
+          installerPath = path.join(releaseDir, setups[0]);
+        }
+      }
+      if (!installerPath) {
+        const rootExe = path.join(ROOT_DIR, '..', 'Infinity Dental Clinic.exe');
+        if (fs.existsSync(rootExe)) installerPath = rootExe;
+      }
+
+      if (installerPath && fs.existsSync(installerPath)) {
+        console.log('[Server] Launching local update installer via Windows Shell:', installerPath);
+        const { exec } = require('child_process');
+        exec(`cmd /c start "" "${installerPath}"`, (launchErr) => {
+          if (launchErr) console.warn('[Server] Shell launch warning:', launchErr.message);
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, launched: true, path: installerPath }));
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'No local installer file found on disk.' }));
+      }
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
   // 0.4 Users: Delete Manager (Super Admin only)
   if (pathname.startsWith('/api/users/') && req.method === 'DELETE') {
     try {
