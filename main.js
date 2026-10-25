@@ -575,6 +575,85 @@ ipcMain.handle('app:install-and-restart', async (_event, customPath) => {
   }
 });
 
+// --- NepalPay Dynamic EMVCo QR & Soundbox IPC ---
+const NPI_MAIN_CONFIG = {
+  merchantId: '2501F6MCTZZ',
+  merchantName: 'Infinity Dental',
+  acquirerId: '00002501',
+  merchantCategoryCode: 5541,
+  storeLabel: 'Store1',
+  terminalLabel: 'Terminal1'
+};
+
+function crc16CcittMain(str) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= (str.charCodeAt(i) << 8);
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+      } else {
+        crc = (crc << 1) & 0xFFFF;
+      }
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function buildMainNepalPayQr({ amount, billNumber, remarks, terminalLabel, storeLabel }) {
+  function tlv(tag, val) {
+    const s = String(val ?? '');
+    return tag + String(s.length).padStart(2, '0') + s;
+  }
+  const tag26Val = tlv('00', 'np.nchl.www') + tlv('01', NPI_MAIN_CONFIG.acquirerId) + tlv('02', NPI_MAIN_CONFIG.merchantId);
+  const tag62Val = tlv('01', billNumber || 'B001') +
+                   tlv('07', terminalLabel || NPI_MAIN_CONFIG.terminalLabel) +
+                   tlv('08', storeLabel || NPI_MAIN_CONFIG.storeLabel) +
+                   tlv('05', remarks || 'DentalBill');
+  const formattedAmount = Number(amount || 0).toFixed(2);
+  const raw = tlv('00', '01') +
+              tlv('01', '12') +
+              tlv('26', tag26Val) +
+              tlv('52', String(NPI_MAIN_CONFIG.merchantCategoryCode)) +
+              tlv('53', '524') +
+              tlv('54', formattedAmount) +
+              tlv('58', 'NP') +
+              tlv('59', NPI_MAIN_CONFIG.merchantName) +
+              tlv('60', 'Kathmandu') +
+              tlv('62', tag62Val) +
+              '6304';
+  return raw + crc16CcittMain(raw);
+}
+
+ipcMain.handle('nepalpay:generate-qr', (_event, { amount, billNumber, remarks, patientName }) => {
+  const parsedAmount = Number(amount) || 0;
+  if (parsedAmount <= 0) return { success: false, error: 'Amount must be greater than 0' };
+  const validationTraceId = 'TRC' + Date.now() + Math.floor(Math.random() * 1000);
+  const safeBillNo = billNumber || ('B-' + Date.now());
+  const qrString = buildMainNepalPayQr({
+    amount: parsedAmount,
+    billNumber: safeBillNo,
+    remarks: remarks || `Dental ${patientName || ''}`.trim()
+  });
+  return {
+    success: true,
+    validationTraceId,
+    billNumber: safeBillNo,
+    amount: parsedAmount,
+    patientName,
+    qrString
+  };
+});
+
+ipcMain.handle('nepalpay:simulate-payment', (_event, traceId) => {
+  return {
+    success: true,
+    validationTraceId: traceId,
+    txnId: 'TXN-NPI-' + Date.now(),
+    status: 'SUCCESS'
+  };
+});
+
 app.whenReady().then(()=>{
   openDb();
   createWindow();

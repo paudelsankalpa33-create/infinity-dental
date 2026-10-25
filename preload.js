@@ -28,3 +28,8 @@ contextBridge.exposeInMainWorld('dentalAuth', {
   updateUser: (id, userData) => ipcRenderer.invoke('users:update', id, userData),
   deleteUser: (id) => ipcRenderer.invoke('users:delete', id)
 });
+
+contextBridge.exposeInMainWorld('dentalNpi', {
+  generateQr: (data) => ipcRenderer.invoke('nepalpay:generate-qr', data),
+  simulatePayment: (traceId) => ipcRenderer.invoke('nepalpay:simulate-payment', traceId)
+});
