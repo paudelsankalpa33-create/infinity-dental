@@ -349,7 +349,7 @@ function compareSemver(v1, v2) {
 
 function checkAppUpdatesInternal(repoSlug) {
   const currentVersion = app.getVersion();
-  const repo = (repoSlug || 'paudelsankalpa33-create/dental-').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+  const repo = (repoSlug || 'Sankalpannt/dental-').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
 
   return new Promise((resolve) => {
     const options = {

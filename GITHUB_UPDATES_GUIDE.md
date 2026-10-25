@@ -22,11 +22,11 @@ This guide explains how to release new updates to client computers through GitHu
 ## 2. Configured GitHub Repository
 
 Your GitHub repository is now configured in the software:
-- **Repository URL**: `https://github.com/paudelsankalpa33-create/dental-`
-- **Owner**: `paudelsankalpa33-create`
+- **Repository URL**: `https://github.com/Sankalpannt/dental-`
+- **Owner**: `Sankalpannt`
 - **Repo**: `dental-`
 
-This is set in `package.json`, `main.js`, and `app.js`. Whenever you publish a new release tag (e.g. `v1.0.1`) on `https://github.com/paudelsankalpa33-create/dental-/releases`, all client PCs running this app will automatically detect it and prompt the user to update.
+This is set in `package.json`, `main.js`, and `app.js`. Whenever you publish a new release tag (e.g. `v1.0.1`) on `https://github.com/Sankalpannt/dental-/releases`, all client PCs running this app will automatically detect it and prompt the user to update.
 
 ---
 
