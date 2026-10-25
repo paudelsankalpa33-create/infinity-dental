@@ -189,7 +189,7 @@
         <div class="formgrid">
           <div class="field">
             <label>Payment Amount (NPR) *</label>
-            <input id="testQrAmount" type="number" min="1" step="1" value="1500" placeholder="e.g. 1500">
+            <input id="testQrAmount" type="number" min="1" step="1" value="1500" placeholder="e.g. 1500" oninput="onTestQrAmountInput(this.value)" onchange="onTestQrAmountInput(this.value)">
           </div>
           <div class="field">
             <label>Patient Name</label>
@@ -201,13 +201,14 @@
           </div>
           <div class="field">
             <label>Purpose / Remarks</label>
-            <input id="testQrRemarks" type="text" value="Root Canal Treatment" placeholder="Treatment Description">
+            <input id="testQrRemarks" type="text" value="Scaling &amp; Polishing" placeholder="Treatment Description">
           </div>
         </div>
         <div class="actions" style="margin-top:16px">
           <button class="btn primary" onclick="generateDynamicQrFromConsole()">⚡ GENERATE NEPALPAY DYNAMIC QR</button>
-          <button class="btn secondary" onclick="document.getElementById('testQrAmount').value='500';document.getElementById('testQrRemarks').value='Consultation'">SET RS. 500</button>
-          <button class="btn secondary" onclick="document.getElementById('testQrAmount').value='3000';document.getElementById('testQrRemarks').value='Scaling &amp; Polishing'">SET RS. 3000</button>
+          <button class="btn secondary" onclick="setQuickTestAmount(500, 'Consultation')">SET RS. 500</button>
+          <button class="btn secondary" onclick="setQuickTestAmount(1500, 'Root Canal Treatment')">SET RS. 1500</button>
+          <button class="btn secondary" onclick="setQuickTestAmount(3000, 'Scaling &amp; Polishing')">SET RS. 3000</button>
         </div>
       </div>
 

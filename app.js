@@ -1261,6 +1261,7 @@ function showPage(id){
   if(id==='billing'){populateBillingPatients();}
   if(id==='dashboard')renderRecentPatients();
   if(id==='staff'){loadStaffAccounts();}
+  if(id==='nepalpay'){autoConnectNiziUsb(true);}
 }
 document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
 
@@ -1740,8 +1741,50 @@ function speakVoicePayment(amount) {
 // --- NiZi POS B33 Hardware Auto-Detect & USB Serial Connection ---
 let niziSerialReader = null;
 let niziIsConnecting = false;
+let niziSerialListenersInitialized = false;
+
+function setupNiziSerialListeners() {
+  if (niziSerialListenersInitialized) return;
+  niziSerialListenersInitialized = true;
+
+  if (navigator.serial) {
+    navigator.serial.addEventListener('connect', async (event) => {
+      console.log('[WebSerial] NiZi device plugged into USB:', event.target);
+      await autoConnectNiziUsb(true, event.target);
+    });
+    navigator.serial.addEventListener('disconnect', (event) => {
+      console.log('[WebSerial] NiZi device unplugged from USB:', event.target);
+      handleNiziUsbDisconnect();
+    });
+  }
+
+  if (window.dentalApp && window.dentalApp.onSerialDeviceChanged) {
+    window.dentalApp.onSerialDeviceChanged(async (data) => {
+      console.log('[Electron Serial Event]:', data);
+      if (data.action === 'added') {
+        await autoConnectNiziUsb(true);
+      } else if (data.action === 'removed') {
+        handleNiziUsbDisconnect();
+      }
+    });
+  }
+
+  // Periodic background check to auto-connect as soon as USB is plugged in
+  setInterval(async () => {
+    if (!niziSerialPort && navigator.serial) {
+      try {
+        const ports = await navigator.serial.getPorts();
+        if (ports && ports.length > 0) {
+          await autoConnectNiziUsb(true, ports[0]);
+        }
+      } catch (_) {}
+    }
+  }, 3500);
+}
 
 async function autoConnectNiziUsb(silent = false, specificPort = null) {
+  setupNiziSerialListeners();
+
   if (!navigator.serial) {
     if (!silent) {
       alert('Web Serial is supported on Google Chrome, Microsoft Edge, and the desktop Electron app.\nPlease use one of these to connect directly to the USB soundbox.');
@@ -1749,7 +1792,7 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
     return;
   }
   if (niziSerialPort && niziSerialPort.readable && niziSerialWriter) {
-    if (!silent) alert('NiZi POS B33 is already connected via USB!');
+    if (!silent) alert('✓ NiZi POS B33 is already connected via USB!');
     return;
   }
   if (niziIsConnecting) return;
@@ -1762,6 +1805,13 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
       if (ports && ports.length > 0) {
         port = ports[0];
       }
+    }
+
+    // In Electron desktop app, auto-trigger requestPort() which main process auto-approves
+    if (!port && window.dentalApp) {
+      try {
+        port = await navigator.serial.requestPort();
+      } catch (_) {}
     }
 
     if (!port) {
@@ -1782,8 +1832,8 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
           const label = document.getElementById('niziPortLabel');
           if (label) label.textContent = 'Software Soundbox Simulator Active';
           sendNiziCommand({ command: 'display_logo', title: 'Infinity Dental' });
-          speakVoicePayment(100);
-          alert('🔌 NiZi POS Hardware Notice:\n\nNo physical USB soundbox was detected on this PC.\n\nThe built-in Software Soundbox Simulator is ACTIVE:\n• You can test sound chimes (🔊 Test Sound)\n• You can push QR codes to the LCD screen\n• You can test voice announcements and simulated payments\n\nTo connect physical hardware, plug in the NiZi B33 USB cable and click this button again.');
+          speakVoicePayment(getActiveTestQrAmount());
+          alert('🔌 NiZi POS Hardware Notice:\n\nNo physical USB soundbox was selected.\n\nThe built-in Software Soundbox Simulator is ACTIVE:\n• You can test sound chimes (🔊 Test Sound)\n• You can push QR codes to the LCD screen\n• You can test voice announcements and simulated payments\n\nWhen your physical NiZi box is connected via USB, click this button once to grant USB access, and it will auto-connect automatically forever after!');
         }
         niziIsConnecting = false;
         return;
@@ -1796,9 +1846,13 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
     }
 
     try {
-      await port.open({ baudRate: 115200 });
+      await port.open({ baudRate: 115200, dataBits: 8, stopBits: 1, parity: 'none' });
     } catch (openErr) {
-      console.log('Port already open or status:', openErr.message);
+      if (openErr.message && !openErr.message.includes('already open')) {
+        try {
+          await port.open({ baudRate: 9600 });
+        } catch (_) {}
+      }
     }
 
     if (port.writable) {
@@ -1808,11 +1862,11 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
 
     const statusPill = document.getElementById('niziHardwareStatusPill');
     if (statusPill) {
-      statusPill.textContent = 'USB Connected (115200)';
+      statusPill.textContent = '✓ Hardware USB Connected';
       statusPill.className = 'status-pill live';
     }
     const label = document.getElementById('niziPortLabel');
-    if (label) label.textContent = 'Hardware Connected via USB (Auto-detected)';
+    if (label) label.textContent = 'NiZi POS B33 Online (Auto-connected via USB)';
     const btn = document.getElementById('niziUsbConnectBtn');
     if (btn) {
       btn.textContent = '✓ USB CONNECTED';
@@ -1823,12 +1877,12 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
     sendNiziCommand({ command: 'display_logo', title: 'Infinity Dental' });
 
     if (!silent) {
-      alert('NiZi POS B33 connected successfully via USB!');
+      alert('✓ NiZi POS B33 connected successfully via USB!');
     }
   } catch(e) {
     console.error('NiZi USB connection error:', e);
     if (!silent && e.name !== 'AbortError') {
-      alert('NiZi POS connection note: Running in Software Simulation mode.\n' + e.message);
+      alert('NiZi POS connection note: ' + e.message);
     }
   } finally {
     niziIsConnecting = false;
@@ -1853,7 +1907,7 @@ function handleNiziUsbDisconnect() {
 
   const statusPill = document.getElementById('niziHardwareStatusPill');
   if (statusPill) {
-    statusPill.textContent = 'Disconnected / Offline';
+    statusPill.textContent = 'Disconnected / Simulated';
     statusPill.className = 'status-pill simulated';
   }
   const label = document.getElementById('niziPortLabel');
@@ -1893,8 +1947,18 @@ async function sendNiziCommand(cmd) {
   updateNiziDeviceDisplay(cmd);
   if (niziSerialWriter) {
     try {
-      const data = new TextEncoder().encode(JSON.stringify(cmd) + '\n');
-      await niziSerialWriter.write(data);
+      // 1. Send JSON command packet with newline
+      const jsonStr = JSON.stringify(cmd) + '\r\n';
+      await niziSerialWriter.write(new TextEncoder().encode(jsonStr));
+
+      // 2. Also send text format used by standard POS hardware soundboxes
+      if (cmd.command === 'show_qr') {
+        const textFrame = `QR:${cmd.payload}\r\nAMT:${Number(cmd.amount||0).toFixed(2)}\r\n`;
+        await niziSerialWriter.write(new TextEncoder().encode(textFrame));
+      } else if (cmd.command === 'success') {
+        const textFrame = `PAID:${Number(cmd.amount||0).toFixed(2)}\r\n`;
+        await niziSerialWriter.write(new TextEncoder().encode(textFrame));
+      }
     } catch(e) {
       console.warn('NiZi serial write error:', e);
     }
@@ -1959,26 +2023,70 @@ function resetNiziScreen() {
   `;
 }
 
+function getActiveTestQrAmount() {
+  const el = document.getElementById('testQrAmount');
+  const val = Number(el?.value);
+  return (val && !isNaN(val) && val > 0) ? val : 500;
+}
+
+function onTestQrAmountInput(val) {
+  const num = Number(val);
+  const amt = (num && !isNaN(num) && num > 0) ? num : 0;
+
+  // Live update price on the simulated LCD screen
+  const screenPrice = document.querySelector('#niziScreen .nizi-price');
+  if (screenPrice) {
+    screenPrice.textContent = 'Rs. ' + amt.toLocaleString();
+  }
+
+  // If the screen currently shows a QR code, re-render it dynamically for this new amount!
+  const screen = document.getElementById('niziScreen');
+  if (screen && screen.querySelector('#niziDeviceQrWrap') && amt > 0) {
+    testNiziQr();
+  }
+}
+
+function setQuickTestAmount(amount, remarks) {
+  const amtInput = document.getElementById('testQrAmount');
+  const remInput = document.getElementById('testQrRemarks');
+  if (amtInput) amtInput.value = amount;
+  if (remInput && remarks) remInput.value = remarks;
+
+  onTestQrAmountInput(amount);
+  testNiziQr();
+}
+
 function testNiziChime() {
-  speakVoicePayment(1500);
+  const amt = getActiveTestQrAmount();
+  speakVoicePayment(amt);
 }
 
 function testNiziSuccessScreen() {
+  const amt = getActiveTestQrAmount();
   sendNiziCommand({
     command: 'success',
-    amount: 1500,
+    amount: amt,
     currency: 'NPR',
-    payload: 'Payment of 1500 rupees received successfully'
+    payload: `Payment of ${amt} rupees received successfully`
   });
 }
 
 function testNiziQr() {
+  const amt = getActiveTestQrAmount();
+  const bill = (document.getElementById('testQrBillNo')?.value || 'B-TEST001').trim();
+  const rem = (document.getElementById('testQrRemarks')?.value || 'Dental Treatment').trim();
+  const qrString = buildClientNepalPayQr({
+    amount: amt,
+    billNumber: bill,
+    remarks: rem
+  });
+
   sendNiziCommand({
     command: 'show_qr',
-    payload: '00020101021226580011np.nchl.www01100000250102112501F6MCTZZ52045541530352454071500.005802NP5915Infinity Dental6009Kathmandu62200109B-TEST0010709Terminal16304',
-    amount: 1500,
+    payload: qrString,
+    amount: amt,
     currency: 'NPR',
-    billNumber: 'B-TEST001',
+    billNumber: bill,
     title: 'Infinity Dental'
   });
 }

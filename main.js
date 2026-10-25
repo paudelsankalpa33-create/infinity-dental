@@ -127,10 +127,10 @@ function createWindow(){
     })));
 
     if (portList && portList.length > 0) {
-      // Prioritize NiZi POS device or known USB-Serial chips (CH340, CP210x, FTDI, STM32)
+      // Prioritize NiZi POS device or known USB-Serial chips (CH340, CP210x, FTDI, STM32, COM)
       const preferred = portList.find(p => {
         const text = `${p.displayName || ''} ${p.portName || ''}`.toLowerCase();
-        return text.includes('nizi') || text.includes('ch340') || text.includes('cp210') || text.includes('ftdi') || text.includes('usb');
+        return text.includes('nizi') || text.includes('ch340') || text.includes('cp210') || text.includes('ftdi') || text.includes('usb') || text.includes('com') || text.includes('serial');
       }) || portList[0];
 
       console.log('[WebSerial] Auto-selecting port:', preferred.portId, preferred.displayName || preferred.portName);
@@ -157,12 +157,12 @@ function createWindow(){
 
   win.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
     if (permission === 'serial') return true;
-    return false;
+    return true;
   });
 
   win.webContents.session.setDevicePermissionHandler((details) => {
     if (details.deviceType === 'serial') return true;
-    return false;
+    return true;
   });
 
   win.loadFile(path.join(__dirname, 'index.html'));
