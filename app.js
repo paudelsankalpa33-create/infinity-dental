@@ -1972,6 +1972,39 @@ async function sendNiziCommand(cmd) {
   } catch(e) {}
 }
 
+function renderQrToElement(container, text, width = 136, height = 136) {
+  if (!container) return;
+  container.innerHTML = '';
+  const cleanText = String(text || '').trim();
+  if (!cleanText) return;
+
+  // 1. Primary: Use offline local QRCode generator library
+  if (typeof QRCode !== 'undefined') {
+    try {
+      new QRCode(container, {
+        text: cleanText,
+        width: width,
+        height: height,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      return;
+    } catch (qrErr) {
+      console.warn('QRCode offline engine error, trying fallback:', qrErr);
+    }
+  }
+
+  // 2. Reliable Fallback: Render SVG/PNG QR image (guaranteed rendering in all modern browsers & webviews)
+  const img = document.createElement('img');
+  img.style.width = width + 'px';
+  img.style.height = height + 'px';
+  img.style.objectFit = 'contain';
+  img.style.display = 'block';
+  img.style.margin = '0 auto';
+  img.alt = 'NepalPay QR';
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${width}x${height}&data=${encodeURIComponent(cleanText)}`;
+  container.appendChild(img);
+}
+
 function updateNiziDeviceDisplay(cmd) {
   const screen = document.getElementById('niziScreen');
   if (!screen) return;
@@ -1983,17 +2016,10 @@ function updateNiziDeviceDisplay(cmd) {
       <div class="nizi-sub">${esc(cmd.title||'Infinity Dental')}</div>
       <div class="nizi-sub" style="font-size:9px;color:#38bdf8">${esc(cmd.billNumber||'Scan & Pay')}</div>
     `;
-    setTimeout(() => {
-      const wrap = document.getElementById('niziDeviceQrWrap');
-      if (wrap && window.QRCode) {
-        new QRCode(wrap, {
-          text: cmd.payload,
-          width: 136,
-          height: 136,
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      }
-    }, 40);
+    const wrap = document.getElementById('niziDeviceQrWrap');
+    if (wrap) {
+      renderQrToElement(wrap, cmd.payload, 136, 136);
+    }
   } else if (cmd.command === 'success') {
     screen.className = 'nizi-screen success';
     screen.innerHTML = `
@@ -2206,16 +2232,7 @@ async function openNepalPayModal({ amount, billNumber, remarks, patientName, pat
     }
 
     activeQrTransaction = data;
-    canvasWrap.innerHTML = '';
-
-    if (window.QRCode) {
-      new QRCode(canvasWrap, {
-        text: data.qrString,
-        width: 190,
-        height: 190,
-        correctLevel: QRCode.CorrectLevel.M
-      });
-    }
+    renderQrToElement(canvasWrap, data.qrString, 190, 190);
 
     statusPill.textContent = 'Awaiting Payment on NepalPay / ConnectIPS';
     statusPill.className = 'status-pill live';

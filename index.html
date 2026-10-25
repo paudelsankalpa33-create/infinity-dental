@@ -89,7 +89,7 @@
       <button id="headerStaffBtn" class="theme-toggle" style="display:none" onclick="showPage('staff')" title="Staff &amp; Account Management">👥 Staff Accounts</button>
       <button id="headerLogoutBtn" class="theme-toggle logout-pill" onclick="logoutUser()" title="Sign Out of Clinic">🚪 Logout</button>
     </div>
-    <button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.2</span></button>
+    <button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.5</span></button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙 Dark Mode</button>
     <div class="clock" id="clock"></div>
   </div>
@@ -452,7 +452,7 @@
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <span class="muted" style="font-size:12px">Current Installed Version:</span>
-        <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.0</span>
+        <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.5</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span class="muted" style="font-size:12px">Update Server:</span>
@@ -518,4 +518,7 @@
   </div>
 </div>
 
-<script src="app.js"></script></body></html>
+<script src="assets/qrcode.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
