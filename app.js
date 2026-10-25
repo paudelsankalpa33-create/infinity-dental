@@ -533,7 +533,13 @@ if (window.dentalApp && window.dentalApp.onSerialDeviceChanged) {
   });
 }
 
-// Auto-detect and connect to NiZi POS USB on app startup
+// Auto-detect and connect to NiZi POS USB and check updates on app startup
+if (window.dentalApp && window.dentalApp.getVersion) {
+  window.dentalApp.getVersion().then(v => {
+    const headerBadge = document.getElementById('appVersionBadge');
+    if (headerBadge) headerBadge.textContent = 'v' + v;
+  });
+}
 setTimeout(() => {
   autoConnectNiziUsb(true);
   checkAppUpdates(false);
