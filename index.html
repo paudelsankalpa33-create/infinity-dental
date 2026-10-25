@@ -7,12 +7,12 @@
 <script src="assets/qrcode.min.js"></script>
 </head>
 <body>
-<header><div class="brand-wrap"><img class="brand-logo" src="assets/clinic-logo.png" alt="Infinity Dental Clinic logo"><div><div class="brand">INFINITY DENTAL CLINIC</div><div class="sub">Endless Care, Beautiful Smiles</div></div></div><div class="header-actions"><button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check GitHub Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.0</span></button><button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙 Dark Mode</button><div class="clock" id="clock"></div></div></header>
+<header><div class="brand-wrap"><img class="brand-logo" src="assets/clinic-logo.png" alt="Infinity Dental Clinic logo"><div><div class="brand">INFINITY DENTAL CLINIC</div><div class="sub">Endless Care, Beautiful Smiles</div></div></div><div class="header-actions"><button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.0</span></button><button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙 Dark Mode</button><div class="clock" id="clock"></div></div></header>
 <div id="updateBanner" class="update-banner">
   <div style="display:flex;align-items:center;gap:8px">
     <span>🚀 <b>Software Update Available!</b></span>
     <span id="updateBannerVersion" class="update-pill-badge">v1.0.1</span>
-    <span id="updateBannerTitle" style="opacity:0.9">A new version is available on GitHub.</span>
+    <span id="updateBannerTitle" style="opacity:0.9">A new official update is available for Infinity Dental Clinic.</span>
   </div>
   <div class="update-banner-actions">
     <button class="btn-update-banner" onclick="openUpdateModal()">VIEW &amp; UPDATE</button>
@@ -214,29 +214,35 @@
   </div>
 </div>
 
-<!-- GitHub Client Update Modal -->
+<!-- Infinity Dental Clinic Software Updates Modal -->
 <div id="updateModal" class="modal" onclick="if(event.target===this)closeUpdateModal()">
   <div class="modal-box" style="width:min(520px,100%)">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:24px">🔄</span>
         <div>
-          <div style="font-weight:800;font-size:16px">Software Updates via GitHub</div>
-          <div class="muted" style="font-size:11px">Check &amp; download latest software updates for clients</div>
+          <div style="font-weight:800;font-size:16px">Infinity Dental Clinic Updates</div>
+          <div class="muted" style="font-size:11px">Official Cloud Update Service</div>
         </div>
       </div>
       <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeUpdateModal()">✕</button>
     </div>
 
-    <div style="margin-top:16px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="margin-top:16px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="muted" style="font-size:12px">Software:</span>
+        <span style="font-size:13px;font-weight:800;color:var(--primary)">Infinity Dental Clinic</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <span class="muted" style="font-size:12px">Current Installed Version:</span>
         <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.0</span>
       </div>
-      <div class="field" style="margin-top:8px">
-        <label style="font-size:11px">GitHub Repository (Owner / Repo)</label>
-        <input id="githubRepoInput" type="text" placeholder="e.g. Sankalpannt/dental-" value="Sankalpannt/dental-" style="font-size:12px;padding:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="muted" style="font-size:12px">Update Server:</span>
+        <span style="font-size:12px;color:#15803d;font-weight:700">● Infinity Cloud (Connected)</span>
       </div>
+      <!-- Hidden repository input keeping the GitHub repo connection without exposing personal names to clients -->
+      <input id="githubRepoInput" type="hidden" value="Sankalpannt/dental-">
     </div>
 
     <div id="updateStatusArea" style="margin-top:14px;padding:12px;border-radius:10px;display:none">

@@ -578,7 +578,7 @@ async function checkAppUpdates(manual = false) {
     statusArea.style.display = 'block';
     statusArea.style.background = '#f1f5f9';
     statusArea.style.border = '1px solid var(--border)';
-    statusArea.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><span>⏳</span><span>Checking GitHub for latest release...</span></div>';
+    statusArea.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><span>⏳</span><span>Checking update server for latest version...</span></div>';
   }
   if (checkBtn && manual) checkBtn.disabled = true;
 
@@ -612,7 +612,7 @@ async function checkAppUpdates(manual = false) {
           downloadUrl
         };
       } else {
-        result = { success: false, error: 'GitHub returned HTTP ' + res.status };
+        result = { success: false, error: 'Update server returned HTTP ' + res.status };
       }
     }
 
@@ -621,7 +621,7 @@ async function checkAppUpdates(manual = false) {
       const vBadge = document.getElementById('updateBannerVersion');
       const tText = document.getElementById('updateBannerTitle');
       if (vBadge) vBadge.textContent = 'v' + result.latestVersion;
-      if (tText) tText.textContent = result.releaseName || 'New update available on GitHub';
+      if (tText) tText.textContent = result.releaseName || 'New update available for Infinity Dental Clinic';
       if (banner) banner.classList.add('active');
 
       if (statusArea) {
@@ -634,7 +634,7 @@ async function checkAppUpdates(manual = false) {
           ${result.releaseNotes ? `<div style="background:#fff;padding:8px 12px;border-radius:6px;font-size:12px;max-height:100px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px;border:1px solid #dcfce7">${esc(result.releaseNotes)}</div>` : ''}
           <div style="display:flex;gap:8px;align-items:center">
             <button class="btn primary" style="background:#16a34a;padding:8px 16px;font-weight:700" onclick="downloadAppUpdate('${esc(result.downloadUrl || result.htmlUrl)}')">⬇ DOWNLOAD &amp; INSTALL UPDATE</button>
-            <button class="btn secondary" style="font-size:11px;padding:8px 12px" onclick="openExternalUrl('${esc(result.htmlUrl)}')">View on GitHub</button>
+            <button class="btn secondary" style="font-size:11px;padding:8px 12px" onclick="openExternalUrl('${esc(result.htmlUrl)}')">View Release Details</button>
           </div>
         `;
       }
@@ -644,7 +644,7 @@ async function checkAppUpdates(manual = false) {
         statusArea.style.display = 'block';
         statusArea.style.background = '#f0fdf4';
         statusArea.style.border = '1px solid #bbf7d0';
-        statusArea.innerHTML = `<div style="color:#15803d;font-weight:700">✓ You are up to date! (v${esc(result.currentVersion)})</div><div class="muted" style="font-size:11px;margin-top:4px">No newer releases found on GitHub.</div>`;
+        statusArea.innerHTML = `<div style="color:#15803d;font-weight:700">✓ Infinity Dental Clinic is up to date! (v${esc(result.currentVersion)})</div><div class="muted" style="font-size:11px;margin-top:4px">You are running the latest official version.</div>`;
       }
     } else {
       if (statusArea && manual) {

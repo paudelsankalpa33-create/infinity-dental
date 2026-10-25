@@ -55,11 +55,13 @@ let mainWindow = null;
 
 function createWindow(){
   const win = new BrowserWindow({
+    title: 'Infinity Dental Clinic',
     width: 1440,
     height: 920,
     minWidth: 1100,
     minHeight: 720,
     backgroundColor: '#f4f8fb',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -67,6 +69,7 @@ function createWindow(){
     }
   });
 
+  win.setMenu(null);
   mainWindow = win;
 
   // --- Web Serial API Support for NiZi POS B33 and USB Soundboxes ---
