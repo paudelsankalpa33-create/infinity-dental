@@ -16,9 +16,15 @@ contextBridge.exposeInMainWorld('dentalApp', {
     ipcRenderer.on('update:download-progress', (_e, data) => callback(data));
   },
   installAndRestart: (customPath) => ipcRenderer.invoke('app:install-and-restart', customPath),
-  openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
   onSerialDeviceChanged: (callback) => {
     ipcRenderer.on('serial:device-changed', (_e, data) => callback(data));
   }
 });
 
+contextBridge.exposeInMainWorld('dentalAuth', {
+  login: (username, password) => ipcRenderer.invoke('auth:login', { username, password }),
+  listUsers: () => ipcRenderer.invoke('users:list'),
+  createUser: (userData) => ipcRenderer.invoke('users:create', userData),
+  updateUser: (id, userData) => ipcRenderer.invoke('users:update', id, userData),
+  deleteUser: (id) => ipcRenderer.invoke('users:delete', id)
+});

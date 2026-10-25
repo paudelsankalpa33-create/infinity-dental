@@ -7,11 +7,97 @@
 <script src="assets/qrcode.min.js"></script>
 </head>
 <body>
-<header><div class="brand-wrap"><img class="brand-logo" src="assets/clinic-logo.png" alt="Infinity Dental Clinic logo"><div><div class="brand">INFINITY DENTAL CLINIC</div><div class="sub">Endless Care, Beautiful Smiles</div></div></div><div class="header-actions"><button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.0</span></button><button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙 Dark Mode</button><div class="clock" id="clock"></div></div></header>
+<!-- Dedicated Fullscreen Login View -->
+<div id="loginContainer" class="login-container">
+  <div class="login-card">
+    <div class="login-logo-wrap">
+      <img src="assets/clinic-logo.png" alt="Infinity Dental Clinic logo" class="login-logo">
+      <div class="login-clinic-title">INFINITY DENTAL CLINIC</div>
+      <div class="login-clinic-sub">Endless Care, Beautiful Smiles</div>
+    </div>
+
+    <div class="login-header-divider"></div>
+
+    <div class="login-intro">
+      <div class="login-title">Clinic Management Sign In</div>
+      <div class="login-desc">Sign in with Super Admin username or Manager ID starting with <b>'m'</b>.</div>
+    </div>
+
+    <form id="loginForm" onsubmit="event.preventDefault();submitLoginForm();">
+      <div class="field" style="margin-bottom:14px">
+        <label for="loginUsername">Login ID / Username *</label>
+        <div class="login-input-wrap">
+          <span class="login-input-icon">👤</span>
+          <input id="loginUsername" type="text" autocomplete="username" placeholder="e.g. admin or m123456" required oninput="onLoginUsernameChange(this.value)">
+        </div>
+        <div id="loginRoleHint" class="login-role-hint role-hint-neutral">
+          <span id="loginRoleHintIcon">ℹ️</span>
+          <span id="loginRoleHintText">Enter Super Admin username or Manager ID starting with 'm'</span>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px">
+        <label for="loginPassword">Password *</label>
+        <div class="login-input-wrap">
+          <span class="login-input-icon">🔒</span>
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Enter password" required>
+          <button type="button" class="login-pwd-toggle" onclick="togglePasswordVisibility('loginPassword')" title="Show/Hide Password">👁️</button>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;font-size:12px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--muted)">
+          <input id="loginRememberMe" type="checkbox" checked>
+          <span>Keep me logged in on this PC</span>
+        </label>
+      </div>
+
+      <div id="loginErrorMsg" class="login-error-msg" style="display:none"></div>
+
+      <button id="loginSubmitBtn" type="submit" class="btn primary login-btn">
+        <span>🔐 SIGN IN TO CLINIC</span>
+      </button>
+    </form>
+
+    <div class="login-quick-fill">
+      <div class="login-quick-title">Quick Demo Login Helpers (Click to test):</div>
+      <div class="login-quick-buttons">
+        <button type="button" class="btn-quick-login" onclick="quickFillLogin('admin', 'admin123')">
+          <span class="badge badge-admin-pill">Super Admin</span>
+          <code>admin / admin123</code>
+        </button>
+        <button type="button" class="btn-quick-login" onclick="quickFillLogin('m123456', 'manager123')">
+          <span class="badge badge-manager-pill">Manager</span>
+          <code>m123456 / manager123</code>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="brand-wrap">
+    <img class="brand-logo" src="assets/clinic-logo.png" alt="Infinity Dental Clinic logo">
+    <div>
+      <div class="brand">INFINITY DENTAL CLINIC</div>
+      <div class="sub">Endless Care, Beautiful Smiles</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <div id="headerUserWrap" class="header-user-badge-wrap" style="display:none">
+      <span id="headerUserBadge" class="header-user-pill">🛡️ Super Admin (admin)</span>
+      <button id="headerStaffBtn" class="theme-toggle" style="display:none" onclick="showPage('staff')" title="Staff &amp; Account Management">👥 Staff Accounts</button>
+      <button id="headerLogoutBtn" class="theme-toggle logout-pill" onclick="logoutUser()" title="Sign Out of Clinic">🚪 Logout</button>
+    </div>
+    <button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.2</span></button>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙 Dark Mode</button>
+    <div class="clock" id="clock"></div>
+  </div>
+</header>
 <div id="updateBanner" class="update-banner">
   <div style="display:flex;align-items:center;gap:8px">
     <span>🚀 <b>Software Update Available!</b></span>
-    <span id="updateBannerVersion" class="update-pill-badge">v1.0.1</span>
+    <span id="updateBannerVersion" class="update-pill-badge">v1.0.2</span>
     <span id="updateBannerTitle" style="opacity:0.9">A new official update is available for Infinity Dental Clinic.</span>
   </div>
   <div class="update-banner-actions">
@@ -20,7 +106,7 @@
   </div>
 </div>
 <div class="layout"><aside>
-<button class="nav active" data-page="dashboard">Dashboard</button><button class="nav" data-page="register">Register Patient</button><button class="nav" data-page="patients">Search Patients / All Patients</button><button class="nav" data-page="profile">Patient Profile</button><button class="nav" data-page="transactions">Transactions</button><button class="nav" data-page="billing">Billing</button><button class="nav" data-page="appointments">Appointments</button><button class="nav" data-page="nepalpay">NepalPay QR & Soundbox</button>
+<button class="nav active" data-page="dashboard">Dashboard</button><button class="nav" data-page="register">Register Patient</button><button class="nav" data-page="patients">Search Patients / All Patients</button><button class="nav" data-page="profile">Patient Profile</button><button class="nav" data-page="transactions">Transactions</button><button class="nav" data-page="billing">Billing</button><button class="nav" data-page="appointments">Appointments</button><button class="nav" data-page="nepalpay">NepalPay QR & Soundbox</button><button class="nav" id="navStaff" data-page="staff" style="display:none">👥 Staff &amp; Accounts</button>
 </aside><main>
 <section id="dashboard" class="page active dashboard-page"><div class="dashboard-watermark-wrap"><img class="dashboard-watermark" src="assets/clinic-logo.png" alt="Infinity Dental Clinic"></div><div class="dashboard-content"><div class="title">Dashboard</div><div class="muted">Infinity Dental Clinic — local web app</div><div class="card" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap"><div><div class="section-title" style="font-size:16px">Patient Database</div><div class="muted" id="dataFolderStatus">Database: Browser storage (select a local folder)</div></div><button class="btn secondary" onclick="selectDataFolder()">SELECT LOCAL DATA FOLDER</button></div><div class="cards"><div class="card"><div class="muted">Total Patients</div><div class="stat" id="statPatients">0</div></div><div class="card"><div class="muted">Today's Patients</div><div class="stat" id="statToday">0</div></div><div class="card"><div class="muted">Next OPD</div><div class="stat" id="statOpd">1001</div></div><div class="card"><div class="muted">Pending Payments</div><div class="stat" id="statPending">0</div></div><div class="card"><div class="muted">Today's Appointments</div><div class="stat" id="statAppointments">0</div></div></div><div class="card"><div class="section-title">Today's Appointments</div><div class="muted" style="margin-bottom:12px">Patients scheduled for today</div><div id="todayAppointments"></div></div><div class="card" style="margin-top:18px"><div class="section-title">Recently Opened Patients</div><div class="muted" style="margin-bottom:12px">Patients you opened most recently</div><div id="recentPatients" class="muted">No recently opened patients.</div></div></div></section>
 <section id="register" class="page"><div class="title">Register Patient</div><div class="muted">Date, time and OPD number are automatic.</div><div class="card" style="margin-top:18px"><div class="formgrid"><div class="field"><label>Patient name *</label><input id="name" required></div><div class="field"><label>Contact number *</label><input id="contact" required inputmode="tel"></div><div class="field"><label>Address</label><input id="address"></div><div class="field"><label>Age</label><input id="age"></div><div class="field"><label>Gender *</label><select id="gender" required><option value="">Select gender</option><option>Male</option><option>Female</option><option>Other</option></select></div></div><div class="card" style="margin-top:15px;background:#eef8fb;border:0"><b>Next OPD: <span id="nextOpd">1001</span></b></div><div class="actions"><button class="btn primary" onclick="registerPatient()">REGISTER PATIENT</button><button class="btn secondary" onclick="clearForm()">CLEAR</button></div></div></section>
@@ -150,6 +236,136 @@
     </div>
   </div>
 </section>
+
+<!-- Staff & Accounts Management Page (Super Admin Only) -->
+<section id="staff" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+    <div>
+      <div class="title">Staff Accounts &amp; Access Management</div>
+      <div class="muted">Super Admin portal: create and manage Manager login IDs (starting with 'm') and passwords.</div>
+    </div>
+    <div class="badge" style="background:#e0f2fe;color:#0369a1;font-size:12px;padding:6px 12px">
+      🛡️ Super Admin Control Center
+    </div>
+  </div>
+
+  <div class="cards" style="margin-top:16px;grid-template-columns:repeat(3,1fr)">
+    <div class="card">
+      <div class="muted">Total Accounts</div>
+      <div class="stat" id="statStaffTotal">2</div>
+    </div>
+    <div class="card">
+      <div class="muted">Manager Accounts (ID: m...)</div>
+      <div class="stat" id="statStaffManagers" style="color:#0284c7">1</div>
+    </div>
+    <div class="card">
+      <div class="muted">Super Admin Accounts</div>
+      <div class="stat" id="statStaffAdmins" style="color:#15803d">1</div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:18px;align-items:start">
+    <!-- Card 1: Create Manager Account -->
+    <div class="card">
+      <div class="section-title" style="display:flex;align-items:center;gap:8px">
+        <span>👤</span>
+        <span>Create Manager Login</span>
+      </div>
+      <div class="muted" style="margin-bottom:14px">
+        Manager IDs must start with the letter <b>'m'</b> (example: <code>m123456</code>, <code>m101</code>). The manager will log in using this ID and password.
+      </div>
+
+      <div class="field" style="margin-bottom:12px">
+        <label>Manager User ID * <span style="font-size:11px;color:#0284c7;font-weight:600">(Must start with 'm')</span></label>
+        <div style="display:flex;gap:6px">
+          <input id="newManagerUsername" placeholder="e.g. m123456" oninput="validateManagerIdInput()" style="flex:1">
+          <button class="btn secondary" type="button" onclick="generateRandomManagerId()" title="Auto-generate ID starting with 'm'">🎲 Generate ID</button>
+        </div>
+        <div id="managerIdValidationHint" style="font-size:11px;margin-top:3px;color:#64748b">Example: m123456 (User ID starts with 'm')</div>
+      </div>
+
+      <div class="field" style="margin-bottom:12px">
+        <label>Manager Full Name / Staff Name *</label>
+        <input id="newManagerName" placeholder="e.g. Ramesh Shrestha (Front Desk)">
+      </div>
+
+      <div class="field" style="margin-bottom:14px">
+        <label>Login Password *</label>
+        <div style="display:flex;gap:6px">
+          <input id="newManagerPassword" type="password" placeholder="Enter password (min 4 chars)" style="flex:1">
+          <button class="btn secondary" type="button" onclick="togglePasswordVisibility('newManagerPassword')" title="Show/Hide">👁️</button>
+          <button class="btn secondary" type="button" onclick="generateRandomPassword('newManagerPassword')" title="Suggest Password">🎲 Suggest</button>
+        </div>
+      </div>
+
+      <div id="createManagerAlert" style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
+
+      <button class="btn primary" style="width:100%" onclick="submitCreateManager()">+ CREATE MANAGER ACCOUNT</button>
+    </div>
+
+    <!-- Card 2: Super Admin Credentials -->
+    <div class="card">
+      <div class="section-title" style="display:flex;align-items:center;gap:8px">
+        <span>🛡️</span>
+        <span>Super Admin Credentials</span>
+      </div>
+      <div class="muted" style="margin-bottom:14px">
+        Super Admin login ID has no symbolic prefix requirement (standard username). Update your username and master password below.
+      </div>
+
+      <div class="field" style="margin-bottom:12px">
+        <label>Super Admin Username * <span style="font-size:11px;color:#64748b;font-weight:600">(No symbolic prefix required)</span></label>
+        <input id="adminUsernameInput" value="admin" placeholder="e.g. admin">
+      </div>
+
+      <div class="field" style="margin-bottom:12px">
+        <label>New Password (leave blank to keep current)</label>
+        <div style="display:flex;gap:6px">
+          <input id="adminPasswordInput" type="password" placeholder="Enter new password" style="flex:1">
+          <button class="btn secondary" type="button" onclick="togglePasswordVisibility('adminPasswordInput')" title="Show/Hide">👁️</button>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px">
+        <label>Confirm New Password</label>
+        <input id="adminPasswordConfirmInput" type="password" placeholder="Re-enter new password">
+      </div>
+
+      <div id="updateAdminAlert" style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
+
+      <button class="btn secondary" style="width:100%;font-weight:700" onclick="submitUpdateAdminCredentials()">💾 UPDATE SUPER ADMIN CREDENTIALS</button>
+    </div>
+  </div>
+
+  <!-- Card 3: Staff & Manager Accounts Table -->
+  <div class="card" style="margin-top:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="section-title" style="margin:0">Active Staff &amp; Manager Accounts</div>
+        <div class="muted" style="font-size:12px">List of authorized clinic users with role and login ID.</div>
+      </div>
+      <button class="btn secondary" style="font-size:12px;padding:6px 12px" onclick="loadStaffAccounts()">🔄 Refresh List</button>
+    </div>
+
+    <div class="tablewrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Login ID / Username</th>
+            <th>Staff Name</th>
+            <th>Status</th>
+            <th>Created Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="staffTableRows">
+          <tr><td colspan="6" class="empty">Loading staff accounts...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 </main></div>
 
 <!-- NepalPay Dynamic QR Modal -->
@@ -270,6 +486,33 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
       <button id="updateModalCloseBtn" class="btn secondary" onclick="closeUpdateModal()">Close</button>
       <button id="checkUpdateBtn" class="btn primary" onclick="checkAppUpdates(true)">Check for Updates Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- Staff Reset Password Modal -->
+<div id="staffResetPasswordModal" class="modal" onclick="if(event.target===this)closeStaffResetModal()">
+  <div class="modal-box" style="width:min(440px,100%)">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <div style="font-weight:800;font-size:16px">🔑 Reset Staff Password</div>
+      <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeStaffResetModal()">✕</button>
+    </div>
+    <div class="muted" style="font-size:12px;margin:10px 0 14px" id="staffResetInfoText">
+      Set a new password for staff account.
+    </div>
+    <input type="hidden" id="staffResetUserId">
+    <div class="field" style="margin-bottom:12px">
+      <label>New Password * <span style="font-size:11px;color:var(--muted)">(min 4 characters)</span></label>
+      <div style="display:flex;gap:6px">
+        <input id="staffResetNewPassword" type="password" placeholder="Enter new password" style="flex:1">
+        <button class="btn secondary" type="button" onclick="togglePasswordVisibility('staffResetNewPassword')">👁️</button>
+        <button class="btn secondary" type="button" onclick="generateRandomPassword('staffResetNewPassword')">🎲</button>
+      </div>
+    </div>
+    <div id="staffResetAlert" style="margin-bottom:10px;font-size:12px;display:none;padding:8px 12px;border-radius:6px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn secondary" onclick="closeStaffResetModal()">Cancel</button>
+      <button class="btn primary" onclick="submitStaffPasswordReset()">Save New Password</button>
     </div>
   </div>
 </div>

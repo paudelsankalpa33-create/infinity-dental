@@ -3,8 +3,14 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { DatabaseSync } = require('node:sqlite');
+
+const AUTH_SALT = 'infinity_dental_salt_2026';
+function hashPassword(pwd) {
+  return crypto.createHash('sha256').update(AUTH_SALT + ':' + String(pwd || '').trim()).digest('hex');
+}
 
 const DATA_ROOT = 'C:\\Infiinity Dental Clinic';
 const DB_DIR = path.join(DATA_ROOT, 'Database');
@@ -51,6 +57,40 @@ function openDb(){
   db.exec(`CREATE TABLE IF NOT EXISTS app_data (id INTEGER PRIMARY KEY CHECK(id=1), patients_json TEXT NOT NULL, updated_at TEXT NOT NULL)`);
   const row=db.prepare('SELECT patients_json FROM app_data WHERE id=1').get();
   if(!row) db.prepare('INSERT INTO app_data(id,patients_json,updated_at) VALUES(1,?,?)').run('[]',new Date().toISOString());
+
+  // Users & Staff Table
+  db.exec(`CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+
+  // Seed default Super Admin
+  const adminRow = db.prepare("SELECT id FROM users WHERE role='superadmin'").get();
+  if (!adminRow) {
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO users (id, username, password_hash, role, name, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(crypto.randomUUID(), 'admin', hashPassword('admin123'), 'superadmin', 'Super Administrator', 'active', now, now);
+    console.log('✓ [Electron] Seeded default Super Admin user (admin / admin123)');
+  }
+
+  // Seed default Manager (ID starts with 'm' as required, e.g. m123456)
+  const managerRow = db.prepare("SELECT id FROM users WHERE role='manager'").get();
+  if (!managerRow) {
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO users (id, username, password_hash, role, name, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(crypto.randomUUID(), 'm123456', hashPassword('manager123'), 'manager', 'Clinic Manager', 'active', now, now);
+    console.log('✓ [Electron] Seeded default Manager user (m123456 / manager123)');
+  }
 }
 
 let mainWindow = null;
@@ -127,6 +167,135 @@ function createWindow(){
 
   win.loadFile(path.join(__dirname, 'index.html'));
 }
+
+// Authentication & Staff Management IPC
+ipcMain.handle('auth:login', (_event, { username, password }) => {
+  try {
+    const cleanUser = String(username || '').trim();
+    const cleanPass = String(password || '').trim();
+    if (!cleanUser || !cleanPass) return { success: false, error: 'Username/ID and password are required.' };
+
+    const user = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUser);
+    if (!user) return { success: false, error: 'Invalid login ID or password.' };
+    if (user.status !== 'active') return { success: false, error: 'Account is deactivated. Contact Super Admin.' };
+
+    if (hashPassword(cleanPass) !== user.password_hash) {
+      return { success: false, error: 'Invalid login ID or password.' };
+    }
+
+    if (user.role === 'manager' && !user.username.toLowerCase().startsWith('m')) {
+      return { success: false, error: "Manager account ID must start with letter 'm'." };
+    }
+
+    return {
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        name: user.name,
+        status: user.status
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('users:list', () => {
+  try {
+    const users = db.prepare('SELECT id, username, role, name, status, created_at, updated_at FROM users ORDER BY role DESC, created_at ASC').all();
+    return { success: true, users };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('users:create', (_event, { username, password, name, role }) => {
+  try {
+    const cleanUser = String(username || '').trim();
+    const cleanPass = String(password || '').trim();
+    const cleanName = String(name || '').trim();
+    const userRole = role === 'superadmin' ? 'superadmin' : 'manager';
+
+    if (!cleanUser) return { success: false, error: 'User ID is required.' };
+    if (userRole === 'manager' && !cleanUser.toLowerCase().startsWith('m')) {
+      return { success: false, error: "Manager User ID must start with letter 'm' (example: m123456)." };
+    }
+    if (!cleanPass || cleanPass.length < 4) return { success: false, error: 'Password must be at least 4 characters.' };
+    if (!cleanName) return { success: false, error: 'Staff name is required.' };
+
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUser);
+    if (existing) return { success: false, error: `Login ID '${cleanUser}' already exists.` };
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const hash = hashPassword(cleanPass);
+    db.prepare(`
+      INSERT INTO users (id, username, password_hash, role, name, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, cleanUser, hash, userRole, cleanName, 'active', now, now);
+
+    return {
+      success: true,
+      user: { id, username: cleanUser, role: userRole, name: cleanName, status: 'active', created_at: now }
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('users:update', (_event, id, { username, password, name, status }) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    if (!user) return { success: false, error: 'User not found.' };
+
+    let newPassHash = user.password_hash;
+    if (password && String(password).trim()) {
+      if (String(password).trim().length < 4) return { success: false, error: 'Password must be at least 4 characters.' };
+      newPassHash = hashPassword(password);
+    }
+
+    let newUsername = user.username;
+    if (username && String(username).trim() && String(username).trim() !== user.username) {
+      const cleanUser = String(username).trim();
+      if (user.role === 'manager' && !cleanUser.toLowerCase().startsWith('m')) {
+        return { success: false, error: "Manager User ID must start with letter 'm' (example: m123456)." };
+      }
+      const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?').get(cleanUser, id);
+      if (existing) return { success: false, error: `Login ID '${cleanUser}' is already taken.` };
+      newUsername = cleanUser;
+    }
+
+    const newName = name ? String(name).trim() : user.name;
+    const newStatus = status ? String(status).trim() : user.status;
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      UPDATE users SET username = ?, password_hash = ?, name = ?, status = ?, updated_at = ? WHERE id = ?
+    `).run(newUsername, newPassHash, newName, newStatus, now, id);
+
+    return {
+      success: true,
+      user: { id, username: newUsername, role: user.role, name: newName, status: newStatus, updated_at: now }
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('users:delete', (_event, id) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    if (!user) return { success: false, error: 'User not found.' };
+    if (user.role === 'superadmin') return { success: false, error: 'Super Admin accounts cannot be deleted.' };
+
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
 
 // Database IPC
 ipcMain.handle('db:load', () => {

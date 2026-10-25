@@ -65,6 +65,11 @@ const DEFAULT_PRICES = [
   { name: 'Clear / Invisible Aligners', min: 120000, max: 180000 }
 ];
 
+const AUTH_SALT = 'infinity_dental_salt_2026';
+function hashPassword(pwd) {
+  return crypto.createHash('sha256').update(AUTH_SALT + ':' + String(pwd || '').trim()).digest('hex');
+}
+
 let db = null;
 let activeDbPath = '';
 
@@ -103,6 +108,41 @@ function initDatabase() {
     if (!row) {
       db.prepare('INSERT INTO app_data(id,patients_json,updated_at) VALUES(1,?,?)').run('[]', new Date().toISOString());
     }
+
+    // Authentication & Users Table
+    db.exec(`CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+    // Seed default Super Admin account if not present
+    const adminRow = db.prepare("SELECT id FROM users WHERE role='superadmin'").get();
+    if (!adminRow) {
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO users (id, username, password_hash, role, name, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(crypto.randomUUID(), 'admin', hashPassword('admin123'), 'superadmin', 'Super Administrator', 'active', now, now);
+      console.log('✓ Seeded default Super Admin user (username: admin / password: admin123)');
+    }
+
+    // Seed default Manager account if not present (starts with 'm' as required, e.g. m123456)
+    const managerRow = db.prepare("SELECT id FROM users WHERE role='manager'").get();
+    if (!managerRow) {
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO users (id, username, password_hash, role, name, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(crypto.randomUUID(), 'm123456', hashPassword('manager123'), 'manager', 'Clinic Manager', 'active', now, now);
+      console.log('✓ Seeded default Manager user (ID: m123456 / password: manager123)');
+    }
+
     console.log('✓ SQLite Database initialized successfully at:', activeDbPath);
   } catch (e) {
     console.error('Fatal SQLite initialization error:', e);
@@ -284,6 +324,229 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --- API ROUTES ---
+
+  // 0. Auth: User Login
+  if (pathname === '/api/auth/login' && req.method === 'POST') {
+    try {
+      const { username, password } = await parseJsonBody(req);
+      const cleanUser = String(username || '').trim();
+      const cleanPass = String(password || '').trim();
+
+      if (!cleanUser || !cleanPass) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Username/ID and password are required.' }));
+        return;
+      }
+
+      const user = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUser);
+      if (!user) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid login ID or password.' }));
+        return;
+      }
+
+      if (user.status !== 'active') {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'This user account has been deactivated. Please contact Super Admin.' }));
+        return;
+      }
+
+      const inputHash = hashPassword(cleanPass);
+      if (inputHash !== user.password_hash) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid login ID or password.' }));
+        return;
+      }
+
+      // Enforce manager ID rule: If manager, username must start with 'm'
+      if (user.role === 'manager' && !user.username.toLowerCase().startsWith('m')) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: "Manager account ID must start with letter 'm'." }));
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          name: user.name,
+          status: user.status
+        }
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 0.1 Users: List all users (Super Admin)
+  if (pathname === '/api/users' && req.method === 'GET') {
+    try {
+      const users = db.prepare('SELECT id, username, role, name, status, created_at, updated_at FROM users ORDER BY role DESC, created_at ASC').all();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, users }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 0.2 Users: Create new Manager (Super Admin)
+  if (pathname === '/api/users' && req.method === 'POST') {
+    try {
+      const { username, password, name, role } = await parseJsonBody(req);
+      let cleanUser = String(username || '').trim();
+      const cleanPass = String(password || '').trim();
+      const cleanName = String(name || '').trim();
+      const userRole = role === 'superadmin' ? 'superadmin' : 'manager';
+
+      if (!cleanUser) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'User ID is required.' }));
+        return;
+      }
+
+      if (userRole === 'manager') {
+        if (!cleanUser.toLowerCase().startsWith('m')) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: "Manager User ID must start with letter 'm' (example: m123456)." }));
+          return;
+        }
+      }
+
+      if (!cleanPass || cleanPass.length < 4) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Password must be at least 4 characters long.' }));
+        return;
+      }
+
+      if (!cleanName) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Staff name is required.' }));
+        return;
+      }
+
+      const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUser);
+      if (existing) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: `Login ID '${cleanUser}' already exists. Please choose a different ID.` }));
+        return;
+      }
+
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const hash = hashPassword(cleanPass);
+      db.prepare(`
+        INSERT INTO users (id, username, password_hash, role, name, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, cleanUser, hash, userRole, cleanName, 'active', now, now);
+
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Account created successfully',
+        user: { id, username: cleanUser, role: userRole, name: cleanName, status: 'active', created_at: now }
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 0.3 Users: Update user / reset password / update Super Admin
+  if (pathname.startsWith('/api/users/') && req.method === 'PUT') {
+    try {
+      const userId = pathname.replace('/api/users/', '').trim();
+      const { password, name, status, username } = await parseJsonBody(req);
+      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+      if (!user) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'User not found.' }));
+        return;
+      }
+
+      let newPassHash = user.password_hash;
+      if (password && String(password).trim()) {
+        if (String(password).trim().length < 4) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Password must be at least 4 characters long.' }));
+          return;
+        }
+        newPassHash = hashPassword(password);
+      }
+
+      let newUsername = user.username;
+      if (username && String(username).trim() && String(username).trim() !== user.username) {
+        const cleanUser = String(username).trim();
+        if (user.role === 'manager' && !cleanUser.toLowerCase().startsWith('m')) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: "Manager User ID must start with letter 'm' (example: m123456)." }));
+          return;
+        }
+        const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?').get(cleanUser, userId);
+        if (existing) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: `Login ID '${cleanUser}' is already taken.` }));
+          return;
+        }
+        newUsername = cleanUser;
+      }
+
+      const newName = name ? String(name).trim() : user.name;
+      const newStatus = status ? String(status).trim() : user.status;
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        UPDATE users
+        SET username = ?, password_hash = ?, name = ?, status = ?, updated_at = ?
+        WHERE id = ?
+      `).run(newUsername, newPassHash, newName, newStatus, now, userId);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        message: 'User updated successfully',
+        user: { id: userId, username: newUsername, role: user.role, name: newName, status: newStatus, updated_at: now }
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 0.4 Users: Delete Manager (Super Admin only)
+  if (pathname.startsWith('/api/users/') && req.method === 'DELETE') {
+    try {
+      const userId = pathname.replace('/api/users/', '').trim();
+      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+      if (!user) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'User not found.' }));
+        return;
+      }
+
+      if (user.role === 'superadmin') {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Super Admin accounts cannot be deleted.' }));
+        return;
+      }
+
+      db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Manager account deleted successfully.' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
 
   // 1. Get Patients from SQLite
   if (pathname === '/api/patients' && req.method === 'GET') {

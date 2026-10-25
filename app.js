@@ -466,9 +466,778 @@ function dateOnly(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
 function transactionMatches(tx){if(transactionRange==='all')return true;const now=dateOnly(new Date()),d=new Date(tx.date+'T00:00:00');if(transactionRange==='today')return d.getTime()===now.getTime();if(transactionRange==='week'){const day=now.getDay();const diff=day===0?6:day-1;const start=new Date(now);start.setDate(now.getDate()-diff);return d>=start&&d<=now;}if(transactionRange==='month')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();return true;}
 const TRANSACTION_PIN='2468';
 let pendingSecureRange=null;
-function secureTransactionRange(range){pendingSecureRange=range;const label=range==='week'?'This Week':range==='month'?'This Month':'All Transactions';document.getElementById('adminAuthTitle').textContent='Requires Admin Authorization';document.getElementById('adminAuthText').textContent='Enter the 4-digit admin PIN to view '+label+'.';document.getElementById('adminPin').value='';document.getElementById('adminPinError').textContent='';document.getElementById('adminAuthModal').classList.add('show');setTimeout(()=>document.getElementById('adminPin').focus(),50)}
+
+// ==========================================================================
+// INFINITY DENTAL CLINIC - AUTHENTICATION & STAFF MANAGEMENT SYSTEM
+// Super Admin & Manager Login with Manager ID prefix 'm' enforcement
+// ==========================================================================
+
+const AUTH_STORAGE_KEY = 'infinity_dental_auth_session';
+const FALLBACK_USERS_KEY = 'infinity_dental_users_fallback';
+const AUTH_SALT = 'infinity_dental_salt_2026';
+
+let currentUser = null;
+
+// SHA-256 for local browser fallback
+async function sha256Hex(str) {
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    try {
+      const msgUint8 = new TextEncoder().encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (_) {}
+  }
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'fallback_' + Math.abs(hash);
+}
+
+// Fallback users storage for offline/standalone execution
+function getFallbackUsers() {
+  try {
+    const raw = localStorage.getItem(FALLBACK_USERS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  const defaults = [
+    {
+      id: 'admin-001',
+      username: 'admin',
+      password_hash: '967d64386fc75bfbb0ea1f8f3c706ff175d7b51b3f9dc4d402377a06a3e144fe',
+      plain_pass: 'admin123',
+      role: 'superadmin',
+      name: 'Super Administrator',
+      status: 'active',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'manager-001',
+      username: 'm123456',
+      password_hash: '3f694e9f54668bba3356891eb97f80da28469c4709825b410f968984955f15d5',
+      plain_pass: 'manager123',
+      role: 'manager',
+      name: 'Clinic Manager',
+      status: 'active',
+      created_at: new Date().toISOString()
+    }
+  ];
+  saveFallbackUsers(defaults);
+  return defaults;
+}
+
+function saveFallbackUsers(list) {
+  try {
+    localStorage.setItem(FALLBACK_USERS_KEY, JSON.stringify(list));
+  } catch (_) {}
+}
+
+// Unified Auth Service bridging Electron IPC, Node API, and Local Storage
+const authService = {
+  async login(username, password) {
+    const cleanUser = String(username || '').trim();
+    const cleanPass = String(password || '').trim();
+
+    // 1. Electron IPC
+    if (window.dentalAuth?.login) {
+      const res = await window.dentalAuth.login(cleanUser, cleanPass);
+      if (!res.success) throw new Error(res.error || 'Login failed.');
+      return res.user;
+    }
+
+    // 2. Localhost REST API
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: cleanUser, password: cleanPass })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return data.user;
+      }
+      if (data && data.error) {
+        throw new Error(data.error);
+      }
+    } catch (netErr) {
+      if (netErr.message && !netErr.message.includes('fetch') && !netErr.message.includes('Failed to fetch')) {
+        throw netErr;
+      }
+    }
+
+    // 3. Fallback Local Storage
+    const users = getFallbackUsers();
+    const found = users.find(u => u.username.toLowerCase() === cleanUser.toLowerCase());
+    if (!found) throw new Error('Invalid login ID or password.');
+    if (found.status !== 'active') throw new Error('This account has been deactivated.');
+
+    const calcHash = await sha256Hex(AUTH_SALT + ':' + cleanPass);
+    if (found.password_hash !== calcHash && found.plain_pass !== cleanPass) {
+      throw new Error('Invalid login ID or password.');
+    }
+
+    if (found.role === 'manager' && !found.username.toLowerCase().startsWith('m')) {
+      throw new Error("Manager account ID must start with letter 'm'.");
+    }
+
+    return {
+      id: found.id,
+      username: found.username,
+      role: found.role,
+      name: found.name,
+      status: found.status
+    };
+  },
+
+  async getUsers() {
+    if (window.dentalAuth?.listUsers) {
+      const res = await window.dentalAuth.listUsers();
+      if (res.success) return res.users || [];
+    }
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) return data.users || [];
+      }
+    } catch (_) {}
+    return getFallbackUsers();
+  },
+
+  async createManager({ username, password, name }) {
+    let cleanUser = String(username || '').trim();
+    const cleanPass = String(password || '').trim();
+    const cleanName = String(name || '').trim();
+
+    if (!cleanUser.toLowerCase().startsWith('m')) {
+      throw new Error("Manager User ID must start with letter 'm' (example: m123456).");
+    }
+
+    if (window.dentalAuth?.createUser) {
+      const res = await window.dentalAuth.createUser({ username: cleanUser, password: cleanPass, name: cleanName, role: 'manager' });
+      if (!res.success) throw new Error(res.error || 'Failed to create manager.');
+      return res.user;
+    }
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: cleanUser, password: cleanPass, name: cleanName, role: 'manager' })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) return data.user;
+      if (data && data.error) throw new Error(data.error);
+    } catch (e) {
+      if (!e.message.includes('fetch')) throw e;
+    }
+
+    // Fallback Local Storage
+    const users = getFallbackUsers();
+    if (users.some(u => u.username.toLowerCase() === cleanUser.toLowerCase())) {
+      throw new Error(`Login ID '${cleanUser}' already exists.`);
+    }
+    const hash = await sha256Hex(AUTH_SALT + ':' + cleanPass);
+    const newUser = {
+      id: 'm-' + Date.now(),
+      username: cleanUser,
+      password_hash: hash,
+      plain_pass: cleanPass,
+      role: 'manager',
+      name: cleanName,
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+    users.push(newUser);
+    saveFallbackUsers(users);
+    return newUser;
+  },
+
+  async updateUser(id, data) {
+    if (window.dentalAuth?.updateUser) {
+      const res = await window.dentalAuth.updateUser(id, data);
+      if (!res.success) throw new Error(res.error || 'Update failed.');
+      return res.user;
+    }
+
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json();
+      if (res.ok && resData.success) return resData.user;
+      if (resData && resData.error) throw new Error(resData.error);
+    } catch (e) {
+      if (!e.message.includes('fetch')) throw e;
+    }
+
+    // Fallback Local Storage
+    const users = getFallbackUsers();
+    const idx = users.findIndex(u => u.id === id);
+    if (idx === -1) throw new Error('User not found.');
+
+    if (data.username) users[idx].username = data.username;
+    if (data.name) users[idx].name = data.name;
+    if (data.status) users[idx].status = data.status;
+    if (data.password) {
+      users[idx].plain_pass = data.password;
+      users[idx].password_hash = await sha256Hex(AUTH_SALT + ':' + data.password);
+    }
+    users[idx].updated_at = new Date().toISOString();
+    saveFallbackUsers(users);
+    return users[idx];
+  },
+
+  async deleteUser(id) {
+    if (window.dentalAuth?.deleteUser) {
+      const res = await window.dentalAuth.deleteUser(id);
+      if (!res.success) throw new Error(res.error || 'Failed to delete user.');
+      return true;
+    }
+
+    try {
+      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) return true;
+      if (data && data.error) throw new Error(data.error);
+    } catch (e) {
+      if (!e.message.includes('fetch')) throw e;
+    }
+
+    // Fallback Local Storage
+    let users = getFallbackUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) throw new Error('User not found.');
+    if (user.role === 'superadmin') throw new Error('Super Admin accounts cannot be deleted.');
+    users = users.filter(u => u.id !== id);
+    saveFallbackUsers(users);
+    return true;
+  }
+};
+
+// --- Login Page Real-Time Feedback & Form Logic ---
+function onLoginUsernameChange(val) {
+  const clean = (val || '').trim();
+  const hintEl = document.getElementById('loginRoleHint');
+  const iconEl = document.getElementById('loginRoleHintIcon');
+  const textEl = document.getElementById('loginRoleHintText');
+  if (!hintEl) return;
+
+  if (!clean) {
+    hintEl.className = 'login-role-hint role-hint-neutral';
+    if (iconEl) iconEl.textContent = 'ℹ️';
+    if (textEl) textEl.textContent = "Enter Super Admin username or Manager ID starting with 'm'";
+  } else if (clean.toLowerCase().startsWith('m')) {
+    hintEl.className = 'login-role-hint role-hint-manager';
+    if (iconEl) iconEl.textContent = '👤';
+    if (textEl) textEl.innerHTML = "<b>Manager Account:</b> User ID starts with <code>'m'</code> (e.g. " + esc(clean) + ")";
+  } else {
+    hintEl.className = 'login-role-hint role-hint-admin';
+    if (iconEl) iconEl.textContent = '🛡️';
+    if (textEl) textEl.innerHTML = "<b>Super Admin Login:</b> Standard username (no symbolic prefix required)";
+  }
+}
+
+function quickFillLogin(user, pass) {
+  const uInput = document.getElementById('loginUsername');
+  const pInput = document.getElementById('loginPassword');
+  if (uInput) {
+    uInput.value = user;
+    onLoginUsernameChange(user);
+  }
+  if (pInput) {
+    pInput.value = pass;
+  }
+  const err = document.getElementById('loginErrorMsg');
+  if (err) err.style.display = 'none';
+  document.getElementById('loginSubmitBtn')?.focus();
+}
+
+function togglePasswordVisibility(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+async function submitLoginForm() {
+  const uInput = document.getElementById('loginUsername');
+  const pInput = document.getElementById('loginPassword');
+  const errBox = document.getElementById('loginErrorMsg');
+  const btn = document.getElementById('loginSubmitBtn');
+  const remember = document.getElementById('loginRememberMe')?.checked;
+
+  const username = (uInput?.value || '').trim();
+  const password = (pInput?.value || '').trim();
+
+  if (!username) {
+    if (errBox) {
+      errBox.textContent = 'Please enter your Login ID or Username.';
+      errBox.style.display = 'block';
+    }
+    uInput?.focus();
+    return;
+  }
+  if (!password) {
+    if (errBox) {
+      errBox.textContent = 'Please enter your password.';
+      errBox.style.display = 'block';
+    }
+    pInput?.focus();
+    return;
+  }
+
+  if (errBox) errBox.style.display = 'none';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ Signing In...</span>';
+  }
+
+  try {
+    const user = await authService.login(username, password);
+    currentUser = user;
+
+    // Save session
+    const sessionJson = JSON.stringify(user);
+    sessionStorage.setItem(AUTH_STORAGE_KEY, sessionJson);
+    if (remember) {
+      localStorage.setItem(AUTH_STORAGE_KEY, sessionJson);
+    } else {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+
+    applyLoggedInState();
+    if (pInput) pInput.value = '';
+  } catch (err) {
+    if (errBox) {
+      errBox.textContent = err.message || 'Login failed. Please check credentials.';
+      errBox.style.display = 'block';
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔐 SIGN IN TO CLINIC</span>';
+    }
+  }
+}
+
+function logoutUser() {
+  if (!confirm('Are you sure you want to sign out of Infinity Dental Clinic?')) return;
+  currentUser = null;
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  applyLoggedOutState();
+}
+
+function checkAuthSession() {
+  try {
+    const raw = sessionStorage.getItem(AUTH_STORAGE_KEY) || localStorage.getItem(AUTH_STORAGE_KEY);
+    if (raw) {
+      const user = JSON.parse(raw);
+      if (user && user.username && user.role) {
+        currentUser = user;
+        applyLoggedInState();
+        return;
+      }
+    }
+  } catch (_) {}
+  applyLoggedOutState();
+}
+
+function applyLoggedInState() {
+  const loginContainer = document.getElementById('loginContainer');
+  if (loginContainer) loginContainer.classList.add('hidden');
+
+  const userWrap = document.getElementById('headerUserWrap');
+  const userBadge = document.getElementById('headerUserBadge');
+  const staffBtn = document.getElementById('headerStaffBtn');
+  const navStaff = document.getElementById('navStaff');
+
+  if (userWrap) userWrap.style.display = 'flex';
+
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+
+  if (userBadge) {
+    if (isSuperAdmin) {
+      userBadge.innerHTML = `🛡️ <b>Super Admin</b> (${esc(currentUser.username)})`;
+      userBadge.style.background = 'rgba(245, 158, 11, 0.25)';
+      userBadge.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+      userBadge.style.color = '#fef3c7';
+    } else {
+      userBadge.innerHTML = `👤 <b>Manager</b> (${esc(currentUser.username)} • ${esc(currentUser.name)})`;
+      userBadge.style.background = 'rgba(14, 165, 233, 0.25)';
+      userBadge.style.borderColor = 'rgba(14, 165, 233, 0.5)';
+      userBadge.style.color = '#e0f2fe';
+    }
+  }
+
+  if (staffBtn) staffBtn.style.display = isSuperAdmin ? 'inline-block' : 'none';
+  if (navStaff) navStaff.style.display = isSuperAdmin ? 'block' : 'none';
+
+  // If a manager was on the staff page, take them to dashboard
+  const activePage = document.querySelector('.page.active')?.id;
+  if (!isSuperAdmin && activePage === 'staff') {
+    showPage('dashboard');
+  }
+
+  if (isSuperAdmin) {
+    const adminUserInp = document.getElementById('adminUsernameInput');
+    if (adminUserInp) adminUserInp.value = currentUser.username;
+    loadStaffAccounts();
+  }
+}
+
+function applyLoggedOutState() {
+  const loginContainer = document.getElementById('loginContainer');
+  if (loginContainer) loginContainer.classList.remove('hidden');
+
+  const userWrap = document.getElementById('headerUserWrap');
+  if (userWrap) userWrap.style.display = 'none';
+
+  const navStaff = document.getElementById('navStaff');
+  if (navStaff) navStaff.style.display = 'none';
+
+  const uInput = document.getElementById('loginUsername');
+  if (uInput) {
+    onLoginUsernameChange(uInput.value);
+    setTimeout(() => uInput.focus(), 100);
+  }
+}
+
+// --- Super Admin Staff & Manager Management Logic ---
+function validateManagerIdInput() {
+  const input = document.getElementById('newManagerUsername');
+  const hint = document.getElementById('managerIdValidationHint');
+  if (!input || !hint) return;
+
+  const val = input.value.trim();
+  if (!val) {
+    hint.innerHTML = "Example: <code>m123456</code> (Manager User ID must start with letter 'm')";
+    hint.style.color = '#64748b';
+  } else if (!val.toLowerCase().startsWith('m')) {
+    hint.innerHTML = `⚠️ <b>Must start with 'm':</b> <button type="button" class="btn secondary" style="padding:2px 6px;font-size:10px;margin-left:4px" onclick="fixManagerIdPrefix()">Auto-add 'm': m${esc(val)}</button>`;
+    hint.style.color = '#b91c1c';
+  } else {
+    hint.innerHTML = "✓ Valid Manager ID format (starts with 'm')";
+    hint.style.color = '#15803d';
+  }
+}
+
+function fixManagerIdPrefix() {
+  const input = document.getElementById('newManagerUsername');
+  if (!input) return;
+  const val = input.value.trim().replace(/^[^a-zA-Z0-9]+/, '');
+  input.value = 'm' + val;
+  validateManagerIdInput();
+}
+
+function generateRandomManagerId() {
+  const num = Math.floor(100000 + Math.random() * 900000);
+  const input = document.getElementById('newManagerUsername');
+  if (input) {
+    input.value = 'm' + num;
+    validateManagerIdInput();
+  }
+}
+
+function generateRandomPassword(targetId) {
+  const adjectives = ['Dental', 'Smile', 'Care', 'Clinic', 'Bright'];
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const num = Math.floor(1000 + Math.random() * 9000);
+  const pwd = `${adj}@${num}`;
+
+  const input = document.getElementById(targetId);
+  if (input) {
+    input.type = 'text';
+    input.value = pwd;
+    alert(`Generated password: ${pwd}\n\nPlease take note of this password to give to the staff member.`);
+  }
+}
+
+async function submitCreateManager() {
+  const uInput = document.getElementById('newManagerUsername');
+  const nInput = document.getElementById('newManagerName');
+  const pInput = document.getElementById('newManagerPassword');
+  const alertBox = document.getElementById('createManagerAlert');
+
+  let username = (uInput?.value || '').trim();
+  const name = (nInput?.value || '').trim();
+  const password = (pInput?.value || '').trim();
+
+  function showAlert(msg, isSuccess) {
+    if (!alertBox) return;
+    alertBox.textContent = msg;
+    alertBox.style.display = 'block';
+    alertBox.style.background = isSuccess ? '#dcfce7' : '#fee2e2';
+    alertBox.style.color = isSuccess ? '#15803d' : '#991b1b';
+    alertBox.style.border = `1px solid ${isSuccess ? '#bbf7d0' : '#fca5a5'}`;
+  }
+
+  if (!username) {
+    showAlert('Please enter a Manager User ID.', false);
+    uInput?.focus();
+    return;
+  }
+
+  // Enforce rule: Manager ID must start with 'm'
+  if (!username.toLowerCase().startsWith('m')) {
+    showAlert("Manager User ID must start with letter 'm' (example: m123456).", false);
+    uInput?.focus();
+    return;
+  }
+
+  if (!name) {
+    showAlert('Please enter the Staff / Manager Full Name.', false);
+    nInput?.focus();
+    return;
+  }
+
+  if (!password || password.length < 4) {
+    showAlert('Password must be at least 4 characters long.', false);
+    pInput?.focus();
+    return;
+  }
+
+  try {
+    const created = await authService.createManager({ username, name, password });
+    showAlert(`✓ Manager account '${created.username}' (${created.name}) created successfully!`, true);
+    if (uInput) uInput.value = '';
+    if (nInput) nInput.value = '';
+    if (pInput) pInput.value = '';
+    validateManagerIdInput();
+    loadStaffAccounts();
+  } catch (err) {
+    showAlert(err.message || 'Could not create manager account.', false);
+  }
+}
+
+async function submitUpdateAdminCredentials() {
+  const uInput = document.getElementById('adminUsernameInput');
+  const pInput = document.getElementById('adminPasswordInput');
+  const cInput = document.getElementById('adminPasswordConfirmInput');
+  const alertBox = document.getElementById('updateAdminAlert');
+
+  const username = (uInput?.value || '').trim();
+  const password = (pInput?.value || '').trim();
+  const confirm = (cInput?.value || '').trim();
+
+  function showAlert(msg, isSuccess) {
+    if (!alertBox) return;
+    alertBox.textContent = msg;
+    alertBox.style.display = 'block';
+    alertBox.style.background = isSuccess ? '#dcfce7' : '#fee2e2';
+    alertBox.style.color = isSuccess ? '#15803d' : '#991b1b';
+    alertBox.style.border = `1px solid ${isSuccess ? '#bbf7d0' : '#fca5a5'}`;
+  }
+
+  if (!username) {
+    showAlert('Super Admin username cannot be empty.', false);
+    return;
+  }
+
+  if (password) {
+    if (password.length < 4) {
+      showAlert('New password must be at least 4 characters long.', false);
+      return;
+    }
+    if (password !== confirm) {
+      showAlert('Passwords do not match. Please re-enter confirmation password.', false);
+      return;
+    }
+  }
+
+  try {
+    const payload = { username };
+    if (password) payload.password = password;
+
+    const updated = await authService.updateUser(currentUser.id, payload);
+    currentUser.username = updated.username;
+
+    const json = JSON.stringify(currentUser);
+    sessionStorage.setItem(AUTH_STORAGE_KEY, json);
+    if (localStorage.getItem(AUTH_STORAGE_KEY)) localStorage.setItem(AUTH_STORAGE_KEY, json);
+
+    showAlert('✓ Super Admin credentials updated successfully.', true);
+    if (pInput) pInput.value = '';
+    if (cInput) cInput.value = '';
+    applyLoggedInState();
+    loadStaffAccounts();
+  } catch (err) {
+    showAlert(err.message || 'Failed to update credentials.', false);
+  }
+}
+
+let staffAccountsList = [];
+
+async function loadStaffAccounts() {
+  const tbody = document.getElementById('staffTableRows');
+  if (!tbody) return;
+
+  try {
+    const list = await authService.getUsers();
+    staffAccountsList = list || [];
+
+    const totalEl = document.getElementById('statStaffTotal');
+    const mgrsEl = document.getElementById('statStaffManagers');
+    const admsEl = document.getElementById('statStaffAdmins');
+
+    const managers = staffAccountsList.filter(u => u.role === 'manager');
+    const admins = staffAccountsList.filter(u => u.role === 'superadmin');
+
+    if (totalEl) totalEl.textContent = staffAccountsList.length;
+    if (mgrsEl) mgrsEl.textContent = managers.length;
+    if (admsEl) admsEl.textContent = admins.length;
+
+    if (!staffAccountsList.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">No staff accounts found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = staffAccountsList.map(u => {
+      const isSuper = u.role === 'superadmin';
+      const roleBadge = isSuper
+        ? '<span class="badge badge-admin-pill" style="font-weight:800">🛡️ Super Admin</span>'
+        : '<span class="badge badge-manager-pill" style="font-weight:800">👤 Manager (m...)</span>';
+      const statusPill = u.status === 'active'
+        ? '<span class="status-pill live">Active</span>'
+        : '<span class="status-pill disconnected">Deactivated</span>';
+      const dateStr = u.created_at ? u.created_at.slice(0, 10) : '—';
+
+      return `
+        <tr>
+          <td>${roleBadge}</td>
+          <td><strong>${esc(u.username)}</strong></td>
+          <td>${esc(u.name || '—')}</td>
+          <td>${statusPill}</td>
+          <td>${esc(dateStr)}</td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn secondary" style="padding:4px 8px;font-size:11px" onclick="openStaffResetModal('${u.id}', '${esc(u.username)}', '${esc(u.name)}')">🔑 Reset Password</button>
+              ${!isSuper ? `<button class="btn danger" style="padding:4px 8px;font-size:11px" onclick="deleteManagerAccount('${u.id}', '${esc(u.username)}')">🗑️ Delete</button>` : `<span class="muted" style="font-size:11px;align-self:center">Protected</span>`}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty" style="color:#b91c1c">Failed to load accounts: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+async function deleteManagerAccount(id, username) {
+  if (!confirm(`Are you sure you want to delete Manager account '${username}'?\n\nThis manager will no longer be able to log in.`)) return;
+  try {
+    await authService.deleteUser(id);
+    alert(`Manager account '${username}' deleted successfully.`);
+    loadStaffAccounts();
+  } catch (err) {
+    alert('Delete error: ' + err.message);
+  }
+}
+
+function openStaffResetModal(userId, username, name) {
+  const modal = document.getElementById('staffResetPasswordModal');
+  const idInp = document.getElementById('staffResetUserId');
+  const infoText = document.getElementById('staffResetInfoText');
+  const pwdInp = document.getElementById('staffResetNewPassword');
+  const alertBox = document.getElementById('staffResetAlert');
+
+  if (idInp) idInp.value = userId;
+  if (infoText) infoText.innerHTML = `Set a new login password for <b>${esc(name || username)}</b> (ID: <code>${esc(username)}</code>).`;
+  if (pwdInp) pwdInp.value = '';
+  if (alertBox) alertBox.style.display = 'none';
+
+  if (modal) modal.classList.add('show');
+  setTimeout(() => pwdInp?.focus(), 50);
+}
+
+function closeStaffResetModal() {
+  const modal = document.getElementById('staffResetPasswordModal');
+  if (modal) modal.classList.remove('show');
+}
+
+async function submitStaffPasswordReset() {
+  const idInp = document.getElementById('staffResetUserId');
+  const pwdInp = document.getElementById('staffResetNewPassword');
+  const alertBox = document.getElementById('staffResetAlert');
+
+  const userId = idInp?.value;
+  const newPassword = (pwdInp?.value || '').trim();
+
+  function showAlert(msg, isSuccess) {
+    if (!alertBox) return;
+    alertBox.textContent = msg;
+    alertBox.style.display = 'block';
+    alertBox.style.background = isSuccess ? '#dcfce7' : '#fee2e2';
+    alertBox.style.color = isSuccess ? '#15803d' : '#991b1b';
+    alertBox.style.border = `1px solid ${isSuccess ? '#bbf7d0' : '#fca5a5'}`;
+  }
+
+  if (!newPassword || newPassword.length < 4) {
+    showAlert('Password must be at least 4 characters long.', false);
+    return;
+  }
+
+  try {
+    await authService.updateUser(userId, { password: newPassword });
+    showAlert('✓ Password has been updated successfully!', true);
+    setTimeout(() => {
+      closeStaffResetModal();
+      loadStaffAccounts();
+    }, 900);
+  } catch (err) {
+    showAlert(err.message || 'Failed to update password.', false);
+  }
+}
+
+function secureTransactionRange(range){
+  if (currentUser?.role === 'superadmin') {
+    setTransactionRange(range);
+    return;
+  }
+  pendingSecureRange=range;
+  const label=range==='week'?'This Week':range==='month'?'This Month':'All Transactions';
+  document.getElementById('adminAuthTitle').textContent='Requires Super Admin Authorization';
+  document.getElementById('adminAuthText').textContent='Enter Super Admin Password or 4-digit PIN (2468) to view '+label+'.';
+  document.getElementById('adminPin').value='';
+  document.getElementById('adminPin').type='password';
+  document.getElementById('adminPin').maxLength=30;
+  document.getElementById('adminPin').pattern='.*';
+  document.getElementById('adminPinError').textContent='';
+  document.getElementById('adminAuthModal').classList.add('show');
+  setTimeout(()=>document.getElementById('adminPin').focus(),50);
+}
 function closeAdminAuth(){pendingSecureRange=null;document.getElementById('adminAuthModal').classList.remove('show');document.getElementById('adminPin').value=''}
-function authorizeTransaction(){const pin=document.getElementById('adminPin').value.trim();if(!/^\d{4}$/.test(pin)){document.getElementById('adminPinError').textContent='Please enter a valid 4-digit PIN.';return}if(pin!==TRANSACTION_PIN){document.getElementById('adminPinError').textContent='Incorrect PIN. Admin authorization denied.';document.getElementById('adminPin').select();return}const range=pendingSecureRange;closeAdminAuth();if(range)setTransactionRange(range)}
+async function authorizeTransaction(){
+  const val=document.getElementById('adminPin').value.trim();
+  if(!val){
+    document.getElementById('adminPinError').textContent='Please enter Super Admin password or PIN.';
+    return;
+  }
+  if(val===TRANSACTION_PIN){
+    const range=pendingSecureRange;
+    closeAdminAuth();
+    if(range)setTransactionRange(range);
+    return;
+  }
+  try {
+    const adminUser = (await authService.getUsers()).find(u => u.role === 'superadmin');
+    if (adminUser) {
+      const calcHash = await sha256Hex(AUTH_SALT + ':' + val);
+      if (adminUser.password_hash === calcHash || adminUser.plain_pass === val) {
+        const range = pendingSecureRange;
+        closeAdminAuth();
+        if (range) setTransactionRange(range);
+        return;
+      }
+    }
+  } catch (_) {}
+  document.getElementById('adminPinError').textContent='Incorrect credentials. Authorization denied.';
+  document.getElementById('adminPin').select();
+}
 
 function setTransactionRange(range){transactionRange=range;['today','week','month','all'].forEach(x=>{const b=document.getElementById('tx'+x.charAt(0).toUpperCase()+x.slice(1));if(b)b.className='btn '+(x===range?'primary':'secondary')});renderTransactions();}
 function renderTransactions(){const all=getTransactions(),list=all.filter(transactionMatches);const total=list.reduce((a,x)=>a+x.amount,0),cash=list.filter(x=>x.method==='Cash').reduce((a,x)=>a+x.amount,0),digital=list.filter(x=>x.method==='Scan'||x.method==='MPOS').reduce((a,x)=>a+x.amount,0);document.getElementById('txCount').textContent=list.length;document.getElementById('txTotal').textContent='Rs. '+total.toLocaleString();document.getElementById('txCash').textContent='Rs. '+cash.toLocaleString();document.getElementById('txDigital').textContent='Rs. '+digital.toLocaleString();document.getElementById('txTitle').textContent=transactionRange==='today'?"Today's Transactions":transactionRange==='week'?"This Week's Transactions":transactionRange==='month'?"This Month's Transactions":"All Transactions";document.getElementById('transactionRows').innerHTML=list.length?list.map(x=>`<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time||'—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method||'—')}</td><td>${esc(x.status)}</td></tr>`).join(''):`<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`}
@@ -476,8 +1245,25 @@ function renderRecentPatients(){const el=document.getElementById('recentPatients
 function populateBillingPatients(){const sel=document.getElementById('billingPatient');if(!sel)return;const current=sel.value;sel.innerHTML='<option value="">Select patient</option>'+registeredPatients().slice().sort((a,b)=>b.OPDNumber-a.OPDNumber).map(p=>`<option value="${p.id}">${pad(p.OPDNumber)} — ${esc(p.Name)}</option>`).join('');if(current)sel.value=current;if(selectedId&&patients.some(p=>p.id===selectedId))sel.value=selectedId;renderBillingForPatient()}
 function selectBillingPatient(id){selectedId=id||selectedId;renderBillingForPatient()}
 function renderBillingForPatient(){const sel=document.getElementById('billingPatient'),sum=document.getElementById('billingSummary'),list=document.getElementById('billingBills');if(!sum||!list)return;if(sel&&selectedId&&patients.some(p=>p.id===selectedId))sel.value=selectedId;const p=patients.find(x=>x.id===(sel?.value||selectedId));if(!p){sum.textContent='Select a patient to see their latest bill.';list.innerHTML='';return}ensurePatientArrays(p);const visits=p.VisitHistory||[];sum.innerHTML=`<b>${esc(p.Name)}</b> • OPD ${pad(p.OPDNumber)} • ${esc(p.Contact||'')}`;list.innerHTML=visits.length?visits.map((v,i)=>`<div class="card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><b>${esc(v.billNumber||'Bill')}</b><div class="muted">${esc(v.date||'')} ${esc(v.time||'')} • Rs. ${Number(v.cost||0).toLocaleString()} • ${esc(v.paymentMethod||'')}</div></div><button class="btn primary" onclick="printBill('${esc(v.billNumber||'')}')">PRINT A5 BILL</button></div></div>`).join(''):'<div class="empty">No saved visits/bills for this patient yet.</div>'}
-function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===id));if(id==='patients')renderPatients();if(id==='profile')renderProfile();if(id==='transactions')renderTransactions();if(id==='billing'){populateBillingPatients();}if(id==='dashboard')renderRecentPatients()}
+
+function showPage(id){
+  if (id === 'staff' && currentUser?.role !== 'superadmin') {
+    alert('Access restricted to Super Admin only.');
+    id = 'dashboard';
+  }
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  const p = document.getElementById(id);
+  if (p) p.classList.add('active');
+  document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===id));
+  if(id==='patients')renderPatients();
+  if(id==='profile')renderProfile();
+  if(id==='transactions')renderTransactions();
+  if(id==='billing'){populateBillingPatients();}
+  if(id==='dashboard')renderRecentPatients();
+  if(id==='staff'){loadStaffAccounts();}
+}
 document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+
 async function initializeClinicDatabase(){
   await loadPriceList();
   if(window.dentalDB?.load){
@@ -501,6 +1287,7 @@ async function initializeClinicDatabase(){
   }
   setupSseListener();
   updateAll();renderTransactions();renderNepalPayTxnTable();
+  checkAuthSession();
 }
 function applyTheme(){const dark=localStorage.getItem('infinity_dental_theme')==='dark';document.body.classList.toggle('dark',dark);const b=document.getElementById('themeToggle');if(b)b.textContent=dark?'☀️ Light Mode':'🌙 Dark Mode'}
 function toggleTheme(){const dark=!document.body.classList.contains('dark');localStorage.setItem('infinity_dental_theme',dark?'dark':'light');applyTheme()}
