@@ -2,7 +2,7 @@
 title Push Infinity Dental Clinic to GitHub
 echo ========================================================
 echo Pushing Infinity Dental Clinic to GitHub:
-echo URL: https://github.com/Sankalpannt/dental-
+echo URL: https://github.com/paudelsankalpa33-create/dental-
 echo ========================================================
 git branch -M main
 git push -u origin main

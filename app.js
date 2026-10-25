@@ -1337,7 +1337,7 @@ setTimeout(() => {
 function openUpdateModal() {
   const modal = document.getElementById('updateModal');
   if (modal) modal.classList.add('show');
-  const storedRepo = localStorage.getItem('infinity_dental_github_repo') || 'Sankalpannt/dental-';
+  const storedRepo = localStorage.getItem('infinity_dental_github_repo') || 'paudelsankalpa33-create/dental-';
   const input = document.getElementById('githubRepoInput');
   if (input) input.value = storedRepo;
 
@@ -1363,7 +1363,7 @@ function dismissUpdateBanner() {
 
 async function checkAppUpdates(manual = false) {
   const input = document.getElementById('githubRepoInput');
-  const repo = (input?.value || localStorage.getItem('infinity_dental_github_repo') || 'Sankalpannt/dental-').trim();
+  const repo = (input?.value || localStorage.getItem('infinity_dental_github_repo') || 'paudelsankalpa33-create/dental-').trim();
   localStorage.setItem('infinity_dental_github_repo', repo);
 
   const statusArea = document.getElementById('updateStatusArea');

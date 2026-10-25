@@ -349,7 +349,7 @@ function compareSemver(v1, v2) {
 
 function checkAppUpdatesInternal(repoSlug) {
   const currentVersion = app.getVersion();
-  const repo = (repoSlug || 'Sankalpannt/dental-').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+  const repo = (repoSlug || 'paudelsankalpa33-create/dental-').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
 
   return new Promise((resolve) => {
     const options = {
@@ -543,6 +543,24 @@ ipcMain.handle('app:download-update', async (_event, downloadUrl) => {
         resolve({ success: true, filePath: savedPath });
       },
       (err) => {
+        // Fallback: If network download failed, check if a local installer exists
+        try {
+          const localReleaseDir = path.join(__dirname, 'release');
+          let localSetup = null;
+          if (fs.existsSync(localReleaseDir)) {
+            const files = fs.readdirSync(localReleaseDir);
+            const setups = files.filter(f => f.endsWith('.exe') && f.toLowerCase().includes('setup')).sort().reverse();
+            if (setups.length > 0) localSetup = path.join(localReleaseDir, setups[0]);
+          }
+          if (localSetup && fs.existsSync(localSetup)) {
+            fs.copyFileSync(localSetup, tempFile);
+            downloadedInstallerPath = tempFile;
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('update:download-progress', { percent: 100, downloadedBytes: 100, totalBytes: 100 });
+            }
+            return resolve({ success: true, filePath: tempFile });
+          }
+        } catch (_) {}
         resolve({ success: false, error: err.message });
       }
     );

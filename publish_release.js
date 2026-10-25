@@ -68,7 +68,7 @@ async function publishRelease() {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
   const version = pkg.version;
   const tag = 'v' + version;
-  const repo = 'Sankalpannt/dental-';
+  const repo = 'paudelsankalpa33-create/dental-';
 
   console.log('========================================================');
   console.log(`Publishing Client Release for Infinity Dental Clinic`);
