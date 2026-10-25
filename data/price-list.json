@@ -1,0 +1,108 @@
+[
+  {
+    "name": "OPD Card",
+    "price": 100
+  },
+  {
+    "name": "Consultation",
+    "min": 500,
+    "max": 750
+  },
+  {
+    "name": "Dental X-Ray (IOPA)",
+    "price": 300
+  },
+  {
+    "name": "Scaling",
+    "min": 1000,
+    "max": 3000
+  },
+  {
+    "name": "Scaling & Polishing",
+    "min": 1500,
+    "max": 2000
+  },
+  {
+    "name": "Tooth-Colored Filling",
+    "min": 1000,
+    "max": 2500
+  },
+  {
+    "name": "Non-Tooth-Colored Restoration",
+    "min": 800,
+    "max": 1000
+  },
+  {
+    "name": "Deep Caries Management",
+    "price": 3000
+  },
+  {
+    "name": "Pulpectomy",
+    "min": 3000,
+    "max": 3500
+  },
+  {
+    "name": "Root Canal Treatment (RCT)",
+    "min": 7000,
+    "max": 15000
+  },
+  {
+    "name": "Single-Visit RCT",
+    "price": 15000
+  },
+  {
+    "name": "Teeth Bleaching",
+    "price": 15000
+  },
+  {
+    "name": "Tooth Extraction",
+    "min": 500,
+    "max": 5000
+  },
+  {
+    "name": "Surgical Extraction",
+    "min": 2500,
+    "max": 5000
+  },
+  {
+    "name": "Complete Denture",
+    "price": 30000
+  },
+  {
+    "name": "Flexible RPD",
+    "price": 7000,
+    "unit": "per tooth"
+  },
+  {
+    "name": "Normal RPD",
+    "price": 1500
+  },
+  {
+    "name": "Metal Crown",
+    "price": 4000
+  },
+  {
+    "name": "PFM Crown",
+    "price": 7000
+  },
+  {
+    "name": "Zirconia Crown / Veneers",
+    "min": 20000,
+    "max": 25000
+  },
+  {
+    "name": "Dental Implants",
+    "min": 70000,
+    "max": 120000
+  },
+  {
+    "name": "Orthodontic Treatment",
+    "min": 60000,
+    "max": 110000
+  },
+  {
+    "name": "Clear / Invisible Aligners",
+    "min": 120000,
+    "max": 180000
+  }
+]

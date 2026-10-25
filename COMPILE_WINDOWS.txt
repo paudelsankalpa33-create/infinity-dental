@@ -1,0 +1,26 @@
+INFINITY DENTAL CLINIC - FINAL WINDOWS COMPILE
+
+1. Put this entire folder on the Windows computer where you want to build the app.
+2. Install Node.js LTS from the official Node.js website if it is not already installed.
+3. Make sure internet is ON for the first build only.
+4. Double-click BUILD_WINDOWS.bat.
+5. Wait for npm install and the Windows build to finish.
+6. Open the new RELEASE folder.
+7. Use the .exe installer to install the clinic app, or use the portable .exe without installing.
+
+DATA LOCATION USED BY THE DESKTOP APP:
+C:\Infiinity Dental Clinic\
+  Database\InfinityDentalClinic.sqlite
+  Bills\
+  Patient Documents\
+  Patient Registrations\
+  Backups\patients_latest.json
+
+IMPORTANT:
+- The desktop build uses SQLite in the Database folder.
+- The browser version still supports local-folder storage as a development fallback.
+- Sticker printing is designed for exact 100 x 50 mm thermal labels.
+- Bills are A5 portrait and black-and-white.
+- Discount is per visit and can be entered as either percentage or amount; the other value calculates automatically.
+- QR transaction ID attachment space is reserved by the visit/payment data structure for a later update.
+- Printer selection is intentionally not hard-coded yet; Windows printer mapping can be added once the exact installed printer names are known.

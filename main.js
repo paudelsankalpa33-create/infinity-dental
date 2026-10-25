@@ -1,0 +1,284 @@
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const https = require('https');
+const { DatabaseSync } = require('node:sqlite');
+
+const DATA_ROOT = 'C:\\Infiinity Dental Clinic';
+const DB_DIR = path.join(DATA_ROOT, 'Database');
+const DB_FILE = path.join(DB_DIR, 'InfinityDentalClinic.sqlite');
+const BILL_DIR = path.join(DATA_ROOT, 'Bills');
+const DOC_DIR = path.join(DATA_ROOT, 'Patient Documents');
+const REG_DIR = path.join(DATA_ROOT, 'Patient Registrations');
+const BACKUP_DIR = path.join(DATA_ROOT, 'Backups');
+const PRICE_FILE = path.join(DATA_ROOT, 'price-list.json');
+
+let db;
+function ensureFolders(){
+  for(const d of [DATA_ROOT,DB_DIR,BILL_DIR,DOC_DIR,REG_DIR,BACKUP_DIR]) fs.mkdirSync(d,{recursive:true});
+  if(!fs.existsSync(PRICE_FILE)) fs.writeFileSync(PRICE_FILE, JSON.stringify(DEFAULT_PRICES,null,2), 'utf8');
+}
+const DEFAULT_PRICES = [
+  {name:'OPD Card',price:100},
+  {name:'Consultation',min:500,max:750},
+  {name:'Dental X-Ray (IOPA)',price:300},
+  {name:'Scaling',min:1000,max:3000},
+  {name:'Scaling & Polishing',min:1500,max:2000},
+  {name:'Tooth-Colored Filling',min:1000,max:2500},
+  {name:'Non-Tooth-Colored Restoration',min:800,max:1000},
+  {name:'Deep Caries Management',price:3000},
+  {name:'Pulpectomy',min:3000,max:3500},
+  {name:'Root Canal Treatment (RCT)',min:7000,max:15000},
+  {name:'Single-Visit RCT',price:15000},
+  {name:'Teeth Bleaching',price:15000},
+  {name:'Tooth Extraction',min:500,max:5000},
+  {name:'Surgical Extraction',min:2500,max:5000},
+  {name:'Complete Denture',price:30000},
+  {name:'Flexible RPD',price:7000,unit:'per tooth'},
+  {name:'Normal RPD',price:1500},
+  {name:'Metal Crown',price:4000},
+  {name:'PFM Crown',price:7000},
+  {name:'Zirconia Crown / Veneers',min:20000,max:25000},
+  {name:'Dental Implants',min:70000,max:120000},
+  {name:'Orthodontic Treatment',min:60000,max:110000},
+  {name:'Clear / Invisible Aligners',min:120000,max:180000}
+];
+function openDb(){
+  ensureFolders();
+  db = new DatabaseSync(DB_FILE);
+  db.exec(`CREATE TABLE IF NOT EXISTS app_data (id INTEGER PRIMARY KEY CHECK(id=1), patients_json TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+  const row=db.prepare('SELECT patients_json FROM app_data WHERE id=1').get();
+  if(!row) db.prepare('INSERT INTO app_data(id,patients_json,updated_at) VALUES(1,?,?)').run('[]',new Date().toISOString());
+}
+
+let mainWindow = null;
+
+function createWindow(){
+  const win = new BrowserWindow({
+    width: 1440,
+    height: 920,
+    minWidth: 1100,
+    minHeight: 720,
+    backgroundColor: '#f4f8fb',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  mainWindow = win;
+
+  // --- Web Serial API Support for NiZi POS B33 and USB Soundboxes ---
+  // Electron requires explicit session handling for navigator.serial
+  win.webContents.session.on('select-serial-port', (event, portList, webContents, callback) => {
+    event.preventDefault();
+    console.log('[WebSerial] Available ports detected:', portList.map(p => ({
+      portId: p.portId,
+      name: p.portName,
+      displayName: p.displayName,
+      vendorId: p.vendorId,
+      productId: p.productId
+    })));
+
+    if (portList && portList.length > 0) {
+      // Prioritize NiZi POS device or known USB-Serial chips (CH340, CP210x, FTDI, STM32)
+      const preferred = portList.find(p => {
+        const text = `${p.displayName || ''} ${p.portName || ''}`.toLowerCase();
+        return text.includes('nizi') || text.includes('ch340') || text.includes('cp210') || text.includes('ftdi') || text.includes('usb');
+      }) || portList[0];
+
+      console.log('[WebSerial] Auto-selecting port:', preferred.portId, preferred.displayName || preferred.portName);
+      callback(preferred.portId);
+    } else {
+      console.warn('[WebSerial] No serial ports available to select.');
+      callback('');
+    }
+  });
+
+  win.webContents.session.on('serial-port-added', (event, port) => {
+    console.log('[WebSerial] Port added/plugged in:', port);
+    if (!win.isDestroyed()) {
+      win.webContents.send('serial:device-changed', { action: 'added', port });
+    }
+  });
+
+  win.webContents.session.on('serial-port-removed', (event, port) => {
+    console.log('[WebSerial] Port removed/unplugged:', port);
+    if (!win.isDestroyed()) {
+      win.webContents.send('serial:device-changed', { action: 'removed', port });
+    }
+  });
+
+  win.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    if (permission === 'serial') return true;
+    return false;
+  });
+
+  win.webContents.session.setDevicePermissionHandler((details) => {
+    if (details.deviceType === 'serial') return true;
+    return false;
+  });
+
+  win.loadFile(path.join(__dirname, 'index.html'));
+}
+
+// Database IPC
+ipcMain.handle('db:load', () => {
+  const row = db.prepare('SELECT patients_json FROM app_data WHERE id=1').get();
+  try { return JSON.parse(row?.patients_json || '[]'); } catch { return []; }
+});
+
+ipcMain.handle('db:save', (_event, patients) => {
+  const json = JSON.stringify(Array.isArray(patients) ? patients : []);
+  db.prepare('UPDATE app_data SET patients_json=?, updated_at=? WHERE id=1').run(json, new Date().toISOString());
+  fs.writeFileSync(path.join(BACKUP_DIR, 'patients_latest.json'), json, 'utf8');
+  return true;
+});
+
+ipcMain.handle('db:path', () => DB_FILE);
+
+ipcMain.handle('prices:load', () => {
+  try {
+    const data = JSON.parse(fs.readFileSync(PRICE_FILE, 'utf8'));
+    return Array.isArray(data) ? data : DEFAULT_PRICES;
+  } catch {
+    return DEFAULT_PRICES;
+  }
+});
+
+ipcMain.handle('prices:path', () => PRICE_FILE);
+
+// App Version & External Links
+ipcMain.handle('app:version', () => app.getVersion());
+
+ipcMain.handle('app:open-external', (_event, url) => {
+  if (url && typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+    shell.openExternal(url);
+    return true;
+  }
+  return false;
+});
+
+// GitHub Update Checker via Public Releases API
+function compareSemver(v1, v2) {
+  const clean1 = (v1 || '').replace(/^[^\d]*/, '').split('.').map(n => parseInt(n, 10) || 0);
+  const clean2 = (v2 || '').replace(/^[^\d]*/, '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(clean1.length, clean2.length); i++) {
+    const num1 = clean1[i] || 0;
+    const num2 = clean2[i] || 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
+}
+
+ipcMain.handle('app:check-update', async (_event, repoSlug) => {
+  const currentVersion = app.getVersion();
+  const repo = (repoSlug || 'Sankalpannt/dental-').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+
+  return new Promise((resolve) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: `/repos/${repo}/releases/latest`,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'InfinityDentalClinic-DesktopApp/' + currentVersion,
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      timeout: 8000
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          if (res.statusCode === 200) {
+            const release = JSON.parse(data);
+            const latestTag = release.tag_name || '';
+            const latestVersion = latestTag.replace(/^[vV]/, '');
+            const hasUpdate = compareSemver(latestVersion, currentVersion) > 0;
+
+            // Find Windows installer or portable exe asset if available
+            let downloadUrl = release.html_url;
+            if (Array.isArray(release.assets)) {
+              const exeAsset = release.assets.find(a => a.name && (a.name.endsWith('.exe') || a.name.endsWith('.zip')));
+              if (exeAsset && exeAsset.browser_download_url) {
+                downloadUrl = exeAsset.browser_download_url;
+              }
+            }
+
+            resolve({
+              success: true,
+              hasUpdate,
+              currentVersion,
+              latestVersion,
+              releaseName: release.name || latestTag,
+              releaseNotes: release.body || '',
+              publishedAt: release.published_at || '',
+              htmlUrl: release.html_url,
+              downloadUrl,
+              repo
+            });
+          } else if (res.statusCode === 404) {
+            resolve({
+              success: false,
+              hasUpdate: false,
+              currentVersion,
+              error: `No releases found on GitHub for repository: ${repo}`,
+              repo
+            });
+          } else {
+            resolve({
+              success: false,
+              hasUpdate: false,
+              currentVersion,
+              error: `GitHub returned HTTP ${res.statusCode}`,
+              repo
+            });
+          }
+        } catch (parseErr) {
+          resolve({
+            success: false,
+            hasUpdate: false,
+            currentVersion,
+            error: 'Failed to parse GitHub response: ' + parseErr.message,
+            repo
+          });
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      resolve({
+        success: false,
+        hasUpdate: false,
+        currentVersion,
+        error: 'Network error checking GitHub: ' + err.message,
+        repo
+      });
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({
+        success: false,
+        hasUpdate: false,
+        currentVersion,
+        error: 'Connection to GitHub timed out.',
+        repo
+      });
+    });
+
+    req.end();
+  });
+});
+
+app.whenReady().then(()=>{
+  openDb();
+  createWindow();
+  app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()});
+});
+app.on('window-all-closed',()=>{if(db)db.close();if(process.platform!=='darwin')app.quit()});
+

@@ -1,0 +1,230 @@
+INFINITY DENTAL CLINIC - DEVELOPER DOCUMENTATION
+================================================
+
+Purpose
+-------
+This document is a handover/reference guide for future ChatGPT sessions,
+developers, or programmers working on the Infinity Dental Clinic Windows app.
+
+CLINIC
+------
+Name: Infinity Dental Clinic
+Tagline: Endless Care, Beautiful Smiles
+
+PROJECT TYPE
+------------
+Windows desktop application built with Electron.
+The app is designed to work locally/offline for normal clinic operations.
+
+IMPORTANT DATA LOCATION
+-----------------------
+Patient data is stored outside the application installation/project folder:
+
+C:\Infiinity Dental Clinic\
+    Database\
+        InfinityDentalClinic.sqlite
+    Bills\
+    Patient Documents\
+        OPD-0001\
+        OPD-0002\
+        ...
+    Patient Registrations\
+    Backups\
+        patients_latest.json
+    price-list.json
+
+NOTE: The folder name is intentionally "Infiinity Dental Clinic" with
+two "i"s after "Inf".
+
+PATIENT DATABASE
+----------------
+Primary database:
+C:\Infiinity Dental Clinic\Database\InfinityDentalClinic.sqlite
+
+The SQLite database stores patient records, visits, procedures, payments,
+discount information, appointments and related application data.
+
+The application uses Electron's Node SQLite support through main.js and
+exposes database operations to the renderer through preload.js.
+
+PRICE LIST
+----------
+The treatment price list is intentionally separated from app.js.
+
+File:
+C:\Infiinity Dental Clinic\price-list.json
+
+This file should be editable by the clinic without recompiling the app.
+It contains fixed prices and price ranges.
+
+If a price changes, update price-list.json rather than hard-coding the
+new value in app.js.
+
+The current official price list is:
+- OPD Card: Rs. 100
+- Consultation: Rs. 500 - 750
+- Dental X-Ray (IOPA): Rs. 300
+- Scaling: Rs. 1,000 - 3,000
+- Scaling & Polishing: Rs. 1,500 - 2,000
+- Tooth-Colored Filling: Rs. 1,000 - 2,500
+- Non-Tooth-Colored Restoration: Rs. 800 - 1,000
+- Deep Caries Management: Rs. 3,000
+- Pulpectomy: Rs. 3,000 - 3,500
+- Root Canal Treatment (RCT): Rs. 7,000 - 15,000
+- Single-Visit RCT: Rs. 15,000
+- Teeth Bleaching: Rs. 15,000
+- Tooth Extraction: Rs. 500 - 5,000
+- Surgical Extraction: Rs. 2,500 - 5,000
+- Complete Denture: Rs. 30,000
+- Flexible RPD: Rs. 7,000 per tooth
+- Normal RPD: Rs. 1,500
+- Metal Crown: Rs. 4,000
+- PFM Crown: Rs. 7,000
+- Zirconia Crown / Veneers: Rs. 20,000 - 25,000
+- Dental Implants: Rs. 70,000 - 1,20,000
+- Orthodontic Treatment: Rs. 60,000 - 1,10,000
+- Clear / Invisible Aligners: Rs. 1,20,000 - 1,80,000
+
+IMPORTANT BILLING RULE
+----------------------
+A price range is a reference range. The actual amount charged for a
+patient/visit must be allowed to be entered manually when necessary.
+
+DISCOUNT
+--------
+Discount is calculated separately for every visit/bill.
+
+The app supports:
+- Discount percentage
+- Discount amount
+- Final total after discount
+- Total payment or partial payment
+- CASH / SCAN / MPOS
+
+There is also a setting controlling whether discount information is
+DISPLAYED on the printed A5 bill.
+
+This display setting must not change the actual stored discount or
+calculation.
+
+DARK MODE
+---------
+The application includes Light/Dark mode.
+The user's selected appearance is remembered after restarting.
+
+PRINTING
+--------
+Thermal sticker printer:
+- Exact page size: 100 mm x 50 mm
+- Sticker contains clinic logo, patient details, OPD number and barcode.
+- Barcode is generated as SVG so it prints without requiring browser
+  Background Graphics.
+
+Normal bill printer:
+- A5 portrait bill format.
+- Bills contain itemized procedures, totals, payment information and
+  balance due.
+- Discount display can be turned on/off.
+
+The clinic has a separate thermal sticker printer and normal Canon A5
+printer. Do not remove the exact 100 x 50 mm sticker page size.
+
+MAIN SOURCE FILES
+-----------------
+index.html
+    Main application structure and UI.
+
+styles.css
+    Application appearance, including light/dark theme styling.
+
+app.js
+    Renderer/application logic: patient registration, profiles, visits,
+    billing, payments, appointments, transactions and printing requests.
+    Avoid hard-coding the price list here.
+
+main.js
+    Electron main process, SQLite/database handling and native printing.
+
+preload.js
+    Secure bridge between renderer and Electron main process.
+
+assets/clinic-logo.png
+    Clinic logo.
+
+package.json
+    Electron/electron-builder configuration and build scripts.
+
+BUILD_WINDOWS.bat
+    Windows build helper.
+
+DO NOT CHANGE WITHOUT CHECKING
+------------------------------
+1. SQLite database location.
+2. 100 x 50 mm thermal sticker page size.
+3. External price-list.json design.
+4. Patient data folder name: C:\Infiinity Dental Clinic
+5. Existing patient data compatibility.
+6. Discount calculation logic.
+7. Payment and transaction history.
+8. Barcode generation.
+
+BUILD ENVIRONMENT
+-----------------
+Known working environment:
+- Windows 10 Pro
+- Node.js v24.20.0
+- npm 11.19.0
+- Electron 37.10.3
+- electron-builder 26.15.3
+- x64 Windows target
+
+Typical build:
+    npm.cmd install
+    npm.cmd run dist
+
+Build output is placed in:
+    release\
+
+Typical outputs:
+    Infinity Dental Clinic 1.0.0.exe
+    Infinity Dental Clinic Setup 1.0.0.exe
+
+TESTING BEFORE FINAL BUILD
+--------------------------
+Before compiling a final release:
+1. Check JavaScript syntax:
+       node --check app.js
+       node --check main.js
+       node --check preload.js
+2. Verify price-list.json loads.
+3. Register a test patient.
+4. Verify OPD number increments.
+5. Verify patient data is saved to SQLite.
+6. Add multiple procedures to one visit.
+7. Test discount percentage and amount.
+8. Test full and partial payment.
+9. Test CASH, SCAN and MPOS.
+10. Test A5 bill printing.
+11. Test 100 x 50 mm sticker printing.
+12. Verify barcode prints with Background Graphics OFF.
+13. Test Light/Dark mode.
+14. Test the discount display setting.
+15. Confirm existing patient data remains intact.
+
+IMPORTANT WORKING HISTORY
+-------------------------
+The 100 x 50 mm sticker printer was proven to work using a standalone
+PDF test page before changing the application print code. This proof-first
+approach should be used again for future printer changes.
+
+CURRENT DEVELOPMENT PRINCIPLE
+-----------------------------
+Keep clinic-editable information separate from application logic wherever
+practical. Prices should remain in price-list.json. Patient data must remain
+in the external C:\Infiinity Dental Clinic folder so application updates
+do not overwrite patient records.
+
+For future changes, modify only the required file(s), test them, and avoid
+unnecessary changes to working features.
+
+END OF DOCUMENTATION

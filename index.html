@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Infinity Dental Clinic</title>
+<link rel="stylesheet" href="styles.css">
+<script src="assets/qrcode.min.js"></script>
+</head>
+<body>
+<header><div class="brand-wrap"><img class="brand-logo" src="assets/clinic-logo.png" alt="Infinity Dental Clinic logo"><div><div class="brand">INFINITY DENTAL CLINIC</div><div class="sub">Endless Care, Beautiful Smiles</div></div></div><div class="header-actions"><button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check GitHub Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.0</span></button><button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙 Dark Mode</button><div class="clock" id="clock"></div></div></header>
+<div id="updateBanner" class="update-banner">
+  <div style="display:flex;align-items:center;gap:8px">
+    <span>🚀 <b>Software Update Available!</b></span>
+    <span id="updateBannerVersion" class="update-pill-badge">v1.0.1</span>
+    <span id="updateBannerTitle" style="opacity:0.9">A new version is available on GitHub.</span>
+  </div>
+  <div class="update-banner-actions">
+    <button class="btn-update-banner" onclick="openUpdateModal()">VIEW &amp; UPDATE</button>
+    <button style="background:transparent;border:none;color:#fff;cursor:pointer;font-size:14px;padding:2px 6px" onclick="dismissUpdateBanner()">✕</button>
+  </div>
+</div>
+<div class="layout"><aside>
+<button class="nav active" data-page="dashboard">Dashboard</button><button class="nav" data-page="register">Register Patient</button><button class="nav" data-page="patients">Search Patients / All Patients</button><button class="nav" data-page="profile">Patient Profile</button><button class="nav" data-page="transactions">Transactions</button><button class="nav" data-page="billing">Billing</button><button class="nav" data-page="appointments">Appointments</button><button class="nav" data-page="nepalpay">NepalPay QR & Soundbox</button>
+</aside><main>
+<section id="dashboard" class="page active dashboard-page"><div class="dashboard-watermark-wrap"><img class="dashboard-watermark" src="assets/clinic-logo.png" alt="Infinity Dental Clinic"></div><div class="dashboard-content"><div class="title">Dashboard</div><div class="muted">Infinity Dental Clinic — local web app</div><div class="card" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap"><div><div class="section-title" style="font-size:16px">Patient Database</div><div class="muted" id="dataFolderStatus">Database: Browser storage (select a local folder)</div></div><button class="btn secondary" onclick="selectDataFolder()">SELECT LOCAL DATA FOLDER</button></div><div class="cards"><div class="card"><div class="muted">Total Patients</div><div class="stat" id="statPatients">0</div></div><div class="card"><div class="muted">Today's Patients</div><div class="stat" id="statToday">0</div></div><div class="card"><div class="muted">Next OPD</div><div class="stat" id="statOpd">1001</div></div><div class="card"><div class="muted">Pending Payments</div><div class="stat" id="statPending">0</div></div><div class="card"><div class="muted">Today's Appointments</div><div class="stat" id="statAppointments">0</div></div></div><div class="card"><div class="section-title">Today's Appointments</div><div class="muted" style="margin-bottom:12px">Patients scheduled for today</div><div id="todayAppointments"></div></div><div class="card" style="margin-top:18px"><div class="section-title">Recently Opened Patients</div><div class="muted" style="margin-bottom:12px">Patients you opened most recently</div><div id="recentPatients" class="muted">No recently opened patients.</div></div></div></section>
+<section id="register" class="page"><div class="title">Register Patient</div><div class="muted">Date, time and OPD number are automatic.</div><div class="card" style="margin-top:18px"><div class="formgrid"><div class="field"><label>Patient name *</label><input id="name" required></div><div class="field"><label>Contact number *</label><input id="contact" required inputmode="tel"></div><div class="field"><label>Address</label><input id="address"></div><div class="field"><label>Age</label><input id="age"></div><div class="field"><label>Gender *</label><select id="gender" required><option value="">Select gender</option><option>Male</option><option>Female</option><option>Other</option></select></div></div><div class="card" style="margin-top:15px;background:#eef8fb;border:0"><b>Next OPD: <span id="nextOpd">1001</span></b></div><div class="actions"><button class="btn primary" onclick="registerPatient()">REGISTER PATIENT</button><button class="btn secondary" onclick="clearForm()">CLEAR</button></div></div></section>
+<section id="patients" class="page"><div class="title">Search Patients / All Patients</div><div class="muted">Search and open a patient profile.</div><div class="toolbar"><input id="search" placeholder="Search by OPD, name or contact" oninput="renderPatients()"><button class="btn secondary" onclick="document.getElementById('search').value='';renderPatients()">Clear</button></div><div class="tablewrap"><table class="table"><thead><tr><th>OPD</th><th>Patient name</th><th>Contact</th><th>Registered</th><th>Payment</th></tr></thead><tbody id="patientRows"></tbody></table></div></section>
+<section id="profile" class="page"><div class="title">Patient Profile</div><div class="muted">Select a patient from the Patients screen.</div><div id="profileContent" style="margin-top:18px"><div class="card empty">No patient selected.</div></div></section>
+<section id="billing" class="page"><div class="title">Billing</div><div class="muted">Print the latest saved patient bill in A5 black-and-white format.</div><div class="card" style="margin-top:18px"><div class="section-title">Select Patient</div><div class="toolbar"><select id="billingPatient" onchange="selectBillingPatient(this.value)" style="min-width:280px"><option value="">Select patient</option></select><button class="btn secondary" onclick="showPage('patients')">SEARCH PATIENTS</button></div><div id="billingSummary" class="muted" style="margin-top:14px">Select a patient to see their latest bill.</div><div id="billingBills" style="margin-top:14px"></div></div></section>
+<section id="appointments" class="page"><div class="title">Appointments</div><div class="muted">View and manage appointments by date.</div><div class="toolbar" style="align-items:center;flex-wrap:wrap"><button class="btn secondary" onclick="appointmentToday()">Today</button><button class="btn secondary" onclick="appointmentTomorrow()">Tomorrow</button><button class="btn secondary" onclick="toggleAppointmentGoto()">Go to Date</button><div class="appointment-mode"><button id="appointmentModeAD" class="btn secondary" onclick="setAppointmentCalendarMode('AD')">AD</button><button id="appointmentModeBS" class="btn primary" onclick="setAppointmentCalendarMode('BS')">BS</button></div><div id="appointmentGoto" class="appointment-goto" style="display:none"><input id="appointmentGotoInput" placeholder="YYYY-MM-DD" onkeydown="if(event.key==='Enter')goAppointmentTypedDate()"><button class="btn primary" onclick="goAppointmentTypedDate()">Go</button></div></div><div class="appointment-layout"><div class="card"><div class="appointment-calendar-head"><button class="btn secondary" onclick="appointmentPrevMonth()">‹</button><div><div class="section-title" id="appointmentMonthTitle" style="margin:0"></div><div class="muted" id="appointmentMonthSub"></div></div><button class="btn secondary" onclick="appointmentNextMonth()">›</button></div><div id="appointmentCalendar"></div></div><div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div class="section-title" id="appointmentListTitle">Today's Appointments</div><button class="btn primary" onclick="toggleNewAppointmentForm()">+ ADD APPOINTMENT</button></div><div id="newAppointmentForm" class="new-appointment-form" style="display:none"><div class="muted" style="margin-bottom:10px">Book an appointment for a new or existing patient. New patients are not registered and will not receive an OPD number until registration.</div><div class="formgrid"><div class="field"><label>Patient name *</label><input id="newApptName" autocomplete="name" placeholder="Full name"></div><div class="field"><label>Phone number *</label><input id="newApptPhone" inputmode="tel" autocomplete="tel" placeholder="Contact number"></div><div class="field"><label>Appointment date (AD) *</label><input id="newApptDate" type="date"></div><div class="field"><label>Appointment time *</label><input id="newApptTime" type="time"></div></div><div class="actions"><button class="btn primary" onclick="addAppointmentFromSection()">SAVE APPOINTMENT</button><button class="btn secondary" onclick="toggleNewAppointmentForm(false)">CANCEL</button></div></div><div class="muted" id="appointmentListSub" style="margin-bottom:8px"></div><div class="appt-legend"><span class="legend-arrived">Green: Arrived</span><span class="legend-scheduled">Blue: Scheduled</span><span class="legend-no-show">Red: Did not come</span></div><div id="appointmentList"></div></div></div></section>
+<section id="nepalpay" class="page">
+  <div class="title">NepalPay Dynamic QR &amp; NiZi POS Soundbox</div>
+  <div class="muted">Live integration with Nepal Clearing House (NCHL) ConnectIPS network and NiZi POS B33 hardware soundbox.</div>
+  
+  <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
+    <div class="card">
+      <div class="muted">NepalPay Status</div>
+      <div style="margin-top:8px;font-size:16px;font-weight:700;color:#15803d;display:flex;align-items:center;gap:6px">
+        <span class="status-pill live">Active</span>
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:4px">Sandbox: NCHL ConnectIPS</div>
+    </div>
+    <div class="card">
+      <div class="muted">Merchant ID</div>
+      <div style="margin-top:8px;font-size:18px;font-weight:700">2501F6MCTZZ</div>
+      <div class="muted" style="font-size:11px;margin-top:4px">Acquirer: 00002501 (Store1)</div>
+    </div>
+    <div class="card">
+      <div class="muted">NiZi POS B33 Hardware</div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:6px">
+        <span id="niziHardwareStatusPill" class="status-pill simulated">Simulated / Ready</span>
+      </div>
+      <div class="muted" id="niziPortLabel" style="font-size:11px;margin-top:4px">USB 115200 baud or Browser Audio</div>
+    </div>
+    <div class="card">
+      <div class="muted">Digital Certificate</div>
+      <div style="margin-top:8px;font-size:15px;font-weight:700;color:#0369a1">NPI.pfx Verified</div>
+      <div class="muted" style="font-size:11px;margin-top:4px">RSA-SHA256 Private Key Loaded</div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:18px;grid-template-columns:360px 1fr;align-items:start">
+    <!-- Left: NiZi POS B33 Device Simulator & USB Link -->
+    <div class="nizi-device-card">
+      <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="section-title" style="margin:0">NiZi POS B33 Device</div>
+        <button id="niziUsbConnectBtn" class="btn secondary" style="font-size:11px;padding:6px 10px" onclick="connectNiziUsb()">🔌 CONNECT USB</button>
+      </div>
+      <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W Speaker Soundbox</div>
+
+      <div class="nizi-device">
+        <div class="nizi-header">
+          <span>NiZi POS B33</span>
+          <span id="niziScreenClock">--:--</span>
+        </div>
+        <div id="niziScreen" class="nizi-screen">
+          <div class="nizi-logo-badge">
+            <img src="assets/clinic-logo.png" style="width:64px;height:64px;object-fit:contain;display:block" alt="Infinity Dental">
+          </div>
+          <div style="font-size:13px;font-weight:800;letter-spacing:.5px">INFINITY DENTAL</div>
+          <div class="nizi-sub">Welcome to Clinic</div>
+          <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment</div>
+        </div>
+        <div class="nizi-speaker-grille">
+          <div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div>
+        </div>
+      </div>
+      <div class="nizi-stand"></div>
+
+      <div style="width:100%;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziChime()">🔊 Test Sound</button>
+        <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziSuccessScreen()">✨ Test Success</button>
+        <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="resetNiziScreen()">↺ Reset Screen</button>
+        <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziQr()">📱 Test QR Display</button>
+      </div>
+    </div>
+
+    <!-- Right: Dynamic QR Test Terminal & Logs -->
+    <div>
+      <div class="card">
+        <div class="section-title">Generate Dynamic QR (Testing Terminal)</div>
+        <div class="muted" style="margin-bottom:14px">Generate a dynamic NepalPay QR for patient checkout with instant WebSocket status and NiZi POS push.</div>
+        <div class="formgrid">
+          <div class="field">
+            <label>Payment Amount (NPR) *</label>
+            <input id="testQrAmount" type="number" min="1" step="1" value="1500" placeholder="e.g. 1500">
+          </div>
+          <div class="field">
+            <label>Patient Name</label>
+            <input id="testQrPatient" type="text" value="Ram Shrestha" placeholder="Patient Name">
+          </div>
+          <div class="field">
+            <label>Bill Number</label>
+            <input id="testQrBillNo" type="text" value="B-20261020-001" placeholder="Bill Number">
+          </div>
+          <div class="field">
+            <label>Purpose / Remarks</label>
+            <input id="testQrRemarks" type="text" value="Root Canal Treatment" placeholder="Treatment Description">
+          </div>
+        </div>
+        <div class="actions" style="margin-top:16px">
+          <button class="btn primary" onclick="generateDynamicQrFromConsole()">⚡ GENERATE NEPALPAY DYNAMIC QR</button>
+          <button class="btn secondary" onclick="document.getElementById('testQrAmount').value='500';document.getElementById('testQrRemarks').value='Consultation'">SET RS. 500</button>
+          <button class="btn secondary" onclick="document.getElementById('testQrAmount').value='3000';document.getElementById('testQrRemarks').value='Scaling &amp; Polishing'">SET RS. 3000</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="section-title">Recent NepalPay QR Transactions</div>
+        <div class="muted" style="margin-bottom:12px">Live transactions handled via Dynamic QR and NiZi soundbox.</div>
+        <div class="tablewrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Trace / Txn ID</th>
+                <th>Bill No</th>
+                <th>Patient</th>
+                <th>Amount (NPR)</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="nepalPayTxnRows">
+              <tr><td colspan="7" class="empty">No dynamic QR transactions generated yet in this session.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main></div>
+
+<!-- NepalPay Dynamic QR Modal -->
+<div id="nepalPayQrModal" class="modal" onclick="if(event.target===this)closeNepalPayModal()">
+  <div class="qr-modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/clinic-logo.png" style="width:36px;height:36px;object-fit:contain" alt="Logo">
+        <div style="text-align:left">
+          <div style="font-weight:800;font-size:16px">NEPALPAY DYNAMIC QR</div>
+          <div class="muted" style="font-size:11px">Infinity Dental Clinic • Merchant: 2501F6MCTZZ</div>
+        </div>
+      </div>
+      <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeNepalPayModal()">✕</button>
+    </div>
+
+    <div class="qr-amount-badge" id="modalQrAmount">Rs. 0.00</div>
+    <div class="muted" id="modalQrPatientInfo">Patient: — | Bill: —</div>
+
+    <div class="qr-container">
+      <div class="qr-canvas-wrap" id="modalQrCanvasWrap">
+        <!-- QR code rendered here -->
+      </div>
+      <div style="margin-top:10px;font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
+        <span class="status-pill live" id="modalQrStatusPill">Listening on WebSocket</span>
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:4px">
+        Scan with <b>eSewa, Khalti, ConnectIPS</b> or any <b>Mobile Banking App</b>
+      </div>
+    </div>
+
+    <div style="background:#f1f5f9;border-radius:8px;padding:8px 12px;font-size:11px;color:var(--muted);margin-bottom:14px;display:flex;justify-content:space-between">
+      <span>NiZi POS Soundbox: <b id="modalNiziStatus" style="color:#0284c7">Pushed to Screen</b></span>
+      <span id="modalCountdown">Expires in: 09:59</span>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn primary" style="background:#16a34a" onclick="simulateActiveQrPayment()">✓ SIMULATE CUSTOMER PAYMENT (TEST)</button>
+      <button class="btn secondary" onclick="closeNepalPayModal()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<div id="adminAuthModal" class="modal" onclick="if(event.target===this)closeAdminAuth()"><div class="modal-box"><div style="font-size:34px;text-align:center">🔐</div><div class="title" id="adminAuthTitle" style="font-size:22px;text-align:center">Requires Admin Authorization</div><div class="muted" id="adminAuthText" style="text-align:center;margin-top:6px">Enter the 4-digit admin PIN.</div><input id="adminPin" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="off" placeholder="4-digit PIN" style="width:180px;text-align:center;font-size:22px;letter-spacing:7px;margin:20px auto 6px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;display:block" onkeydown="if(event.key==='Enter')authorizeTransaction()"><div id="adminPinError" style="color:#b42318;min-height:20px;font-size:13px;text-align:center"></div><div style="display:flex;gap:10px;justify-content:center;margin-top:12px"><button class="btn secondary" onclick="closeAdminAuth()">Cancel</button><button class="btn primary" onclick="authorizeTransaction()">Authorize</button></div></div></div>
+
+<!-- Fullscreen Image Lightbox for Patient Photos & Dental X-Rays -->
+<div id="imageLightboxModal" class="image-lightbox-modal" onclick="if(event.target===this)closeImageViewer()">
+  <div class="lightbox-header">
+    <div class="lightbox-title" id="lightboxTitle">Dental Picture / X-Ray Viewer</div>
+    <div class="lightbox-controls">
+      <button class="lightbox-btn" onclick="zoomImage(0.25)">🔍 Zoom In (+)</button>
+      <button class="lightbox-btn" onclick="zoomImage(-0.25)">🔍 Zoom Out (-)</button>
+      <button class="lightbox-btn" onclick="resetImageTransform()">↺ Reset</button>
+      <button class="lightbox-btn" onclick="rotateImage(90)">↻ Rotate 90°</button>
+      <button class="lightbox-btn" onclick="printActiveImage()">🖨️ Print</button>
+      <button class="lightbox-btn" onclick="downloadActiveImage()">⬇ Download</button>
+      <button class="lightbox-btn" style="background:#ef4444;border-color:#ef4444" onclick="closeImageViewer()">✕ Close</button>
+    </div>
+  </div>
+  <div class="lightbox-stage" id="lightboxStage">
+    <img id="lightboxImg" class="lightbox-img" src="" alt="Dental Image" draggable="false">
+  </div>
+</div>
+
+<!-- GitHub Client Update Modal -->
+<div id="updateModal" class="modal" onclick="if(event.target===this)closeUpdateModal()">
+  <div class="modal-box" style="width:min(520px,100%)">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">🔄</span>
+        <div>
+          <div style="font-weight:800;font-size:16px">Software Updates via GitHub</div>
+          <div class="muted" style="font-size:11px">Check &amp; download latest software updates for clients</div>
+        </div>
+      </div>
+      <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeUpdateModal()">✕</button>
+    </div>
+
+    <div style="margin-top:16px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span class="muted" style="font-size:12px">Current Installed Version:</span>
+        <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.0</span>
+      </div>
+      <div class="field" style="margin-top:8px">
+        <label style="font-size:11px">GitHub Repository (Owner / Repo)</label>
+        <input id="githubRepoInput" type="text" placeholder="e.g. Sankalpannt/dental-" value="Sankalpannt/dental-" style="font-size:12px;padding:8px">
+      </div>
+    </div>
+
+    <div id="updateStatusArea" style="margin-top:14px;padding:12px;border-radius:10px;display:none">
+      <!-- Dynamic update status info -->
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+      <button class="btn secondary" onclick="closeUpdateModal()">Close</button>
+      <button id="checkUpdateBtn" class="btn primary" onclick="checkAppUpdates(true)">Check for Updates Now</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script></body></html>

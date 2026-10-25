@@ -1,0 +1,55 @@
+{
+  "name": "infinity-dental-clinic",
+  "version": "1.0.0",
+  "description": "Infinity Dental Clinic offline desktop management and billing app",
+  "main": "main.js",
+  "author": "Infinity Dental Clinic",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "serve": "node server.js",
+    "dev": "node server.js",
+    "dist": "electron-builder --win portable nsis"
+  },
+  "devDependencies": {
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "np.infinitydental.clinic",
+    "productName": "Infinity Dental Clinic",
+    "directories": {
+      "output": "release"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Sankalpannt",
+        "repo": "dental-"
+      }
+    ],
+    "files": [
+      "index.html",
+      "styles.css",
+      "app.js",
+      "main.js",
+      "preload.js",
+      "assets/**/*",
+      "data/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/clinic-logo.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

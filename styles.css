@@ -1,0 +1,258 @@
+:root{--navy:#0b1e33;--blue:#16659d;--teal:#18a9bd;--pale:#f4f8fb;--text:#18324a;--muted:#698092;--border:#d7e1e9}*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--pale);color:var(--text)}header{height:82px;background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 28px;justify-content:space-between}.brand-wrap{display:flex;align-items:center;gap:12px}.brand-logo{width:58px;height:58px;object-fit:contain;display:block}.brand{font-size:24px;font-weight:700}.sub{font-size:11px;color:#9ed9e3;font-weight:700;letter-spacing:.5px;margin-top:4px}.clock{font-size:12px}.layout{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 82px)}aside{background:#fff;border-right:1px solid var(--border);padding:18px 12px}.nav{width:100%;border:0;background:transparent;text-align:left;padding:12px 14px;border-radius:8px;font-weight:600;color:var(--text);cursor:pointer;margin-bottom:5px}.nav.active,.nav:hover{background:#eef8fb;color:var(--blue)}main{padding:24px;max-width:1500px;width:100%;margin:auto}.page{display:none}.page.active{display:block}.title{font-size:25px;font-weight:700}.muted{color:var(--muted);font-size:13px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}.card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px}.stat{font-size:28px;font-weight:700;margin-top:8px}.grid2{display:grid;grid-template-columns:1fr 1.3fr;gap:18px}.profile-main-grid{grid-template-columns:minmax(0,1fr) 220px;align-items:start}.documents-compact{padding:10px;max-height:150px;overflow:auto}.documents-compact .section-title{font-size:14px;margin-bottom:6px}.documents-compact .muted{font-size:11px}.documents-compact .doc-upload{margin:7px 0}.documents-compact input[type=file]{width:100%;font-size:10px}.documents-compact .doc-item{padding:5px 0;font-size:10px}.documents-compact .doc-item .btn{padding:4px 6px;font-size:9px}.documents-compact .pill{padding:2px 5px;font-size:9px}.section-title{font-size:17px;font-weight:700;margin-bottom:14px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:12px;font-weight:700}.field input,.field select,.field textarea{border:1px solid var(--border);border-radius:7px;padding:10px;font:inherit;background:#fff}.field textarea{min-height:90px;resize:vertical}.btn{border:0;border-radius:7px;padding:10px 15px;font-weight:700;cursor:pointer}.primary{background:var(--blue);color:#fff}.secondary{background:#eef2f5;color:var(--text)}.danger{background:#fdecec;color:#a33}.actions{display:flex;gap:8px;margin-top:15px}.toolbar{display:flex;gap:10px;margin:15px 0}.toolbar input{flex:1;border:1px solid var(--border);border-radius:7px;padding:11px;font:inherit}.tablewrap{overflow:auto;background:#fff;border:1px solid var(--border);border-radius:10px}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:11px;border-bottom:1px solid #edf1f4;text-align:left;font-size:13px}.table th{background:var(--blue);color:#fff}.table tr:hover td{background:#f7fbfd}.clickable{cursor:pointer}.profile-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#eef8fb;color:var(--blue);font-size:12px;font-weight:700}.empty{padding:25px;text-align:center;color:var(--muted)}.procedure-row{display:grid;grid-template-columns:1fr 110px 90px;gap:8px;align-items:center;margin:7px 0}.procedure-row select,.procedure-row input{border:1px solid var(--border);border-radius:7px;padding:9px;font:inherit;background:#fff}.mini-table{width:100%;border-collapse:collapse}.mini-table th,.mini-table td{padding:8px;border-bottom:1px solid #edf1f4;font-size:12px;text-align:left}.mini-table th{background:#eef8fb;color:var(--text)}.doc-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #edf1f4;gap:10px}.doc-item a{color:var(--blue);font-weight:700;text-decoration:none}.pill{display:inline-block;padding:4px 8px;border-radius:14px;background:#eef8fb;color:var(--blue);font-size:11px;font-weight:700}@media(max-width:900px){.layout{grid-template-columns:1fr}aside{display:flex;overflow:auto}.nav{white-space:nowrap;width:auto}.cards{grid-template-columns:1fr 1fr}.grid2,.profile-main-grid{grid-template-columns:1fr}}@media(max-width:600px){.cards,.formgrid{grid-template-columns:1fr}main{padding:14px}.brand{font-size:19px}.brand-logo{width:48px;height:48px}} @media(max-width:900px){.dashboard-watermark{width:380px;right:-30px;top:110px;opacity:.06}} .dashboard-page{position:relative;overflow:hidden}.dashboard-watermark{position:absolute;right:18px;top:82px;width:min(500px,42vw);max-width:500px;opacity:.075;pointer-events:none;z-index:0;filter:saturate(.85);mix-blend-mode:multiply}.dashboard-content{position:relative;z-index:1}.dashboard-watermark-wrap{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.modal{display:none;position:fixed;inset:0;background:rgba(8,25,42,.48);z-index:9999;align-items:center;justify-content:center;padding:20px}.modal.show{display:flex}.modal-box{background:#fff;border-radius:16px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:min(390px,100%)}
+
+/* Patient profile refinements */
+.profile-info-row{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px;margin-top:16px;align-items:stretch}.patient-details{border:1px solid var(--border);border-radius:10px;padding:14px;background:#fff}.details-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:13px}.documents-compact{border:1px solid var(--border);border-radius:10px;background:#fff;padding:10px;max-height:135px;overflow:auto}.documents-compact .section-title{font-size:14px;margin-bottom:8px}.documents-compact .doc-upload{margin:5px 0}.documents-compact .doc-item{padding:5px 0}.payment-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;flex:1;min-width:260px}.payment-mode{border:1px solid var(--border);background:#fff;color:var(--text);border-radius:8px;padding:10px 8px;font-weight:800;cursor:pointer;min-height:42px}.payment-mode:hover{border-color:var(--blue);background:#f5fbfd}.payment-mode.selected{background:var(--blue);border-color:var(--blue);color:#fff}.quick-dates{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.quick-date{min-width:125px}.quick-date.primary{background:var(--blue);color:#fff}.field input[type=date]{cursor:pointer}.profile-main-grid{grid-template-columns:minmax(0,1fr)}
+@media(max-width:900px){.profile-info-row,.details-grid{grid-template-columns:1fr}.payment-modes{min-width:0}}
+
+
+/* Dark Mode */
+.header-actions{display:flex;align-items:center;gap:14px}
+.theme-toggle{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.10);color:#fff;border-radius:8px;padding:9px 12px;font:600 12px Segoe UI,Arial,sans-serif;cursor:pointer}
+.theme-toggle:hover{background:rgba(255,255,255,.18)}
+body.dark{--pale:#111820;--text:#e7eef5;--muted:#9eafbf;--border:#2b3a49;background:var(--pale);color:var(--text)}
+body.dark aside{background:#17212c;border-right-color:var(--border)}
+body.dark .nav{color:var(--text)}
+body.dark .nav.active,body.dark .nav:hover{background:#213746;color:#72d4df}
+body.dark .card,body.dark .patient-details,body.dark .documents-compact,body.dark .tablewrap{background:#18232e;border-color:var(--border)}
+body.dark .field input,body.dark .field select,body.dark .field textarea,body.dark .procedure-row select,body.dark .procedure-row input,body.dark .toolbar input,body.dark .payment-mode{background:#121b24;color:var(--text);border-color:#344555}
+body.dark .secondary{background:#2a3744;color:#e7eef5}
+body.dark .danger{background:#422b2e;color:#ffb4b4}
+body.dark .table th{background:#155b8b}
+body.dark .table td,body.dark .mini-table td{border-bottom-color:#2b3946}
+body.dark .table tr:hover td{background:#202f3c}
+body.dark .mini-table th{background:#213746;color:#e7eef5}
+body.dark .badge,body.dark .pill{background:#203943;color:#72d4df}
+body.dark .dashboard-page .card[style*="background:#eef8fb"],body.dark .card[style*="background:#f8fafb"]{background:#202c38 !important;border-color:#344555 !important}
+body.dark .modal-box{background:#18232e;color:var(--text)}
+body.dark .modal{background:rgba(0,0,0,.68)}
+body.dark .profile-info-row .patient-details{background:#18232e}
+body.dark .dashboard-watermark{opacity:.06;filter:brightness(2) contrast(1.1) grayscale(.1);mix-blend-mode:screen}
+@media(max-width:700px){.header-actions{gap:7px}.theme-toggle{padding:8px 9px}.clock{display:none}}
+
+.appointment-layout{display:grid;grid-template-columns:minmax(420px,1fr) minmax(360px,.9fr);gap:18px;margin-top:18px}.appointment-calendar-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.appointment-calendar-head .btn{font-size:22px;padding:5px 13px}.appointment-mode{display:flex;gap:4px}.appointment-goto{display:flex;gap:6px;align-items:center}.appointment-goto input{width:145px;border:1px solid var(--border);border-radius:7px;padding:10px;font:inherit}.bs-cal{width:100%;border-collapse:separate;border-spacing:4px}.bs-cal th{font-size:11px;color:var(--muted);padding:6px}.bs-cal td{padding:0;text-align:center}.cal-day{width:100%;min-height:52px;border:1px solid transparent;border-radius:9px;background:#f8fafb;cursor:pointer;padding:7px 4px}.cal-day:hover{border-color:var(--blue);background:#eef8fb}.cal-day.selected{background:var(--blue);color:#fff}.cal-day.today{box-shadow:inset 0 0 0 2px #18a9bd}.cal-day .daynum{font-weight:700;font-size:15px}.cal-day .appt-dot{font-size:9px;margin-top:3px}.appt-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid #edf1f4}.appt-row:last-child{border-bottom:0}.appt-name{font-weight:700}.appt-meta{font-size:12px;color:var(--muted);margin-top:3px}.appointment-empty{padding:28px 10px;text-align:center;color:var(--muted)}@media(max-width:1000px){.appointment-layout{grid-template-columns:1fr}}@media(max-width:600px){.appointment-goto input{width:120px}.cal-day{min-height:46px}}
+
+.new-appointment-form{margin:14px 0;padding:14px;background:#f4f9fb;border:1px solid var(--border);border-radius:10px}.new-appointment-form .actions{margin-top:12px}
+
+/* Appointment attendance states */
+.appt-row{border-left:5px solid transparent;padding:11px 10px;border-radius:8px;margin:5px 0;gap:12px}.appt-row.appt-attended{background:#eaf8ef;border-left-color:#229954}.appt-row.appt-scheduled{background:#edf5ff;border-left-color:#3478d4}.appt-row.appt-no-show{background:#fff0f0;border-left-color:#d64545}.appt-main{min-width:0;flex:1}.appt-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.appt-status{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;padding:3px 7px;border-radius:12px;margin-left:6px;vertical-align:middle}.appt-attended .appt-status{background:#c9efd5;color:#176b37}.appt-scheduled .appt-status{background:#d6e8ff;color:#205ca4}.appt-no-show .appt-status{background:#ffd8d8;color:#a82424}.appt-legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:11px}.appt-legend span{padding:4px 7px;border-radius:5px}.legend-arrived{background:#eaf8ef;color:#176b37}.legend-scheduled{background:#edf5ff;color:#205ca4}.legend-no-show{background:#fff0f0;color:#a82424}@media(max-width:600px){.appt-row{align-items:flex-start;flex-direction:column}.appt-actions{justify-content:flex-start;width:100%}}
+
+/* Appointment follow-up call tracking */
+.follow-status{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.2px;padding:3px 7px;border-radius:12px;margin:3px 0 0 4px;vertical-align:middle;background:#eef1f4;color:#475569}.fu-not-called{background:#eef1f4;color:#475569}.fu-interested{background:#d9f7e4;color:#176b37}.fu-call-back{background:#dcecff;color:#205ca4}.fu-no-answer{background:#fff0c9;color:#855600}.fu-declined{background:#ffdede;color:#a82424}.followup-panel{margin-top:10px;padding:10px;border:1px solid #dce5eb;border-radius:9px;background:rgba(255,255,255,.72)}.followup-heading{font-size:12px;font-weight:800;margin-bottom:8px;color:var(--text)}.followup-fields{display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(120px,1fr) minmax(90px,.65fr);gap:8px}.followup-fields label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:var(--muted)}.followup-fields input,.followup-fields select,.followup-fields textarea{box-sizing:border-box;width:100%;min-width:0;padding:7px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font:inherit;font-size:12px}.followup-fields .follow-note-field{grid-column:1/-1}.followup-fields textarea{resize:vertical}.followup-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}.followup-actions .btn{font-size:11px;padding:7px 10px}.followup-history{margin-top:8px;font-size:11px;color:var(--muted)}.followup-history summary{cursor:pointer;font-weight:700}.followup-history-item{padding:5px 0;border-bottom:1px solid #e8edf1;overflow-wrap:anywhere}@media(max-width:700px){.followup-fields{grid-template-columns:1fr 1fr}.followup-fields label:first-child,.followup-fields .follow-note-field{grid-column:1/-1}.appt-row{align-items:stretch}.appt-actions{justify-content:flex-start}}
+
+/* --- NepalPay Dynamic QR & NiZi POS B33 Styles --- */
+.qr-modal-box{width:min(540px,96vw);background:#fff;border-radius:18px;padding:26px;box-shadow:0 25px 70px rgba(0,0,0,.25);position:relative}
+.qr-container{display:flex;flex-direction:column;align-items:center;justify-content:center;margin:16px 0;padding:18px;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:14px}
+.qr-canvas-wrap{background:#fff;padding:12px;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.08);display:inline-flex;align-items:center;justify-content:center;min-width:210px;min-height:210px}
+.qr-canvas-wrap img,.qr-canvas-wrap canvas{display:block;margin:auto}
+.qr-amount-badge{font-size:26px;font-weight:800;color:#0e7490;margin:10px 0 4px}
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.status-pill.live{background:#dcfce7;color:#15803d}
+.status-pill.live::before{content:'';width:7px;height:7px;border-radius:50%;background:#16a34a;animation:pulse 1.5s infinite}
+.status-pill.simulated{background:#e0f2fe;color:#0369a1}
+.status-pill.disconnected{background:#fee2e2;color:#b91c1c}
+@keyframes pulse{0%{transform:scale(0.9);opacity:.8}50%{transform:scale(1.3);opacity:1}100%{transform:scale(0.9);opacity:.8}}
+
+/* NiZi POS B33 Physical Hardware Simulator */
+.nizi-device-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;align-items:center}
+.nizi-device{width:260px;background:linear-gradient(150deg,#1e293b 0%,#0f172a 100%);border-radius:22px;padding:14px 14px 18px;box-shadow:0 20px 45px rgba(15,23,42,.35),inset 0 1px 1px rgba(255,255,255,.12);color:#fff;border:1px solid #334155}
+.nizi-header{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:800;letter-spacing:.5px;color:#94a3b8;margin-bottom:8px;padding:0 2px}
+.nizi-screen{background:#020617;border:3px solid #334155;border-radius:12px;height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;text-align:center;box-shadow:inset 0 3px 12px rgba(0,0,0,.9);transition:background .3s ease}
+.nizi-screen.success{background:#064e3b;border-color:#059669}
+.nizi-screen .nizi-qr{background:#fff;padding:6px;border-radius:6px;width:150px;height:150px;display:flex;align-items:center;justify-content:center}
+.nizi-screen .nizi-price{font-size:18px;font-weight:800;color:#38bdf8;margin-top:8px}
+.nizi-screen.success .nizi-price{color:#4ade80}
+.nizi-screen .nizi-sub{font-size:11px;color:#94a3b8;margin-top:2px}
+.nizi-speaker-grille{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.nizi-speaker-dot{width:4px;height:4px;background:#475569;border-radius:50%}
+.nizi-stand{width:160px;height:16px;background:linear-gradient(to bottom,#334155,#1e293b);margin:0 auto;border-radius:0 0 10px 10px;box-shadow:0 6px 12px rgba(0,0,0,.3)}
+
+/* Dark mode adjustments */
+body.dark .qr-modal-box{background:#18232e;color:var(--text)}
+body.dark .qr-container{background:#131c25;border-color:#334155}
+body.dark .qr-amount-badge{color:#38bdf8}
+body.dark .nizi-device-card{background:#18232e;border-color:var(--border)}
+
+/* NiZi Logo Screen Badge for high visibility */
+.nizi-logo-badge {
+  background: rgba(255, 255, 255, 0.96);
+  padding: 6px 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5), 0 0 16px rgba(56,189,248,0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Patient Pictures & Documents thumbnails & list */
+.documents-compact {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.doc-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+body.dark .doc-item {
+  background: #18232e;
+  border-color: #273746;
+}
+.doc-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.doc-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  background: #f1f5f9;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.doc-thumb:hover {
+  transform: scale(1.08);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+}
+.doc-pdf-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 800;
+  font-size: 11px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.doc-meta {
+  flex: 1;
+  min-width: 0;
+}
+.doc-meta b {
+  display: block;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Image Lightbox Modal for X-Rays and Dental Photos */
+.image-lightbox-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 20, 0.94);
+  z-index: 10000;
+  flex-direction: column;
+  justify-content: space-between;
+  backdrop-filter: blur(8px);
+}
+.image-lightbox-modal.active {
+  display: flex;
+}
+.lightbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: rgba(15, 23, 42, 0.85);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+}
+.lightbox-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #f8fafc;
+}
+.lightbox-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.lightbox-btn {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+.lightbox-btn:hover {
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.4);
+}
+.lightbox-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 20px;
+}
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+  border-radius: 4px;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* GitHub Updates Notification Banner & Modal */
+.update-banner {
+  display: none;
+  background: linear-gradient(90deg, #0284c7 0%, #0369a1 100%);
+  color: #fff;
+  padding: 8px 24px;
+  font-size: 12.5px;
+  font-weight: 600;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  z-index: 99;
+}
+.update-banner.active {
+  display: flex;
+}
+.update-banner-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.btn-update-banner {
+  background: #16a34a;
+  color: #fff;
+  border: 0;
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-update-banner:hover {
+  background: #15803d;
+}
+
+
