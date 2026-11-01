@@ -32,5 +32,6 @@ contextBridge.exposeInMainWorld('dentalAuth', {
 
 contextBridge.exposeInMainWorld('dentalNpi', {
   generateQr: (data) => ipcRenderer.invoke('nepalpay:generate-qr', data),
+  checkPaymentStatus: (data) => ipcRenderer.invoke('nepalpay:check-status', data),
   simulatePayment: (traceId) => ipcRenderer.invoke('nepalpay:simulate-payment', traceId)
 });

@@ -63,7 +63,9 @@ body.dark .dashboard-watermark{opacity:.06;filter:brightness(2) contrast(1.1) gr
 .nizi-screen .nizi-qr canvas,
 .nizi-screen .nizi-qr img{display:block;max-width:136px;max-height:136px;margin:0 auto}
 .qr-canvas-wrap canvas,
-.qr-canvas-wrap img{display:block;max-width:190px;max-height:190px;margin:0 auto}
+.qr-canvas-wrap img,
+#terminalInlineQrWrap canvas,
+#terminalInlineQrWrap img{display:block;max-width:190px;max-height:190px;margin:0 auto}
 .nizi-screen .nizi-price{font-size:18px;font-weight:800;color:#38bdf8;margin-top:8px}
 .nizi-screen.success .nizi-price{color:#4ade80}
 .nizi-screen .nizi-sub{font-size:11px;color:#94a3b8;margin-top:2px}

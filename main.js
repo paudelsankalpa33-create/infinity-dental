@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -115,8 +115,14 @@ function createWindow(){
   mainWindow = win;
 
   // --- Web Serial API Support for NiZi POS B33 and USB Soundboxes ---
-  // Electron requires explicit session handling for navigator.serial
-  win.webContents.session.on('select-serial-port', (event, portList, webContents, callback) => {
+  registerSerialPortHandler(win.webContents.session);
+  win.loadFile(path.join(__dirname, 'index.html'));
+}
+
+function registerSerialPortHandler(ses) {
+  if (!ses) return;
+
+  ses.on('select-serial-port', (event, portList, webContents, callback) => {
     event.preventDefault();
     console.log('[WebSerial] Available ports detected:', portList.map(p => ({
       portId: p.portId,
@@ -135,11 +141,13 @@ function createWindow(){
 
       const candidateList = realPorts.length > 0 ? realPorts : portList;
 
-      // 2. Prioritize NiZi POS hardware chips: CH340 (VID 1a86/6790), CP210x (VID 10c4), FTDI (VID 0403)
+      // 2. Prioritize NiZi POS hardware: CH340/CH341 (VID 1a86 / PID 7523, 5523) and Espressif (VID 303a)
       const preferred = candidateList.find(p => {
         const vid = String(p.vendorId || '').toLowerCase();
+        const pid = String(p.productId || '').toLowerCase();
         const text = `${p.displayName || ''} ${p.portName || ''}`.toLowerCase();
-        return vid === '1a86' || vid === '6790' || vid === '10c4' || vid === '0403' ||
+        return vid === '1a86' || vid === '303a' || pid === '7523' || pid === '5523' ||
+               vid === '6790' || vid === '10c4' || vid === '0403' ||
                text.includes('nizi') || text.includes('ch340') || text.includes('ch341') ||
                text.includes('cp210') || text.includes('ftdi') || text.includes('usb-serial') ||
                text.includes('usb serial');
@@ -156,31 +164,15 @@ function createWindow(){
     }
   });
 
-  win.webContents.session.on('serial-port-added', (event, port) => {
-    console.log('[WebSerial] Port added/plugged in:', port);
-    if (!win.isDestroyed()) {
-      win.webContents.send('serial:device-changed', { action: 'added', port });
-    }
-  });
-
-  win.webContents.session.on('serial-port-removed', (event, port) => {
-    console.log('[WebSerial] Port removed/unplugged:', port);
-    if (!win.isDestroyed()) {
-      win.webContents.send('serial:device-changed', { action: 'removed', port });
-    }
-  });
-
-  win.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+  ses.setPermissionCheckHandler((webContents, permission) => {
     if (permission === 'serial') return true;
     return true;
   });
 
-  win.webContents.session.setDevicePermissionHandler((details) => {
+  ses.setDevicePermissionHandler((details) => {
     if (details.deviceType === 'serial') return true;
     return true;
   });
-
-  win.loadFile(path.join(__dirname, 'index.html'));
 }
 
 // Authentication & Staff Management IPC
@@ -633,74 +625,377 @@ ipcMain.handle('app:install-soundbox-driver', async () => {
   }
 });
 
-// --- NepalPay Dynamic EMVCo QR & Soundbox IPC ---
+// --- NepalPay Dynamic QR API (Using ./certs/npi_key.pem) ---
 const NPI_MAIN_CONFIG = {
   merchantId: '2501F6MCTZZ',
   merchantName: 'Infinity Dental',
   acquirerId: '00002501',
-  merchantCategoryCode: 5541,
+  merchantCategoryCode: 8021,
   storeLabel: 'Store1',
-  terminalLabel: 'Terminal1'
+  terminalLabel: 'Terminal1',
+  basicAuthUser: 'infinitydentnqr',
+  basicAuthPass: 'Abcd@123',
+  userId: 'INFINITYDENTNQR@999',
+  generateQrUrl: 'https://devopennpi.connectips.com/qr/generateQR'
 };
 
-function crc16CcittMain(str) {
-  let crc = 0xFFFF;
-  for (let i = 0; i < str.length; i++) {
-    crc ^= (str.charCodeAt(i) << 8);
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 0x8000) !== 0) {
-        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
-      } else {
-        crc = (crc << 1) & 0xFFFF;
+const NPI_MAIN_KEY_FILE = path.join(__dirname, 'certs', 'npi_key.pem');
+let npiMainPrivateKey = null;
+try {
+  if (fs.existsSync(NPI_MAIN_KEY_FILE)) {
+    npiMainPrivateKey = fs.readFileSync(NPI_MAIN_KEY_FILE, 'utf8');
+    console.log('[Main] Loaded NepalPay private key from certs/npi_key.pem');
+  } else {
+    console.warn('[Main] certs/npi_key.pem not found at:', NPI_MAIN_KEY_FILE);
+  }
+} catch (e) {
+  console.warn('[Main] Error reading certs/npi_key.pem:', e.message);
+}
+
+function callNpiGenerateQrMain({ amount, billNumber, remarks, patientContact }) {
+  return new Promise((resolve) => {
+    const validationTraceId = 'TRC' + Date.now() + Math.floor(Math.random() * 1000);
+    const safeBillNo = billNumber || ('B-' + Date.now());
+    const acquirerId = NPI_MAIN_CONFIG.acquirerId;
+    const merchantId = NPI_MAIN_CONFIG.merchantId;
+    const merchantCategoryCode = NPI_MAIN_CONFIG.merchantCategoryCode;
+    const transactionCurrency = 524;
+    const formattedAmount = Number(amount || 0).toFixed(2);
+    const transactionAmount = formattedAmount;
+    const billNo = safeBillNo;
+    const userId = NPI_MAIN_CONFIG.userId || NPI_MAIN_CONFIG.basicAuthUser;
+
+    // NCHL Confirmed Dynamic QR Signature String Sequence (7 Fields):
+    // TokenString = acquirerId + "," + merchantId + "," + merchantCategoryCode + "," + transactionCurrency + "," + transactionAmount + "," + billNumber + "," + userId
+    const TokenString = acquirerId + "," + merchantId + "," + merchantCategoryCode + "," + transactionCurrency + "," + transactionAmount + "," + billNo + "," + userId;
+
+    console.log('----------------------------------------------------');
+    console.log('[Main NepalPay NCHL] === SIGN STRING VERIFICATION (7 Fields) ===');
+    console.log('[Main NepalPay NCHL] 1. acquirerId           :', acquirerId);
+    console.log('[Main NepalPay NCHL] 2. merchantId           :', merchantId);
+    console.log('[Main NepalPay NCHL] 3. merchantCategoryCode :', merchantCategoryCode);
+    console.log('[Main NepalPay NCHL] 4. transactionCurrency  :', transactionCurrency);
+    console.log('[Main NepalPay NCHL] 5. transactionAmount    :', transactionAmount);
+    console.log('[Main NepalPay NCHL] 6. billNumber           :', billNo);
+    console.log('[Main NepalPay NCHL] 7. userId               :', userId);
+    console.log('[Main NepalPay NCHL] >>> Exact concatenated TokenString right before signing:');
+    console.log(`"${TokenString}"`);
+
+    let token = '';
+    if (npiMainPrivateKey) {
+      try {
+        const signer = crypto.createSign('RSA-SHA256');
+        signer.update(TokenString);
+        token = signer.sign(npiMainPrivateKey, 'base64');
+        console.log(`[Main NepalPay NCHL] Signed Token generated successfully (Length: ${token.length} chars, Starts with: "${token.slice(0, 16)}...")`);
+      } catch (signErr) {
+        console.warn('[Main NepalPay] Signing token warning:', signErr.message);
       }
+    } else {
+      console.warn('[Main NepalPay] ⚠️ Warning: npiMainPrivateKey is not loaded, token will be empty');
     }
-  }
-  return crc.toString(16).toUpperCase().padStart(4, '0');
+
+    const payload = {
+      pointOfInitialization: 12,
+      acquirerId: acquirerId,
+      merchantId: merchantId,
+      merchantName: NPI_MAIN_CONFIG.merchantName,
+      merchantCategoryCode: merchantCategoryCode,
+      merchantCountry: 'NP',
+      merchantCity: 'Kathmandu',
+      merchantPostalCode: '4600',
+      merchantLanguage: 'en',
+      transactionCurrency: transactionCurrency,
+      transactionAmount: transactionAmount,
+      valueOfConvenienceFeeFixed: '0.00',
+      billNumber: billNo,
+      referenceLabel: remarks || 'Dental Treatment',
+      mobileNo: patientContact || null,
+      storeLabel: NPI_MAIN_CONFIG.storeLabel,
+      terminalLabel: NPI_MAIN_CONFIG.terminalLabel,
+      purposeOfTransaction: remarks || 'Dental Treatment',
+      additionalConsumerDataRequest: null,
+      loyaltyNumber: null,
+      token: token
+    };
+
+    const postData = JSON.stringify(payload);
+
+    // Basic Auth verification
+    const authPlain = `${NPI_MAIN_CONFIG.basicAuthUser}:${NPI_MAIN_CONFIG.basicAuthPass}`;
+    const authBase64 = Buffer.from(authPlain).toString('base64');
+    const maskedPass = NPI_MAIN_CONFIG.basicAuthPass
+      ? (NPI_MAIN_CONFIG.basicAuthPass.slice(0, 2) + '****' + NPI_MAIN_CONFIG.basicAuthPass.slice(-2))
+      : '';
+    const maskedBase64 = authBase64.length > 12
+      ? (authBase64.slice(0, 10) + '...' + authBase64.slice(-6))
+      : authBase64;
+
+    console.log('[Main NepalPay NCHL] === BASIC AUTH HEADER VERIFICATION ===');
+    console.log(`[Main NepalPay NCHL] Configured Username   : "${NPI_MAIN_CONFIG.basicAuthUser}"`);
+    console.log(`[Main NepalPay NCHL] Configured Password   : "${maskedPass}" (Character length: ${NPI_MAIN_CONFIG.basicAuthPass.length})`);
+    console.log(`[Main NepalPay NCHL] Base64 Encoded Header : "Authorization: Basic ${maskedBase64}" (Encoded length: ${authBase64.length})`);
+    console.log(`[Main NepalPay NCHL] Integrity Check       : Decodes back to username "${authPlain.split(':')[0]}" and matching password length.`);
+    console.log('----------------------------------------------------');
+
+    console.log(`[Main NepalPay] Calling POST ${NPI_MAIN_CONFIG.generateQrUrl}...`);
+    console.log('[Main NepalPay NCHL] Outgoing Request Payload:');
+    console.log(postData);
+    const parsedUrl = new URL(NPI_MAIN_CONFIG.generateQrUrl);
+    const req = https.request({
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || 443,
+      path: parsedUrl.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + authBase64,
+        'Content-Length': Buffer.byteLength(postData)
+      },
+      timeout: 10000
+    }, (res) => {
+      let b = '';
+      res.on('data', chunk => b += chunk);
+      res.on('end', () => {
+        const statusCode = res.statusCode || 500;
+        const contentType = String(res.headers['content-type'] || '').toLowerCase();
+        const isJson = contentType.includes('application/json');
+
+        console.log(`[Main NepalPay NCHL] HTTP Status: ${statusCode} | Content-Type: ${contentType}`);
+
+        // 1. If NCHL returns non-200 or non-JSON content (e.g. NGINX 502 Bad Gateway HTML),
+        // log raw response and return clean JSON without raw HTML.
+        if (statusCode !== 200 || !isJson) {
+          console.error(`[Main NepalPay NCHL] ❌ Upstream Gateway Error: HTTP ${statusCode} (Content-Type: ${contentType})`);
+          console.error(`[Main NepalPay NCHL] Raw Upstream Response:\n`, b);
+
+          let errorMsg = 'NCHL Gateway is temporarily unavailable';
+          if (isJson) {
+            try {
+              const parsed = JSON.parse(b);
+              if (parsed?.responseMessage) errorMsg = parsed.responseMessage;
+            } catch (_) {}
+          }
+
+          return resolve({
+            success: false,
+            error: errorMsg,
+            statusCode: statusCode,
+            validationTraceId,
+            billNumber: safeBillNo,
+            amount: Number(formattedAmount)
+          });
+        }
+
+        // 2. HTTP 200 & application/json
+        let json = null;
+        try {
+          json = JSON.parse(b);
+        } catch (jsonErr) {
+          console.error(`[Main NepalPay NCHL] ❌ JSON parse error on HTTP 200:`, jsonErr.message);
+          return resolve({
+            success: false,
+            error: 'NCHL Gateway is temporarily unavailable',
+            statusCode: 502,
+            validationTraceId,
+            billNumber: safeBillNo,
+            amount: Number(formattedAmount)
+          });
+        }
+
+        const officialTraceId = json?.data?.validationTraceId || json?.validationTraceId || validationTraceId;
+        const qrString = json?.data?.qrString || json?.qrString || (typeof json?.data === 'string' ? json.data : null);
+
+        if (qrString) {
+          console.log(`[Main NepalPay NCHL] ✅ Upstream Dynamic QR generated successfully!`);
+          resolve({
+            success: true,
+            statusCode: 200,
+            qrString,
+            validationTraceId: officialTraceId,
+            billNumber: safeBillNo,
+            amount: Number(formattedAmount),
+            data: json?.data || json
+          });
+        } else {
+          resolve({
+            success: false,
+            error: json?.responseMessage || 'NCHL Gateway did not return a valid QR string',
+            statusCode: 200,
+            validationTraceId: officialTraceId,
+            billNumber: safeBillNo,
+            amount: Number(formattedAmount)
+          });
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error(`[Main NepalPay NCHL] ❌ Network Error:`, err.message);
+      resolve({
+        success: false,
+        error: 'NCHL Gateway is temporarily unavailable',
+        statusCode: 502,
+        validationTraceId,
+        billNumber: safeBillNo,
+        amount: Number(formattedAmount)
+      });
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      console.error(`[Main NepalPay NCHL] ❌ Request timed out`);
+      resolve({
+        success: false,
+        error: 'NCHL Gateway is temporarily unavailable',
+        statusCode: 504,
+        validationTraceId,
+        billNumber: safeBillNo,
+        amount: Number(formattedAmount)
+      });
+    });
+
+    req.write(postData);
+    req.end();
+  });
 }
 
-function buildMainNepalPayQr({ amount, billNumber, remarks, terminalLabel, storeLabel }) {
-  function tlv(tag, val) {
-    const s = String(val ?? '');
-    return tag + String(s.length).padStart(2, '0') + s;
-  }
-  const tag26Val = tlv('00', 'np.nchl.www') + tlv('01', NPI_MAIN_CONFIG.acquirerId) + tlv('02', NPI_MAIN_CONFIG.merchantId);
-  const tag62Val = tlv('01', billNumber || 'B001') +
-                   tlv('07', terminalLabel || NPI_MAIN_CONFIG.terminalLabel) +
-                   tlv('08', storeLabel || NPI_MAIN_CONFIG.storeLabel) +
-                   tlv('05', remarks || 'DentalBill');
-  const formattedAmount = Number(amount || 0).toFixed(2);
-  const raw = tlv('00', '01') +
-              tlv('01', '12') +
-              tlv('26', tag26Val) +
-              tlv('52', String(NPI_MAIN_CONFIG.merchantCategoryCode)) +
-              tlv('53', '524') +
-              tlv('54', formattedAmount) +
-              tlv('58', 'NP') +
-              tlv('59', NPI_MAIN_CONFIG.merchantName) +
-              tlv('60', 'Kathmandu') +
-              tlv('62', tag62Val) +
-              '6304';
-  return raw + crc16CcittMain(raw);
-}
-
-ipcMain.handle('nepalpay:generate-qr', (_event, { amount, billNumber, remarks, patientName }) => {
+ipcMain.handle('nepalpay:generate-qr', async (_event, { amount, billNumber, remarks, patientName, patientContact }) => {
   const parsedAmount = Number(amount) || 0;
   if (parsedAmount <= 0) return { success: false, error: 'Amount must be greater than 0' };
-  const validationTraceId = 'TRC' + Date.now() + Math.floor(Math.random() * 1000);
-  const safeBillNo = billNumber || ('B-' + Date.now());
-  const qrString = buildMainNepalPayQr({
+
+  // Call NCHL NEPALPAY Dynamic QR API with npi_key.pem signed token
+  const nchlResult = await callNpiGenerateQrMain({
     amount: parsedAmount,
-    billNumber: safeBillNo,
-    remarks: remarks || `Dental ${patientName || ''}`.trim()
+    billNumber,
+    remarks: remarks || `Dental ${patientName || ''}`.trim(),
+    patientContact
   });
+
+  if (nchlResult.success && nchlResult.qrString) {
+    return {
+      success: true,
+      validationTraceId: nchlResult.validationTraceId,
+      billNumber: nchlResult.billNumber,
+      amount: parsedAmount,
+      patientName,
+      qrString: nchlResult.qrString,
+      merchantName: NPI_MAIN_CONFIG.merchantName,
+      merchantId: NPI_MAIN_CONFIG.merchantId
+    };
+  }
+
+  const httpCode = (nchlResult.statusCode && nchlResult.statusCode >= 400) ? nchlResult.statusCode : 502;
   return {
-    success: true,
-    validationTraceId,
-    billNumber: safeBillNo,
-    amount: parsedAmount,
-    patientName,
-    qrString
+    success: false,
+    statusCode: httpCode,
+    error: nchlResult.error || 'NCHL Gateway is temporarily unavailable',
+    validationTraceId: nchlResult.validationTraceId,
+    billNumber: nchlResult.billNumber,
+    amount: parsedAmount
   };
+});
+
+// Function to check transaction status strictly via validationTraceId on NCHL gateway
+function callNpiCheckTxnStatusMain({ validationTraceId, billNumber }) {
+  return new Promise(async (resolve) => {
+    const acquirerId = NPI_MAIN_CONFIG.acquirerId;
+    const merchantId = NPI_MAIN_CONFIG.merchantId;
+    const userId = NPI_MAIN_CONFIG.userId || 'INFINITYDENTNQR@999';
+
+    const authPlain = `${NPI_MAIN_CONFIG.basicAuthUser}:${NPI_MAIN_CONFIG.basicAuthPass}`;
+    const authBase64 = Buffer.from(authPlain).toString('base64');
+
+    if (!validationTraceId || validationTraceId.startsWith('TRC')) {
+      return resolve({ isPaid: false, status: 'PENDING' });
+    }
+
+    const tokenStr = `${acquirerId},${merchantId},${validationTraceId},${userId}`;
+    let token = '';
+    if (npiMainPrivateKey) {
+      try {
+        const signer = crypto.createSign('RSA-SHA256');
+        signer.update(tokenStr);
+        token = signer.sign(npiMainPrivateKey, 'base64');
+      } catch (err) {
+        console.warn('[Main NCHL Status] Signing error:', err.message);
+      }
+    }
+
+    const postData = JSON.stringify({
+      acquirerId,
+      merchantId,
+      validationTraceId,
+      token
+    });
+
+    const req = https.request({
+      hostname: 'devopennpi.connectips.com',
+      port: 443,
+      path: '/nQR/v1/merchanttxnreport',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + authBase64,
+        'Content-Length': Buffer.byteLength(postData)
+      },
+      timeout: 8000
+    }, (res) => {
+      let b = '';
+      res.on('data', chunk => b += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(b);
+          if (res.statusCode === 200 && Array.isArray(json.responseBody)) {
+            const match = json.responseBody.find(r => 
+              (r.validationTraceId === validationTraceId || !r.validationTraceId) &&
+              (r.debitStatus === '000' || r.creditStatus === '000' || r.creditStatus === 'DEFER')
+            );
+            if (match) {
+              return resolve({
+                isPaid: true,
+                status: 'SUCCESS',
+                responseCode: '000',
+                txnId: match.nQrTxnId || match.instructionId || ('TXN-' + Date.now()),
+                instructionId: match.instructionId,
+                amount: match.amount,
+                billNumber: match.merchantBillNo || billNumber,
+                payerName: match.payerName,
+                payerMobile: match.payerMobileNumber,
+                debitStatus: match.debitStatus,
+                creditStatus: match.creditStatus,
+                raw: match
+              });
+            }
+          }
+        } catch (_) {}
+        resolve({ isPaid: false, status: 'PENDING' });
+      });
+    });
+
+    req.on('error', (err) => resolve({ isPaid: false, status: 'PENDING', error: err.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ isPaid: false, status: 'PENDING', error: 'Timeout' }); });
+    req.write(postData);
+    req.end();
+  });
+}
+
+ipcMain.handle('nepalpay:check-status', async (_event, query) => {
+  try {
+    const result = await callNpiCheckTxnStatusMain(query || {});
+    return {
+      success: true,
+      status: result.status,
+      responseCode: result.isPaid ? '000' : '999',
+      txnId: result.txnId,
+      amount: result.amount,
+      billNumber: result.billNumber,
+      payerName: result.payerName,
+      nchlData: result.raw
+    };
+  } catch (err) {
+    return { success: false, status: 'PENDING', error: err.message };
+  }
 });
 
 ipcMain.handle('nepalpay:simulate-payment', (_event, traceId) => {
@@ -712,10 +1007,33 @@ ipcMain.handle('nepalpay:simulate-payment', (_event, traceId) => {
   };
 });
 
-app.whenReady().then(()=>{
+app.whenReady().then(async ()=>{
+  registerSerialPortHandler(session.defaultSession);
   openDb();
   createWindow();
   app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()});
+
+  // Automatically trigger a live test request to capture live gateway logs & trace ID for NCHL support
+  console.log('\n======================================================');
+  console.log('⚡ [NCHL Live Gateway Test] Initiating NEPALPAY Dynamic QR test request on boot...');
+  console.log('======================================================');
+  try {
+    const testResult = await callNpiGenerateQrMain({
+      amount: 1500,
+      billNumber: 'TEST-' + Date.now(),
+      remarks: 'NCHL Gateway Verification Test',
+      patientContact: '9800000000'
+    });
+    console.log('======================================================');
+    console.log(`⚡ [NCHL Live Gateway Test Result] HTTP Status       : ${testResult.statusCode}`);
+    console.log(`⚡ [NCHL Live Gateway Test Result] Validation Trace ID: ${testResult.validationTraceId}`);
+    console.log(`⚡ [NCHL Live Gateway Test Result] Bill Number        : ${testResult.billNumber}`);
+    console.log(`⚡ [NCHL Live Gateway Test Result] Raw Gateway Body   :`, testResult.body);
+    console.log('======================================================\n');
+  } catch (err) {
+    console.error('❌ [NCHL Live Gateway Test Error]:', err);
+  }
 });
 app.on('window-all-closed',()=>{if(db)db.close();if(process.platform!=='darwin')app.quit()});
+
 

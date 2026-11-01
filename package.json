@@ -1,6 +1,6 @@
 {
   "name": "infinity-dental-clinic",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Infinity Dental Clinic offline desktop management and billing app",
   "main": "main.js",
   "author": "Infinity Dental Clinic",
@@ -18,6 +18,7 @@
   "build": {
     "appId": "np.infinitydental.clinic",
     "productName": "Infinity Dental Clinic",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
@@ -33,12 +34,15 @@
       "styles.css",
       "app.js",
       "main.js",
+      "server.js",
       "preload.js",
+      "certs/**/*",
       "assets/**/*",
       "data/**/*"
     ],
     "asarUnpack": [
-      "assets/driver/**/*"
+      "assets/driver/**/*",
+      "certs/**/*"
     ],
     "win": {
       "target": [
@@ -54,5 +58,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
+  },
+  "dependencies": {
+    "serialport": "^13.0.0",
+    "ws": "^8.22.0"
   }
 }

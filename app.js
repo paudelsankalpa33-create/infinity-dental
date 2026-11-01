@@ -5,6 +5,27 @@ let patients=JSON.parse(localStorage.getItem(KEY)||'[]'); let selectedId=null;
 let dataDirectoryHandle=null;
 let dataFolderName='Browser Storage';
 
+// --- Hoisted: NepalPay Client Config & NiZi POS Serial State ---
+const NPI_CLIENT_CONFIG = {
+  merchantId: '2501F6MCTZZ',
+  merchantName: 'Infinity Dental',
+  acquirerId: '00002501',
+  merchantCategoryCode: 5541,
+  storeLabel: 'Store1',
+  terminalLabel: 'Terminal1'
+};
+
+let niziSerialPort = null;
+let niziSerialWriter = null;
+let niziSerialReader = null;
+let niziIsConnecting = false;
+let niziSerialListenersInitialized = false;
+let activeQrTransaction = null;
+let qrCountdownTimer = null;
+let qrStatusPollTimer = null;
+let onActiveQrSuccessCallback = null;
+let recentNepalPayTransactions = [];
+
 // Pre-load clinic logo as Base64 Data URL to guarantee reliable printing & zero missing picture errors
 let clinicLogoDataUrl = 'assets/clinic-logo.png';
 if (typeof fetch === 'function') {
@@ -1240,7 +1261,24 @@ async function authorizeTransaction(){
 }
 
 function setTransactionRange(range){transactionRange=range;['today','week','month','all'].forEach(x=>{const b=document.getElementById('tx'+x.charAt(0).toUpperCase()+x.slice(1));if(b)b.className='btn '+(x===range?'primary':'secondary')});renderTransactions();}
-function renderTransactions(){const all=getTransactions(),list=all.filter(transactionMatches);const total=list.reduce((a,x)=>a+x.amount,0),cash=list.filter(x=>x.method==='Cash').reduce((a,x)=>a+x.amount,0),digital=list.filter(x=>x.method==='Scan'||x.method==='MPOS').reduce((a,x)=>a+x.amount,0);document.getElementById('txCount').textContent=list.length;document.getElementById('txTotal').textContent='Rs. '+total.toLocaleString();document.getElementById('txCash').textContent='Rs. '+cash.toLocaleString();document.getElementById('txDigital').textContent='Rs. '+digital.toLocaleString();document.getElementById('txTitle').textContent=transactionRange==='today'?"Today's Transactions":transactionRange==='week'?"This Week's Transactions":transactionRange==='month'?"This Month's Transactions":"All Transactions";document.getElementById('transactionRows').innerHTML=list.length?list.map(x=>`<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time||'—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method||'—')}</td><td>${esc(x.status)}</td></tr>`).join(''):`<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`}
+function renderTransactions(){
+  const all=getTransactions(),list=all.filter(transactionMatches);
+  const total=list.reduce((a,x)=>a+x.amount,0),
+        cash=list.filter(x=>x.method==='Cash').reduce((a,x)=>a+x.amount,0),
+        digital=list.filter(x=>x.method==='Scan'||x.method==='MPOS').reduce((a,x)=>a+x.amount,0);
+  const elCount = document.getElementById('txCount');
+  if (elCount) elCount.textContent = list.length;
+  const elTotal = document.getElementById('txTotal');
+  if (elTotal) elTotal.textContent = 'Rs. ' + total.toLocaleString();
+  const elCash = document.getElementById('txCash');
+  if (elCash) elCash.textContent = 'Rs. ' + cash.toLocaleString();
+  const elDigital = document.getElementById('txDigital');
+  if (elDigital) elDigital.textContent = 'Rs. ' + digital.toLocaleString();
+  const elTitle = document.getElementById('txTitle');
+  if (elTitle) elTitle.textContent = transactionRange==='today' ? "Today's Transactions" : transactionRange==='week' ? "This Week's Transactions" : transactionRange==='month' ? "This Month's Transactions" : "All Transactions";
+  const elRows = document.getElementById('transactionRows');
+  if (elRows) elRows.innerHTML = list.length ? list.map(x=>`<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time||'—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method||'—')}</td><td>${esc(x.status)}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`;
+}
 function renderRecentPatients(){const el=document.getElementById('recentPatients');if(!el)return;const ids=JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1')||'[]');const list=ids.map(id=>patients.find(p=>p.id===id)).filter(p=>p&&!p.AppointmentOnly);el.innerHTML=list.length?`<div class="tablewrap"><table class="table"><thead><tr><th>OPD</th><th>Patient</th><th>Contact</th></tr></thead><tbody>${list.map(p=>`<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No recently opened patients.</div>'}
 function populateBillingPatients(){const sel=document.getElementById('billingPatient');if(!sel)return;const current=sel.value;sel.innerHTML='<option value="">Select patient</option>'+registeredPatients().slice().sort((a,b)=>b.OPDNumber-a.OPDNumber).map(p=>`<option value="${p.id}">${pad(p.OPDNumber)} — ${esc(p.Name)}</option>`).join('');if(current)sel.value=current;if(selectedId&&patients.some(p=>p.id===selectedId))sel.value=selectedId;renderBillingForPatient()}
 function selectBillingPatient(id){selectedId=id||selectedId;renderBillingForPatient()}
@@ -1261,7 +1299,7 @@ function showPage(id){
   if(id==='billing'){populateBillingPatients();}
   if(id==='dashboard')renderRecentPatients();
   if(id==='staff'){loadStaffAccounts();}
-  if(id==='nepalpay'){autoConnectNiziUsb(true);}
+  if(id==='nepalpay'){loadSoundboxPorts(false); autoConnectNiziUsb(true);}
 }
 document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
 
@@ -1329,9 +1367,10 @@ if (window.dentalApp && window.dentalApp.getVersion) {
   });
 }
 setTimeout(() => {
+  loadSoundboxPorts(false);
   autoConnectNiziUsb(true);
   checkAppUpdates(false);
-}, 1500);
+}, 1200);
 
 // --- GitHub Client Updates ---
 function openUpdateModal() {
@@ -1684,16 +1723,12 @@ showPage=function(id){
   if(id==='nepalpay'){
     renderNepalPayTxnTable();
     updateNiziClock();
+    setTimeout(testNiziQr, 50);
   }
 };
 
 /* --- NepalPay Dynamic QR & NiZi POS Controller --- */
-let niziSerialPort = null;
-let niziSerialWriter = null;
-let activeQrTransaction = null;
-let qrCountdownTimer = null;
-let onActiveQrSuccessCallback = null;
-let recentNepalPayTransactions = [];
+// (Serial and transaction state variables are hoisted to the top of the file)
 
 function playPosChime() {
   try {
@@ -1739,9 +1774,7 @@ function speakVoicePayment(amount) {
 }
 
 // --- NiZi POS B33 Hardware Auto-Detect & USB Serial Connection ---
-let niziSerialReader = null;
-let niziIsConnecting = false;
-let niziSerialListenersInitialized = false;
+// (Reader & connection state variables are hoisted to the top of the file)
 
 function setupNiziSerialListeners() {
   if (niziSerialListenersInitialized) return;
@@ -1847,11 +1880,20 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
 
     try {
       await port.open({ baudRate: 115200, dataBits: 8, stopBits: 1, parity: 'none' });
+      console.log('[NiZi USB] Port opened successfully at 115200 baud.');
     } catch (openErr) {
+      console.error('[NiZi USB] Failed to open port at 115200 baud:', openErr.name, openErr.message);
+      if (openErr.name === 'NetworkError' || (openErr.message && (openErr.message.includes('locked') || openErr.message.includes('busy') || openErr.message.includes('in use') || openErr.message.includes('Failed to open')))) {
+        console.warn('[NiZi USB Warning] COM port might be in use or locked by another application (e.g. NiziPOS Connector or serial monitor).');
+      }
       if (openErr.message && !openErr.message.includes('already open')) {
         try {
+          console.log('[NiZi USB] Trying fallback open at 9600 baud...');
           await port.open({ baudRate: 9600 });
-        } catch (_) {}
+          console.log('[NiZi USB] Fallback open at 9600 baud succeeded.');
+        } catch (fallbackErr) {
+          console.error('[NiZi USB] Fallback open at 9600 baud also failed:', fallbackErr.name, fallbackErr.message);
+        }
       }
     }
 
@@ -1929,8 +1971,223 @@ async function installSoundboxDriver() {
   }
 }
 
+// --- NiZi POS Soundbox Serial Port UI Integration ---
+let serverSoundboxStatus = { connected: false, port: null };
+
+function applySoundboxStatusToUi(status) {
+  if (!status) return;
+  serverSoundboxStatus = status;
+
+  const statusPill = document.getElementById('niziHardwareStatusPill');
+  const portLabel = document.getElementById('niziPortLabel');
+  const connectBtn = document.getElementById('niziUsbConnectBtn');
+  const portSelect = document.getElementById('soundboxPortSelect');
+
+  if (status.connected && status.port) {
+    if (statusPill) {
+      statusPill.textContent = `✓ USB Connected (${status.port})`;
+      statusPill.className = 'status-pill live';
+    }
+    if (portLabel) {
+      portLabel.textContent = `NiZi Soundbox Online on ${status.port} (115200 baud 8-N-1)`;
+    }
+    if (connectBtn) {
+      connectBtn.textContent = '✓ USB CONNECTED';
+      connectBtn.className = 'btn primary';
+      connectBtn.title = `Connected on ${status.port} at 115200 baud. Click to disconnect or switch port.`;
+    }
+    if (portSelect) {
+      let found = false;
+      for (let i = 0; i < portSelect.options.length; i++) {
+        if (portSelect.options[i].value === status.port) {
+          portSelect.selectedIndex = i;
+          found = true;
+          break;
+        }
+      }
+      if (!found && portSelect.options.length > 0) {
+        const opt = document.createElement('option');
+        opt.value = status.port;
+        opt.textContent = `✓ ${status.port} (Connected)`;
+        opt.selected = true;
+        portSelect.appendChild(opt);
+      }
+    }
+  } else {
+    if (statusPill) {
+      statusPill.textContent = 'Disconnected / Simulated';
+      statusPill.className = 'status-pill simulated';
+    }
+    if (portLabel) {
+      portLabel.textContent = status.error
+        ? `Port error: ${status.error}`
+        : 'Select COM port and click Connect (115200 baud)';
+    }
+    if (connectBtn) {
+      connectBtn.textContent = '🔌 CONNECT USB';
+      connectBtn.className = 'btn secondary';
+      connectBtn.title = 'Click to connect to the selected COM port';
+    }
+  }
+}
+
+async function loadSoundboxPorts(manual = false) {
+  const select = document.getElementById('soundboxPortSelect');
+  const refreshBtn = document.getElementById('niziRefreshPortsBtn');
+  if (refreshBtn) refreshBtn.textContent = '⏳';
+
+  try {
+    const res = await fetch('/api/soundbox/ports');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (select) {
+      select.innerHTML = '';
+
+      if (!data.ports || data.ports.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No COM Ports Found';
+        select.appendChild(opt);
+      } else {
+        const autoOpt = document.createElement('option');
+        autoOpt.value = 'auto';
+        autoOpt.textContent = '⚡ Auto-Detect Port';
+        select.appendChild(autoOpt);
+
+        let preferredValue = null;
+
+        data.ports.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.path;
+          let label = p.path;
+          if (p.isCandidate) {
+            label += ` ★ (${p.manufacturer ? p.manufacturer.split(' ')[0] : 'NiZi'})`;
+            if (!preferredValue) preferredValue = p.path;
+          } else if (p.friendlyName && p.friendlyName !== p.path) {
+            label += ` (${p.friendlyName.replace(/\s*\(COM\d+\)/i, '').slice(0, 15)})`;
+          }
+          opt.textContent = label;
+          if (data.activePort === p.path && data.connected) {
+            opt.selected = true;
+            preferredValue = p.path;
+          }
+          select.appendChild(opt);
+        });
+
+        if (data.connected && data.activePort) {
+          select.value = data.activePort;
+        } else if (preferredValue) {
+          select.value = preferredValue;
+        } else {
+          select.value = 'auto';
+        }
+      }
+    }
+
+    if (data.status) {
+      applySoundboxStatusToUi(data.status);
+    }
+
+    if (manual) {
+      console.log(`[Soundbox Ports] Refreshed: ${data.ports ? data.ports.length : 0} port(s) detected.`);
+    }
+  } catch (err) {
+    console.warn('[Soundbox Ports] Error loading ports:', err.message);
+    if (select && select.options.length === 0) {
+      select.innerHTML = '<option value="">COM Detection Offline</option>';
+    }
+  } finally {
+    if (refreshBtn) refreshBtn.textContent = '🔄';
+  }
+}
+
+function onSoundboxPortSelected(val) {
+  console.log('[Soundbox UI] User selected port:', val);
+}
+
+async function connectSelectedSoundboxPort() {
+  const select = document.getElementById('soundboxPortSelect');
+  const connectBtn = document.getElementById('niziUsbConnectBtn');
+  const selectedPort = select ? (select.value || 'auto') : 'auto';
+
+  // If already connected, prompt user to disconnect
+  if (serverSoundboxStatus && serverSoundboxStatus.connected) {
+    const confirmDisconnect = confirm(
+      `NiZi POS Soundbox is currently CONNECTED on ${serverSoundboxStatus.port} at 115200 baud.\n\n` +
+      `Would you like to disconnect?`
+    );
+    if (confirmDisconnect) {
+      try {
+        if (connectBtn) {
+          connectBtn.textContent = 'Disconnecting...';
+          connectBtn.disabled = true;
+        }
+        await fetch('/api/soundbox/disconnect', { method: 'POST' });
+        serverSoundboxStatus.connected = false;
+        applySoundboxStatusToUi({ connected: false });
+        alert('NiZi Soundbox disconnected.');
+      } catch (err) {
+        alert('Disconnect error: ' + err.message);
+      } finally {
+        if (connectBtn) connectBtn.disabled = false;
+        loadSoundboxPorts(false);
+      }
+    }
+    return;
+  }
+
+  // Not connected -> connect to selected port
+  if (connectBtn) {
+    connectBtn.textContent = '⏳ Connecting...';
+    connectBtn.disabled = true;
+  }
+
+  try {
+    console.log(`[Soundbox UI] Connecting to port "${selectedPort}" at 115200 baud (8-N-1)...`);
+    const resp = await fetch('/api/soundbox/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ port: selectedPort, baudRate: 115200 })
+    });
+
+    const result = await resp.json();
+
+    if (result && result.success && result.status && result.status.connected) {
+      applySoundboxStatusToUi(result.status);
+      sendNiziCommand({ command: 'display_logo', title: 'Infinity Dental' });
+      speakVoicePayment(1500);
+      alert(`✓ NiZi POS Soundbox successfully connected on ${result.status.port} at 115200 baud (8-N-1)!`);
+    } else {
+      const errMsg = result.error || 'Could not open serial connection';
+      alert(
+        `🔌 NiZi POS Connection Notice:\n\n` +
+        `Failed to open port: ${errMsg}\n\n` +
+        `Tips:\n` +
+        `• Make sure the USB cable is firmly plugged into your PC.\n` +
+        `• If you haven't installed the CH341 driver yet, click the "📦 Driver" button.\n` +
+        `• Try selecting another COM port from the dropdown.`
+      );
+      if (result.status) applySoundboxStatusToUi(result.status);
+    }
+  } catch (err) {
+    console.error('[Soundbox UI] Connection request error:', err);
+    if (navigator.serial) {
+      const tryWebSerial = confirm(`Backend connection note: ${err.message}\n\nWould you like to try browser WebSerial directly?`);
+      if (tryWebSerial) {
+        await autoConnectNiziUsb(false);
+      }
+    } else {
+      alert('Soundbox connection error: ' + err.message);
+    }
+  } finally {
+    if (connectBtn) connectBtn.disabled = false;
+    loadSoundboxPorts(false);
+  }
+}
+
 async function connectNiziUsb() {
-  await autoConnectNiziUsb(false);
+  await connectSelectedSoundboxPort();
 }
 
 function handleNiziUsbDisconnect() {
@@ -1987,12 +2244,23 @@ async function sendNiziCommand(cmd) {
   updateNiziDeviceDisplay(cmd);
   if (niziSerialWriter) {
     try {
-      // 1. Send JSON command packet with newline
+      // 1. Send primary JSON command packet with newline (Yarsa Tech NiziPOS Protocol)
       const jsonStr = JSON.stringify(cmd) + '\r\n';
       await niziSerialWriter.write(new TextEncoder().encode(jsonStr));
 
-      // 2. Also send text format used by standard POS hardware soundboxes
+      // 2. Also send alternate JSON command if show_qr vs qr_payload
       if (cmd.command === 'show_qr') {
+        const altJson = JSON.stringify({
+          command: 'qr_payload',
+          payload: cmd.payload,
+          amount: cmd.amount,
+          currency: cmd.currency || 'NPR',
+          title: cmd.title || 'Infinity Dental',
+          billNumber: cmd.billNumber || ''
+        }) + '\r\n';
+        await niziSerialWriter.write(new TextEncoder().encode(altJson));
+
+        // 3. Also send text format used by standard POS hardware soundboxes
         const textFrame = `QR:${cmd.payload}\r\nAMT:${Number(cmd.amount||0).toFixed(2)}\r\n`;
         await niziSerialWriter.write(new TextEncoder().encode(textFrame));
       } else if (cmd.command === 'success') {
@@ -2000,9 +2268,21 @@ async function sendNiziCommand(cmd) {
         await niziSerialWriter.write(new TextEncoder().encode(textFrame));
       }
     } catch(e) {
-      console.warn('NiZi serial write error:', e);
+      console.warn('[NiZi USB] Serial write warning:', e.message);
     }
   }
+
+  // Forward directly to local NiZi POS Connector application on port 9121 if running
+  try {
+    fetch('http://127.0.0.1:9121/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmd),
+      mode: 'no-cors'
+    }).catch(() => {});
+  } catch(e) {}
+
+  // Forward via localhost backend proxy
   try {
     fetch('/api/nizi/command', {
       method: 'POST',
@@ -2096,20 +2376,7 @@ function getActiveTestQrAmount() {
 }
 
 function onTestQrAmountInput(val) {
-  const num = Number(val);
-  const amt = (num && !isNaN(num) && num > 0) ? num : 0;
-
-  // Live update price on the simulated LCD screen
-  const screenPrice = document.querySelector('#niziScreen .nizi-price');
-  if (screenPrice) {
-    screenPrice.textContent = 'Rs. ' + amt.toLocaleString();
-  }
-
-  // If the screen currently shows a QR code, re-render it dynamically for this new amount!
-  const screen = document.getElementById('niziScreen');
-  if (screen && screen.querySelector('#niziDeviceQrWrap') && amt > 0) {
-    testNiziQr();
-  }
+  testNiziQr();
 }
 
 function setQuickTestAmount(amount, remarks) {
@@ -2118,7 +2385,6 @@ function setQuickTestAmount(amount, remarks) {
   if (amtInput) amtInput.value = amount;
   if (remInput && remarks) remInput.value = remarks;
 
-  onTestQrAmountInput(amount);
   testNiziQr();
 }
 
@@ -2139,8 +2405,13 @@ function testNiziSuccessScreen() {
 
 function testNiziQr() {
   const amt = getActiveTestQrAmount();
-  const bill = (document.getElementById('testQrBillNo')?.value || 'B-TEST001').trim();
-  const rem = (document.getElementById('testQrRemarks')?.value || 'Dental Treatment').trim();
+  const billInput = document.getElementById('testQrBillNo');
+  if (billInput && (!billInput.value || billInput.value === 'B-20261020-001')) {
+    billInput.value = 'B-' + Date.now();
+  }
+  const bill = (billInput?.value || ('B-' + Date.now())).trim();
+  const rem = (document.getElementById('testQrRemarks')?.value || 'Scaling & Polishing').trim();
+  const patient = (document.getElementById('testQrPatient')?.value || 'Ram Shrestha').trim();
   const qrString = buildClientNepalPayQr({
     amount: amt,
     billNumber: bill,
@@ -2155,17 +2426,34 @@ function testNiziQr() {
     billNumber: bill,
     title: 'Infinity Dental'
   });
+
+  if (!activeQrTransaction || !document.getElementById('nepalPayQrModal')?.classList.contains('show')) {
+    activeQrTransaction = {
+      validationTraceId: 'TRC-LOCAL-' + Date.now(),
+      billNumber: bill,
+      amount: amt,
+      patientName: patient,
+      qrString
+    };
+  }
+
+  // Update inline QR preview in Testing Terminal card if present
+  const inlineWrap = document.getElementById('terminalInlineQrWrap');
+  if (inlineWrap) {
+    renderQrToElement(inlineWrap, qrString, 136, 136);
+  }
+  const inlinePrice = document.getElementById('terminalInlinePrice');
+  if (inlinePrice) {
+    inlinePrice.textContent = 'Rs. ' + amt.toLocaleString();
+  }
+  const inlinePatient = document.getElementById('terminalInlinePatient');
+  if (inlinePatient) {
+    inlinePatient.textContent = `${patient} • ${bill}`;
+  }
 }
 
 // --- EMVCo NepalQR Client Generator (Guaranteed Offline & Desktop Support) ---
-const NPI_CLIENT_CONFIG = {
-  merchantId: '2501F6MCTZZ',
-  merchantName: 'Infinity Dental',
-  acquirerId: '00002501',
-  merchantCategoryCode: 5541,
-  storeLabel: 'Store1',
-  terminalLabel: 'Terminal1'
-};
+// (NPI_CLIENT_CONFIG is hoisted to the top of the file)
 
 function crc16CcittClient(str) {
   let crc = 0xFFFF;
@@ -2187,15 +2475,25 @@ function buildClientNepalPayQr({ amount, billNumber, remarks }) {
     const s = String(val ?? '');
     return tag + String(s.length).padStart(2, '0') + s;
   }
-  const tag26Val = tlv('00', 'np.nchl.www') + tlv('01', NPI_CLIENT_CONFIG.acquirerId) + tlv('02', NPI_CLIENT_CONFIG.merchantId);
-  const tag62Val = tlv('01', billNumber || 'B001') +
-                   tlv('07', NPI_CLIENT_CONFIG.terminalLabel) +
-                   tlv('08', NPI_CLIENT_CONFIG.storeLabel) +
-                   tlv('05', remarks || 'DentalBill');
+  // Tag 26: Legacy NepalPay Template
+  const tag26Val = tlv('00', 'np.nchl.nepalpay') + tlv('01', NPI_CLIENT_CONFIG.acquirerId) + tlv('02', NPI_CLIENT_CONFIG.merchantId);
+
+  // Tag 29: Official NepalQR Guid & Merchant Details
+  const nchlGuid = 'NCHL' + NPI_CLIENT_CONFIG.acquirerId + NPI_CLIENT_CONFIG.merchantId;
+  const tag29Val = tlv('00', nchlGuid) +
+                   tlv('01', NPI_CLIENT_CONFIG.merchantId) +
+                   tlv('02', NPI_CLIENT_CONFIG.storeLabel || 'Store1') +
+                   tlv('03', NPI_CLIENT_CONFIG.terminalLabel || 'Terminal1');
+
+  const tag62Val = tlv('01', billNumber || ('B-' + Date.now())) +
+                   tlv('05', remarks || 'DentalBill') +
+                   tlv('07', NPI_CLIENT_CONFIG.terminalLabel || 'Terminal1') +
+                   tlv('08', NPI_CLIENT_CONFIG.storeLabel || 'Store1');
   const formattedAmount = Number(amount || 0).toFixed(2);
   const raw = tlv('00', '01') +
               tlv('01', '12') +
               tlv('26', tag26Val) +
+              tlv('29', tag29Val) +
               tlv('52', String(NPI_CLIENT_CONFIG.merchantCategoryCode)) +
               tlv('53', '524') +
               tlv('54', formattedAmount) +
@@ -2224,6 +2522,10 @@ async function openNepalPayModal({ amount, billNumber, remarks, patientName, pat
   canvasWrap.innerHTML = '<div style="padding:40px;color:var(--muted)">Generating NepalPay QR...</div>';
   statusPill.textContent = 'Connecting to NCHL ConnectIPS...';
   statusPill.className = 'status-pill live';
+
+  const existingNotice = document.getElementById('modalNchlNotice');
+  if (existingNotice) existingNotice.remove();
+
   modal.classList.add('show');
 
   try {
@@ -2246,46 +2548,80 @@ async function openNepalPayModal({ amount, billNumber, remarks, patientName, pat
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: parsedAmount, billNumber, remarks, patientName, patientContact, opdNumber })
         });
-        if (res.ok) {
-          data = await res.json();
-        }
-      } catch (_) {}
+        data = await res.json();
+      } catch (err) {
+        console.warn('REST API fetch error:', err);
+      }
     }
 
-    // 3. Direct client-side EMVCo NepalQR generator fallback (guarantees 100% offline uptime)
-    if (!data || !data.success || !data.qrString) {
-      const safeBillNo = billNumber || ('B-' + Date.now());
-      const validationTraceId = 'TRC' + Date.now() + Math.floor(Math.random() * 1000);
-      const qrString = buildClientNepalPayQr({
-        amount: parsedAmount,
-        billNumber: safeBillNo,
-        remarks: remarks || `Dental ${patientName || ''}`.trim()
-      });
-      data = {
-        success: true,
-        validationTraceId,
-        billNumber: safeBillNo,
-        amount: parsedAmount,
-        patientName,
-        qrString
-      };
+    // Always ensure a valid QR string is present and displayed on screen
+    const safeBillNo = data?.billNumber || billNumber || ('B-' + Date.now());
+    const safeTraceId = data?.validationTraceId || ('TRC' + Date.now());
+    const qrStringToDisplay = data?.qrString || buildClientNepalPayQr({
+      amount: parsedAmount,
+      billNumber: safeBillNo,
+      remarks: remarks || 'Dental Treatment'
+    });
+
+    activeQrTransaction = {
+      validationTraceId: safeTraceId,
+      billNumber: safeBillNo,
+      amount: parsedAmount,
+      patientName: patientName || 'Walk-in',
+      qrString: qrStringToDisplay,
+      isLiveNchl: !!data?.isLiveNchl
+    };
+
+    // Render the QR code in the modal canvas wrap
+    renderQrToElement(canvasWrap, qrStringToDisplay, 190, 190);
+
+    // Only mark status as "Active (Awaiting Scan)" if the upstream response succeeded (success === true)
+    const isSuccess = Boolean(data && data.success === true && (data.isLiveNchl || data.qrString));
+
+    if (isSuccess) {
+      statusPill.textContent = 'Active (Awaiting Scan)';
+      statusPill.className = 'status-pill live';
+      statusPill.style.background = '';
+      statusPill.style.color = '';
+    } else {
+      const errCode = data?.statusCode || data?.nchlStatusCode || 502;
+      const rawErrMsg = data?.error || data?.nchlError || 'NCHL Gateway is temporarily unavailable';
+      const cleanErrMsg = String(rawErrMsg).replace(/<[^>]*>/g, '').trim() || 'NCHL Gateway is temporarily unavailable';
+
+      const noticeDiv = document.createElement('div');
+      noticeDiv.id = 'modalNchlNotice';
+      noticeDiv.style.cssText = 'margin-top:10px;font-size:11.5px;color:#991b1b;background:#fee2e2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;text-align:center;line-height:1.45;';
+      noticeDiv.innerHTML = `⚠️ <b>NCHL Gateway Status (HTTP ${errCode}):</b> ${esc(cleanErrMsg)}<br><span style="color:#4b5563;font-size:11px">Offline NepalQR fallback active. Click <b>SIMULATE CUSTOMER PAYMENT</b> below to test locally.</span>`;
+      canvasWrap.parentNode.insertBefore(noticeDiv, canvasWrap.nextSibling);
+
+      statusPill.textContent = 'Gateway Unavailable';
+      statusPill.className = 'status-pill disconnected';
+      statusPill.style.background = '#fef2f2';
+      statusPill.style.color = '#dc2626';
     }
-
-    activeQrTransaction = data;
-    renderQrToElement(canvasWrap, data.qrString, 190, 190);
-
-    statusPill.textContent = 'Awaiting Payment on NepalPay / ConnectIPS';
-    statusPill.className = 'status-pill live';
 
     // Push QR directly to simulated NiZi POS Color LCD Display!
     sendNiziCommand({
       command: 'show_qr',
-      payload: data.qrString,
+      payload: qrStringToDisplay,
       amount: parsedAmount,
       currency: 'NPR',
-      billNumber: data.billNumber,
+      billNumber: safeBillNo,
       title: 'Infinity Dental'
     });
+
+    const inlineWrap = document.getElementById('terminalInlineQrWrap');
+    if (inlineWrap) {
+      renderQrToElement(inlineWrap, qrStringToDisplay, 136, 136);
+    }
+    const inlinePrice = document.getElementById('terminalInlinePrice');
+    if (inlinePrice) {
+      inlinePrice.textContent = 'Rs. ' + parsedAmount.toLocaleString();
+    }
+    const inlinePatient = document.getElementById('terminalInlinePatient');
+    if (inlinePatient) {
+      inlinePatient.textContent = `${patientName || 'Walk-in'} • ${safeBillNo}`;
+    }
 
     let remainingSec = 600;
     if (qrCountdownTimer) clearInterval(qrCountdownTimer);
@@ -2304,23 +2640,75 @@ async function openNepalPayModal({ amount, billNumber, remarks, patientName, pat
     }, 1000);
 
     recordNepalPayTxn({
-      traceId: data.validationTraceId,
-      billNumber: data.billNumber,
-      patientName: patientName,
+      traceId: safeTraceId,
+      billNumber: safeBillNo,
+      patientName: patientName || 'Walk-in',
       amount: parsedAmount,
       status: 'PENDING',
       time: new Date().toLocaleTimeString()
     });
 
+    // Start automatic payment status inquiry polling every 3 seconds
+    if (qrStatusPollTimer) clearInterval(qrStatusPollTimer);
+    qrStatusPollTimer = setInterval(async () => {
+      if (!activeQrTransaction) {
+        clearInterval(qrStatusPollTimer);
+        qrStatusPollTimer = null;
+        return;
+      }
+      try {
+        const traceId = activeQrTransaction.validationTraceId || '';
+        const billNo = activeQrTransaction.billNumber || '';
+        const pollUrl = `/api/nepalpay/status/${encodeURIComponent(traceId)}?billNumber=${encodeURIComponent(billNo)}`;
+        
+        let data = null;
+        if (window.dentalNpi && window.dentalNpi.checkPaymentStatus) {
+          data = await window.dentalNpi.checkPaymentStatus({ validationTraceId: traceId, billNumber: billNo });
+        } else {
+          const res = await fetch(pollUrl);
+          if (res.ok) data = await res.json();
+        }
+
+        if (data && (data.status === 'SUCCESS' || data.responseCode === '000' || data.transaction?.status === 'SUCCESS')) {
+          clearInterval(qrStatusPollTimer);
+          qrStatusPollTimer = null;
+
+          const txnId = data.txnId || data.transaction?.txnId || ('NPI-' + Date.now());
+          const amt = data.amount || data.transaction?.amount || activeQrTransaction.amount;
+          const payerName = data.payerName || data.transaction?.payerName || '';
+
+          console.log(`[QR Modal Poll] 🎉 Payment SUCCESS confirmed via NCHL gateway! Txn: ${txnId}, Amount: ${amt}, Payer: ${payerName}`);
+          handlePaymentReceivedEvent({
+            traceId: activeQrTransaction.validationTraceId,
+            billNumber: activeQrTransaction.billNumber,
+            txnId,
+            amount: amt,
+            payerName
+          });
+        }
+      } catch (pollErr) {
+        console.warn('[QR Modal Poll] Error polling status:', pollErr);
+      }
+    }, 3000);
+
   } catch(e) {
-    canvasWrap.innerHTML = `<div style="padding:20px;color:#b91c1c">Failed to generate QR: ${e.message}</div>`;
-    statusPill.textContent = 'Generation Failed';
-    statusPill.className = 'status-pill disconnected';
+    console.error('Error generating QR:', e);
+    const fallback = buildClientNepalPayQr({ amount: parsedAmount, billNumber, remarks });
+    renderQrToElement(canvasWrap, fallback, 190, 190);
+    sendNiziCommand({ command: 'show_qr', payload: fallback, amount: parsedAmount, currency: 'NPR', billNumber, title: 'Infinity Dental' });
+    statusPill.textContent = 'NepalQR Ready (Offline Fallback)';
+    statusPill.className = 'status-pill live';
   }
 }
 
 function closeNepalPayModal() {
   if (qrCountdownTimer) clearInterval(qrCountdownTimer);
+  if (qrStatusPollTimer) {
+    clearInterval(qrStatusPollTimer);
+    qrStatusPollTimer = null;
+  }
+  const notice = document.getElementById('modalNchlNotice');
+  if (notice) notice.remove();
   const modal = document.getElementById('nepalPayQrModal');
   if (modal) modal.classList.remove('show');
   activeQrTransaction = null;
@@ -2341,16 +2729,18 @@ async function simulateActiveQrPayment() {
   try {
     if (window.dentalNpi && window.dentalNpi.simulatePayment) {
       await window.dentalNpi.simulatePayment(traceId);
-    } else {
-      try {
-        await fetch('/api/nepalpay/simulate-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ validationTraceId: traceId, txnId })
-        });
-      } catch (_) {}
     }
   } catch (_) {}
+
+  try {
+    await fetch('/api/nepalpay/simulate-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ validationTraceId: traceId, txnId, billNumber: bill, amount: amt })
+    });
+  } catch (postErr) {
+    console.warn('Simulation API call failed:', postErr);
+  }
 
   // Immediately apply success in client UI
   handlePaymentReceivedEvent({
@@ -2362,10 +2752,14 @@ async function simulateActiveQrPayment() {
 }
 
 function handlePaymentReceivedEvent(eventData) {
-  const found = recentNepalPayTransactions.find(t => t.traceId === eventData.traceId);
+  const found = recentNepalPayTransactions.find(t => 
+    (eventData.traceId && t.traceId === eventData.traceId) || 
+    (eventData.billNumber && t.billNumber === eventData.billNumber)
+  );
   if (found) {
     found.status = 'SUCCESS';
     found.txnId = eventData.txnId;
+    if (eventData.payerName) found.patientName = eventData.payerName;
     renderNepalPayTxnTable();
   }
 
@@ -2377,17 +2771,65 @@ function handlePaymentReceivedEvent(eventData) {
     payload: `Payment of ${eventData.amount} rupees received successfully`
   });
 
-  if (activeQrTransaction && activeQrTransaction.validationTraceId === eventData.traceId) {
+  // Visually confirm payment success on modal
+  const statusPill = document.getElementById('modalQrStatusPill');
+  if (statusPill) {
+    statusPill.textContent = 'Payment Successful ✓';
+    statusPill.className = 'status-pill live';
+    statusPill.style.background = '#047857';
+    statusPill.style.color = '#ffffff';
+  }
+
+  if (activeQrTransaction && (
+    (eventData.traceId && activeQrTransaction.validationTraceId === eventData.traceId) ||
+    (eventData.billNumber && activeQrTransaction.billNumber === eventData.billNumber)
+  )) {
     const cb = onActiveQrSuccessCallback;
-    closeNepalPayModal();
-    if (cb) cb(eventData);
-    else {
-      alert(`🎉 Payment of Rs. ${Number(eventData.amount||0).toLocaleString()} confirmed successfully!\nTxn ID: ${eventData.txnId}`);
-    }
+    setTimeout(() => {
+      closeNepalPayModal();
+      if (cb) cb(eventData);
+      else {
+        alert(`🎉 Payment of Rs. ${Number(eventData.amount||0).toLocaleString()} confirmed successfully!\nTxn ID: ${eventData.txnId}\nPayer: ${eventData.payerName || 'connectIPS Customer'}`);
+      }
+    }, 1200);
+  }
+}
+
+let localFrontendWs = null;
+function setupRealtimeWebsocket() {
+  if (typeof WebSocket === 'undefined') return;
+  try {
+    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProto}//${location.host}/ws`;
+    localFrontendWs = new WebSocket(wsUrl);
+
+    localFrontendWs.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'payment_received') {
+          handlePaymentReceivedEvent(data);
+        } else if (data.type === 'nizi_command') {
+          updateNiziDeviceDisplay(data.command);
+        } else if (data.type === 'soundbox_status') {
+          applySoundboxStatusToUi(data.status);
+        }
+      } catch (_) {}
+    };
+
+    localFrontendWs.onclose = () => {
+      setTimeout(setupRealtimeWebsocket, 4000);
+    };
+
+    localFrontendWs.onerror = () => {
+      try { localFrontendWs.close(); } catch (_) {}
+    };
+  } catch (err) {
+    console.warn('Realtime WS setup warning:', err);
   }
 }
 
 function setupSseListener() {
+  setupRealtimeWebsocket();
   try {
     const sse = new EventSource('/api/events');
     sse.onmessage = (e) => {
@@ -2397,6 +2839,8 @@ function setupSseListener() {
           handlePaymentReceivedEvent(data);
         } else if (data.type === 'nizi_command') {
           updateNiziDeviceDisplay(data.command);
+        } else if (data.type === 'soundbox_status') {
+          applySoundboxStatusToUi(data.status);
         }
       } catch(err) {}
     };
@@ -2458,7 +2902,12 @@ function generateDynamicQrFromConsole() {
     return;
   }
   const patient = (document.getElementById('testQrPatient')?.value || 'Walk-in').trim();
-  const bill = (document.getElementById('testQrBillNo')?.value || ('B-' + Date.now())).trim();
+  
+  // Always generate a fresh unique bill number for every dynamic QR session
+  const billInput = document.getElementById('testQrBillNo');
+  const bill = 'B-' + Date.now();
+  if (billInput) billInput.value = bill;
+
   const rem = (document.getElementById('testQrRemarks')?.value || 'Dental Treatment').trim();
 
   openNepalPayModal({
@@ -2467,7 +2916,8 @@ function generateDynamicQrFromConsole() {
     patientName: patient,
     remarks: rem,
     onSuccess: (data) => {
-      alert(`Demo payment confirmed!\nAmount: Rs. ${amt}\nTxn ID: ${data.txnId}`);
+      alert(`🎉 Payment Confirmed via NCHL!\nAmount: Rs. ${amt}\nTxn ID: ${data.txnId}\nPayer: ${data.payerName || patient}`);
+      if (billInput) billInput.value = 'B-' + Date.now();
     }
   });
 }
@@ -2480,4 +2930,11 @@ function updateNiziClock() {
   }
 }
 setInterval(updateNiziClock, 10000);
+
+// Auto-initialize NiZi Soundbox LCD & Terminal QR on load
+setTimeout(() => {
+  try {
+    testNiziQr();
+  } catch(_) {}
+}, 250);
 

@@ -89,7 +89,7 @@
       <button id="headerStaffBtn" class="theme-toggle" style="display:none" onclick="showPage('staff')" title="Staff &amp; Account Management">👥 Staff Accounts</button>
       <button id="headerLogoutBtn" class="theme-toggle logout-pill" onclick="logoutUser()" title="Sign Out of Clinic">🚪 Logout</button>
     </div>
-    <button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.5</span></button>
+    <button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.6</span></button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙 Dark Mode</button>
     <div class="clock" id="clock"></div>
   </div>
@@ -150,9 +150,13 @@
     <div class="nizi-device-card">
       <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
         <div class="section-title" style="margin:0">NiZi POS B33 Device</div>
-        <div style="display:flex;gap:6px">
-          <button id="niziDriverBtn" class="btn secondary" style="font-size:11px;padding:6px 10px" onclick="installSoundboxDriver()" title="Click to install official CH341 USB driver for Windows 10/8/7">📦 Install Driver</button>
-          <button id="niziUsbConnectBtn" class="btn secondary" style="font-size:11px;padding:6px 10px" onclick="connectNiziUsb()">🔌 CONNECT USB</button>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button id="niziDriverBtn" class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="installSoundboxDriver()" title="Click to install official CH341 USB driver for Windows 10/8/7">📦 Driver</button>
+          <select id="soundboxPortSelect" style="font-size:11px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);cursor:pointer;min-width:115px;max-width:150px" title="Select COM port for NiZi USB Soundbox" onchange="onSoundboxPortSelected(this.value)">
+            <option value="">Detecting Ports...</option>
+          </select>
+          <button id="niziRefreshPortsBtn" class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="loadSoundboxPorts(true)" title="Refresh available COM ports">🔄</button>
+          <button id="niziUsbConnectBtn" class="btn secondary" style="font-size:11px;padding:6px 10px" onclick="connectSelectedSoundboxPort()">🔌 CONNECT USB</button>
         </div>
       </div>
       <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W Speaker Soundbox</div>
@@ -189,29 +193,49 @@
       <div class="card">
         <div class="section-title">Generate Dynamic QR (Testing Terminal)</div>
         <div class="muted" style="margin-bottom:14px">Generate a dynamic NepalPay QR for patient checkout with instant WebSocket status and NiZi POS push.</div>
-        <div class="formgrid">
-          <div class="field">
-            <label>Payment Amount (NPR) *</label>
-            <input id="testQrAmount" type="number" min="1" step="1" value="1500" placeholder="e.g. 1500" oninput="onTestQrAmountInput(this.value)" onchange="onTestQrAmountInput(this.value)">
+        
+        <div style="display:grid;grid-template-columns:1fr 220px;gap:20px;align-items:start">
+          <div>
+            <div class="formgrid">
+              <div class="field">
+                <label>Payment Amount (NPR) *</label>
+                <input id="testQrAmount" type="number" min="1" step="1" value="1500" placeholder="e.g. 1500" oninput="onTestQrAmountInput(this.value)" onchange="onTestQrAmountInput(this.value)">
+              </div>
+              <div class="field">
+                <label>Patient Name</label>
+                <input id="testQrPatient" type="text" value="Ram Shrestha" placeholder="Patient Name" oninput="testNiziQr()">
+              </div>
+              <div class="field">
+                <label>Bill Number</label>
+                <input id="testQrBillNo" type="text" placeholder="Auto-generated unique Bill No" oninput="testNiziQr()">
+              </div>
+              <div class="field">
+                <label>Purpose / Remarks</label>
+                <input id="testQrRemarks" type="text" value="Scaling &amp; Polishing" placeholder="Treatment Description" oninput="testNiziQr()">
+              </div>
+            </div>
+            <div class="actions" style="margin-top:16px">
+              <button class="btn primary" onclick="generateDynamicQrFromConsole()">⚡ GENERATE NEPALPAY DYNAMIC QR</button>
+              <button class="btn secondary" onclick="setQuickTestAmount(500, 'Consultation')">SET RS. 500</button>
+              <button class="btn secondary" onclick="setQuickTestAmount(1500, 'Root Canal Treatment')">SET RS. 1500</button>
+              <button class="btn secondary" onclick="setQuickTestAmount(3000, 'Scaling &amp; Polishing')">SET RS. 3000</button>
+            </div>
           </div>
-          <div class="field">
-            <label>Patient Name</label>
-            <input id="testQrPatient" type="text" value="Ram Shrestha" placeholder="Patient Name">
+
+          <!-- Active Inline QR Preview -->
+          <div style="background:var(--card-bg,#0b1320);border:1px solid var(--border,#334155);border-radius:12px;padding:12px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+            <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px">
+              <span class="status-pill live" style="font-size:9.5px;padding:2px 6px">● Live QR</span>
+              <span>NepalPay QR</span>
+            </div>
+            <div id="terminalInlineQrWrap" style="background:#fff;padding:6px;border-radius:8px;width:148px;height:148px;margin:0 auto;display:flex;align-items:center;justify-content:center;overflow:hidden">
+              <!-- Rendered QR -->
+            </div>
+            <div id="terminalInlinePrice" style="font-size:16px;font-weight:800;color:#38bdf8;margin-top:6px">Rs. 1,500</div>
+            <div id="terminalInlinePatient" class="muted" style="font-size:10.5px">Ram Shrestha</div>
+            <div class="muted" style="font-size:9px;margin-top:3px">Tag 29 NepalQR (eSewa / Khalti / ConnectIPS)</div>
+            <button class="btn primary" style="background:#16a34a;width:100%;font-size:10.5px;padding:6px 6px;margin-top:8px" onclick="simulateActiveQrPayment()">✓ SIMULATE PAYMENT</button>
           </div>
-          <div class="field">
-            <label>Bill Number</label>
-            <input id="testQrBillNo" type="text" value="B-20261020-001" placeholder="Bill Number">
-          </div>
-          <div class="field">
-            <label>Purpose / Remarks</label>
-            <input id="testQrRemarks" type="text" value="Scaling &amp; Polishing" placeholder="Treatment Description">
-          </div>
-        </div>
-        <div class="actions" style="margin-top:16px">
-          <button class="btn primary" onclick="generateDynamicQrFromConsole()">⚡ GENERATE NEPALPAY DYNAMIC QR</button>
-          <button class="btn secondary" onclick="setQuickTestAmount(500, 'Consultation')">SET RS. 500</button>
-          <button class="btn secondary" onclick="setQuickTestAmount(1500, 'Root Canal Treatment')">SET RS. 1500</button>
-          <button class="btn secondary" onclick="setQuickTestAmount(3000, 'Scaling &amp; Polishing')">SET RS. 3000</button>
         </div>
       </div>
 
@@ -455,7 +479,7 @@
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <span class="muted" style="font-size:12px">Current Installed Version:</span>
-        <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.5</span>
+        <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.6</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span class="muted" style="font-size:12px">Update Server:</span>
