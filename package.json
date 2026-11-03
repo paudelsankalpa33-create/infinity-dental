@@ -18,7 +18,6 @@
   "build": {
     "appId": "np.infinitydental.clinic",
     "productName": "Infinity Dental Clinic",
-    "npmRebuild": false,
     "directories": {
       "output": "release"
     },

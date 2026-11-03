@@ -87,6 +87,7 @@
     <div id="headerUserWrap" class="header-user-badge-wrap" style="display:none">
       <span id="headerUserBadge" class="header-user-pill">🛡️ Super Admin (admin)</span>
       <button id="headerStaffBtn" class="theme-toggle" style="display:none" onclick="showPage('staff')" title="Staff &amp; Account Management">👥 Staff Accounts</button>
+      <button id="headerWifiBtn" class="theme-toggle" style="display:none" onclick="openWifiModal()" title="Clinic Guest Wi-Fi &amp; NiZi Soundbox QR">📶 Wi-Fi QR</button>
       <button id="headerLogoutBtn" class="theme-toggle logout-pill" onclick="logoutUser()" title="Sign Out of Clinic">🚪 Logout</button>
     </div>
     <button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.6</span></button>
@@ -185,6 +186,30 @@
         <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziSuccessScreen()">✨ Test Success</button>
         <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="resetNiziScreen()">↺ Reset Screen</button>
         <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziQr()">📱 Test QR Display</button>
+      </div>
+
+      <div style="width:100%;margin-top:8px">
+        <button class="btn" id="niziShowWifiBtn" style="width:100%;font-size:11.5px;padding:9px;background:#0284c7;color:#fff;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer" onclick="showWifiOnNiziBox()" title="Show Clinic Guest Wi-Fi QR on NiZi POS soundbox screen">
+          📶 SHOW WI-FI QR ON NIZI BOX
+        </button>
+      </div>
+
+      <!-- Wi-Fi Card for Admins & Managers -->
+      <div class="card" style="width:100%;margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;box-sizing:border-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;color:#0369a1">
+            <span>📶</span> <span>Clinic Guest Wi-Fi</span>
+          </div>
+          <span class="badge" style="background:#0284c7;color:#fff;font-size:9.5px;font-weight:700">Admin / Manager</span>
+        </div>
+        <div class="muted" style="font-size:11px;line-height:1.4">
+          Network: <b id="niziWifiSsidLabel" style="color:var(--text)">Infinity Dental Guest</b><br>
+          Allow waiting payers &amp; patients to scan NiZi box to connect to clinic Wi-Fi.
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn secondary" style="font-size:11px;padding:6px 8px;flex:1" onclick="openWifiModal()" title="Insert or update Wi-Fi credentials">⚙️ Configure Wi-Fi</button>
+          <button class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="printWifiStandCard()" title="Print reception table stand">🖨️ Print Stand</button>
+        </div>
       </div>
     </div>
 
@@ -546,6 +571,132 @@
 </div>
 
 <script src="assets/qrcode.min.js"></script>
+
+<!-- Clinic Guest Wi-Fi & NiZi Soundbox Modal -->
+<div id="wifiModal" class="modal" onclick="if(event.target===this)closeWifiModal()">
+  <div class="modal-box" style="width:min(620px,96vw);padding:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">📶</span>
+        <div>
+          <div style="font-weight:800;font-size:16px;letter-spacing:-.2px">Clinic Guest Wi-Fi &amp; NiZi Soundbox</div>
+          <div class="muted" style="font-size:11.5px">Configure network credentials and broadcast QR to NiZi POS display for patients</div>
+        </div>
+      </div>
+      <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeWifiModal()">✕</button>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#0369a1;font-weight:600">
+        <span>🛡️ Authorized Access:</span>
+        <span class="badge" style="background:#0284c7;color:#fff;font-size:10.5px">Super Admin &amp; Manager Only</span>
+      </div>
+      <span id="wifiModalUserBadge" class="muted" style="font-size:11px">Logged in</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 210px;gap:20px;align-items:start">
+      <!-- Left: Wi-Fi Credentials Form -->
+      <div>
+        <div class="field" style="margin-bottom:12px">
+          <label style="font-weight:700;font-size:12px">Wi-Fi Network Name (SSID) *</label>
+          <input id="wifiSsidInput" type="text" placeholder="e.g. Infinity Dental Guest" oninput="onWifiFormChange()" style="font-weight:600">
+          <div class="muted" style="font-size:10.5px;margin-top:3px">The exact Wi-Fi name patients will see on their phones</div>
+        </div>
+
+        <div class="field" style="margin-bottom:12px">
+          <label style="font-weight:700;font-size:12px">Wi-Fi Password</label>
+          <div style="display:flex;gap:6px">
+            <input id="wifiPasswordInput" type="password" placeholder="Enter clinic Wi-Fi password" oninput="onWifiFormChange()" style="flex:1">
+            <button class="btn secondary" type="button" onclick="togglePasswordVisibility('wifiPasswordInput')" title="Show / Hide Password">👁️</button>
+          </div>
+          <div class="muted" style="font-size:10.5px;margin-top:3px">Leave blank if the Wi-Fi network has no password</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="field">
+            <label style="font-weight:700;font-size:11px">Security / Encryption</label>
+            <select id="wifiSecuritySelect" onchange="onWifiFormChange()" style="font-size:12px">
+              <option value="WPA" selected>WPA / WPA2 / WPA3 (Recommended)</option>
+              <option value="WEP">WEP (Legacy)</option>
+              <option value="nopass">None (Open Network)</option>
+            </select>
+          </div>
+          <div class="field" style="display:flex;align-items:center;padding-top:18px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;font-weight:600">
+              <input id="wifiHiddenCheckbox" type="checkbox" onchange="onWifiFormChange()">
+              Hidden Network
+            </label>
+          </div>
+        </div>
+
+        <div id="wifiModalAlert" style="margin-bottom:12px;font-size:11.5px;display:none;padding:8px 12px;border-radius:7px"></div>
+
+        <div style="display:flex;gap:8px">
+          <button class="btn primary" style="flex:1;font-size:12px;padding:9px" onclick="saveWifiConfigFromModal()">
+            💾 Save Wi-Fi Credentials
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Live QR Code Preview & NiZi Push Actions -->
+      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:4px">
+          <span>📶</span> <span>Phone Camera QR</span>
+        </div>
+        <div id="wifiModalQrWrap" style="background:#fff;padding:8px;border-radius:8px;border:1px solid var(--border);width:160px;height:160px;margin:0 auto;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)"></div>
+        <div id="wifiModalPreviewSsid" style="font-size:11.5px;font-weight:800;margin-top:8px;word-break:break-all">Infinity Dental Guest</div>
+        <div class="muted" style="font-size:10px;margin-top:2px">Scan with any phone camera to connect automatically</div>
+      </div>
+    </div>
+
+    <!-- Soundbox Screen Push Bar -->
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" style="background:#0284c7;color:#fff;font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;border:none;cursor:pointer" onclick="showWifiOnNiziBox()">
+          📶 SHOW ON NIZI BOX SCREEN
+        </button>
+        <button class="btn secondary" style="font-size:12px;padding:8px 14px" onclick="resetNiziScreenFromWifi()" title="Return soundbox to payment / clinic welcome screen">
+          ↺ Reset NiZi to Payment
+        </button>
+        <button class="btn secondary" style="font-size:12px;padding:8px 12px" onclick="printWifiStandCard()" title="Print high-resolution Wi-Fi tent card for reception desk">
+          🖨️ Print Desk Stand
+        </button>
+      </div>
+      <button class="btn secondary" onclick="closeWifiModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Printable Reception Wi-Fi Desk Stand Card -->
+<div id="wifiPrintTentCard">
+  <div style="border:3px solid #0284c7;border-radius:18px;padding:32px 40px;max-width:440px;text-align:center;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,0.08);margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">
+      <img src="assets/clinic-logo.png" style="width:50px;height:50px;object-fit:contain" alt="Logo">
+      <div style="text-align:left">
+        <div style="font-size:18px;font-weight:900;color:#0284c7;letter-spacing:-.3px">INFINITY DENTAL CLINIC</div>
+        <div style="font-size:11px;color:#64748b;font-weight:600">COMPLIMENTARY GUEST WI-FI</div>
+      </div>
+    </div>
+    <div style="font-size:22px;font-weight:900;color:#0f172a;margin:14px 0 6px">Free High-Speed Wi-Fi</div>
+    <div style="font-size:12px;color:#475569;margin-bottom:16px">Point your smartphone camera at the QR code to connect automatically</div>
+    
+    <div id="wifiPrintQrWrap" style="background:#fff;padding:12px;border:2px dashed #0284c7;border-radius:14px;width:190px;height:190px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center"></div>
+    
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:10px 14px;text-align:left;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12.5px">
+        <span style="color:#64748b">Network (SSID):</span>
+        <b id="wifiPrintSsidLabel" style="color:#0f172a">Infinity Dental Guest</b>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12.5px">
+        <span style="color:#64748b">Password:</span>
+        <b id="wifiPrintPassLabel" style="color:#0284c7;font-family:monospace">Smile@123</b>
+      </div>
+    </div>
+    
+    <div style="font-size:10.5px;color:#94a3b8">No password typing needed • Open Camera &amp; Tap to Connect</div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

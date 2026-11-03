@@ -468,10 +468,59 @@ function initDatabase() {
       console.log('✓ Seeded default Manager user (ID: m123456 / password: manager123)');
     }
 
+    // Clinic Settings Table (Wi-Fi, Clinic Preferences, etc.)
+    db.exec(`CREATE TABLE IF NOT EXISTS clinic_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
     console.log('✓ SQLite Database initialized successfully at:', activeDbPath);
   } catch (e) {
     console.error('Fatal SQLite initialization error:', e);
   }
+}
+
+// Clinic Wi-Fi Config Helpers
+function getClinicWifiConfig() {
+  try {
+    const row = db.prepare("SELECT value FROM clinic_settings WHERE key = 'wifi_config'").get();
+    if (row && row.value) {
+      return JSON.parse(row.value);
+    }
+  } catch (_) {}
+  return {
+    ssid: 'Infinity Dental Guest',
+    password: '',
+    security: 'WPA',
+    hidden: false
+  };
+}
+
+function saveClinicWifiConfig(config) {
+  const cleanConfig = {
+    ssid: String(config.ssid || 'Infinity Dental Guest').trim(),
+    password: String(config.password || '').trim(),
+    security: String(config.security || 'WPA').trim().toUpperCase(),
+    hidden: Boolean(config.hidden)
+  };
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO clinic_settings (key, value, updated_at)
+    VALUES ('wifi_config', ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).run(JSON.stringify(cleanConfig), now);
+  return cleanConfig;
+}
+
+function buildWifiPayload({ ssid, password, security = 'WPA', hidden = false }) {
+  const cleanSsid = String(ssid || 'Infinity Dental Guest').replace(/([\\;,":])/g, '\\$1');
+  const cleanPass = String(password || '').replace(/([\\;,":])/g, '\\$1');
+  const sec = String(security || 'WPA').toUpperCase();
+  const secTag = (sec === 'NONE' || sec === 'NOPASS') ? 'nopass' : (sec === 'WEP' ? 'WEP' : 'WPA');
+  const passPart = secTag === 'nopass' ? '' : `P:${cleanPass};`;
+  const hiddenPart = hidden ? 'H:true;' : '';
+  return `WIFI:S:${cleanSsid};T:${secTag};${passPart}${hiddenPart};`;
 }
 
 // CRC16 CCITT for EMVCo QR
@@ -1014,6 +1063,16 @@ function sendSoundboxSerialCommand(cmd) {
       activeSoundboxPort.write(textFrame);
     } else if (cmd.command === 'success') {
       const textFrame = `PAID:${Number(cmd.amount || 0).toFixed(2)}\r\n`;
+      activeSoundboxPort.write(textFrame);
+    } else if (cmd.command === 'show_wifi') {
+      const altJson = JSON.stringify({
+        command: 'qr_payload',
+        payload: cmd.payload,
+        title: 'Guest Wi-Fi',
+        billNumber: cmd.ssid || 'Scan to Connect'
+      }) + '\r\n';
+      activeSoundboxPort.write(altJson);
+      const textFrame = `QR:${cmd.payload}\r\nSSID:${cmd.ssid || ''}\r\nPWD:${cmd.password || ''}\r\n`;
       activeSoundboxPort.write(textFrame);
     }
     console.log(`[Soundbox Serial Tx on ${soundboxStatus.port}]:`, cmd.command, cmd.amount ? `Rs. ${cmd.amount}` : '');
@@ -1853,6 +1912,67 @@ const server = http.createServer(async (req, res) => {
       broadcastToClients({ type: 'nizi_command', command: cmd });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, forwarded: result.ok, niziResponse: result }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 10.1 Clinic Guest Wi-Fi & NiZi Screen Display
+  if (pathname === '/api/wifi/config' && req.method === 'GET') {
+    const wifi = getClinicWifiConfig();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, wifi }));
+    return;
+  }
+
+  if (pathname === '/api/wifi/config' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const wifi = saveClinicWifiConfig(body);
+      broadcastToClients({ type: 'wifi_updated', wifi });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, wifi }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/wifi/show-on-nizi' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const wifi = (body && body.ssid) ? saveClinicWifiConfig(body) : getClinicWifiConfig();
+      const payload = buildWifiPayload(wifi);
+      const niziCmd = {
+        command: 'show_wifi',
+        payload,
+        ssid: wifi.ssid,
+        password: wifi.password,
+        security: wifi.security,
+        title: 'Guest Wi-Fi',
+        subtitle: 'Scan to Connect'
+      };
+      await forwardToNiZiAgent(niziCmd);
+      broadcastToClients({ type: 'nizi_command', command: niziCmd });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, wifi, payload }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/wifi/reset-nizi' && req.method === 'POST') {
+    try {
+      const niziCmd = { command: 'display_logo', title: 'Infinity Dental' };
+      await forwardToNiZiAgent(niziCmd);
+      broadcastToClients({ type: 'nizi_command', command: niziCmd });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: e.message }));

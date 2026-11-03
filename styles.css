@@ -59,6 +59,7 @@ body.dark .dashboard-watermark{opacity:.06;filter:brightness(2) contrast(1.1) gr
 .nizi-header{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:800;letter-spacing:.5px;color:#94a3b8;margin-bottom:8px;padding:0 2px}
 .nizi-screen{background:#020617;border:3px solid #334155;border-radius:12px;height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;text-align:center;box-shadow:inset 0 3px 12px rgba(0,0,0,.9);transition:background .3s ease}
 .nizi-screen.success{background:#064e3b;border-color:#059669}
+.nizi-screen.wifi-screen{background:linear-gradient(160deg,#082f49 0%,#0c1a2e 100%);border-color:#0284c7;box-shadow:inset 0 3px 12px rgba(0,0,0,.9),0 0 16px rgba(2,132,199,.3)}
 .nizi-screen .nizi-qr{background:#fff;padding:6px;border-radius:6px;width:150px;height:150px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .nizi-screen .nizi-qr canvas,
 .nizi-screen .nizi-qr img{display:block;max-width:136px;max-height:136px;margin:0 auto}
@@ -592,6 +593,24 @@ body.dark .role-hint-neutral {
   background: #15222e;
   border-color: #2a3a4a;
   color: #94a3b8;
+}
+
+/* Printable Reception Wi-Fi Desk Stand */
+#wifiPrintTentCard { display: none; }
+@media print {
+  body.printing-wifi > *:not(#wifiPrintTentCard) { display: none !important; }
+  body.printing-wifi #wifiPrintTentCard {
+    display: flex !important;
+    position: fixed;
+    inset: 0;
+    background: #fff !important;
+    color: #0f172a !important;
+    align-items: center;
+    justify-content: center;
+    padding: 15mm;
+    box-sizing: border-box;
+    z-index: 999999;
+  }
 }
 
 

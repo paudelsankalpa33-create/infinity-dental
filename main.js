@@ -91,6 +91,13 @@ function openDb(){
     `).run(crypto.randomUUID(), 'm123456', hashPassword('manager123'), 'manager', 'Clinic Manager', 'active', now, now);
     console.log('✓ [Electron] Seeded default Manager user (m123456 / manager123)');
   }
+
+  // Clinic Settings Table (Wi-Fi, Clinic Preferences, etc.)
+  db.exec(`CREATE TABLE IF NOT EXISTS clinic_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
 }
 
 let mainWindow = null;
@@ -1005,6 +1012,42 @@ ipcMain.handle('nepalpay:simulate-payment', (_event, traceId) => {
     txnId: 'TXN-NPI-' + Date.now(),
     status: 'SUCCESS'
   };
+});
+
+// --- Clinic Guest Wi-Fi & NiZi Screen Display IPC ---
+ipcMain.handle('wifi:get', () => {
+  try {
+    const row = db.prepare("SELECT value FROM clinic_settings WHERE key = 'wifi_config'").get();
+    if (row && row.value) {
+      return { success: true, wifi: JSON.parse(row.value) };
+    }
+    return {
+      success: true,
+      wifi: { ssid: 'Infinity Dental Guest', password: '', security: 'WPA', hidden: false }
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('wifi:save', (_event, config) => {
+  try {
+    const cleanConfig = {
+      ssid: String(config.ssid || 'Infinity Dental Guest').trim(),
+      password: String(config.password || '').trim(),
+      security: String(config.security || 'WPA').trim().toUpperCase(),
+      hidden: Boolean(config.hidden)
+    };
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO clinic_settings (key, value, updated_at)
+      VALUES ('wifi_config', ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(JSON.stringify(cleanConfig), now);
+    return { success: true, wifi: cleanConfig };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 app.whenReady().then(async ()=>{

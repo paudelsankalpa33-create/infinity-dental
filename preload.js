@@ -35,3 +35,10 @@ contextBridge.exposeInMainWorld('dentalNpi', {
   checkPaymentStatus: (data) => ipcRenderer.invoke('nepalpay:check-status', data),
   simulatePayment: (traceId) => ipcRenderer.invoke('nepalpay:simulate-payment', traceId)
 });
+
+contextBridge.exposeInMainWorld('dentalWifi', {
+  get: () => ipcRenderer.invoke('wifi:get'),
+  save: (config) => ipcRenderer.invoke('wifi:save', config),
+  showOnNizi: (config) => ipcRenderer.invoke('wifi:show-on-nizi', config),
+  resetNizi: () => ipcRenderer.invoke('wifi:reset-nizi')
+});

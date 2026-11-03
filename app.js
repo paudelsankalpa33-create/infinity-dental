@@ -898,6 +898,9 @@ function applyLoggedInState() {
   if (staffBtn) staffBtn.style.display = isSuperAdmin ? 'inline-block' : 'none';
   if (navStaff) navStaff.style.display = isSuperAdmin ? 'block' : 'none';
 
+  const headerWifiBtn = document.getElementById('headerWifiBtn');
+  if (headerWifiBtn) headerWifiBtn.style.display = 'inline-block';
+
   // If a manager was on the staff page, take them to dashboard
   const activePage = document.querySelector('.page.active')?.id;
   if (!isSuperAdmin && activePage === 'staff') {
@@ -920,6 +923,9 @@ function applyLoggedOutState() {
 
   const navStaff = document.getElementById('navStaff');
   if (navStaff) navStaff.style.display = 'none';
+
+  const headerWifiBtn = document.getElementById('headerWifiBtn');
+  if (headerWifiBtn) headerWifiBtn.style.display = 'none';
 
   const uInput = document.getElementById('loginUsername');
   if (uInput) {
@@ -1370,6 +1376,7 @@ setTimeout(() => {
   loadSoundboxPorts(false);
   autoConnectNiziUsb(true);
   checkAppUpdates(false);
+  loadClinicWifiConfig();
 }, 1200);
 
 // --- GitHub Client Updates ---
@@ -2266,6 +2273,16 @@ async function sendNiziCommand(cmd) {
       } else if (cmd.command === 'success') {
         const textFrame = `PAID:${Number(cmd.amount||0).toFixed(2)}\r\n`;
         await niziSerialWriter.write(new TextEncoder().encode(textFrame));
+      } else if (cmd.command === 'show_wifi') {
+        const altJson = JSON.stringify({
+          command: 'qr_payload',
+          payload: cmd.payload,
+          title: 'Guest Wi-Fi',
+          billNumber: cmd.ssid || 'Scan to Connect'
+        }) + '\r\n';
+        await niziSerialWriter.write(new TextEncoder().encode(altJson));
+        const textFrame = `QR:${cmd.payload}\r\nSSID:${cmd.ssid || ''}\r\nPWD:${cmd.password || ''}\r\n`;
+        await niziSerialWriter.write(new TextEncoder().encode(textFrame));
       }
     } catch(e) {
       console.warn('[NiZi USB] Serial write warning:', e.message);
@@ -2350,6 +2367,21 @@ function updateNiziDeviceDisplay(cmd) {
       <div class="nizi-sub" style="font-size:9px;margin-top:6px;color:#a7f3d0">Infinity Dental Clinic</div>
     `;
     speakVoicePayment(cmd.amount || 0);
+  } else if (cmd.command === 'show_wifi') {
+    screen.className = 'nizi-screen wifi-screen';
+    screen.innerHTML = `
+      <div style="font-size:10px;font-weight:800;color:#38bdf8;letter-spacing:1px;margin-bottom:2px;display:flex;align-items:center;justify-content:center;gap:4px">
+        <span>📶</span> <span>GUEST WI-FI</span>
+      </div>
+      <div class="nizi-qr" id="niziDeviceQrWrap"></div>
+      <div style="font-size:11.5px;font-weight:800;color:#fff;margin-top:4px">${esc(cmd.ssid || 'Infinity Dental')}</div>
+      <div class="nizi-sub" style="font-size:9.5px;color:#cbd5e1">Password: <b style="color:#38bdf8">${esc(cmd.password || 'None')}</b></div>
+      <div class="nizi-sub" style="font-size:8.5px;color:#94a3b8;margin-top:2px">📷 Scan with Camera to Connect</div>
+    `;
+    const wrap = document.getElementById('niziDeviceQrWrap');
+    if (wrap) {
+      renderQrToElement(wrap, cmd.payload, 136, 136);
+    }
   } else if (cmd.command === 'display_logo' || cmd.command === 'reset') {
     resetNiziScreen();
   }
@@ -2367,6 +2399,245 @@ function resetNiziScreen() {
     <div class="nizi-sub">Welcome to Clinic</div>
     <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment</div>
   `;
+}
+
+// --- Clinic Guest Wi-Fi & NiZi Soundbox Integration ---
+let currentWifiConfig = {
+  ssid: 'Infinity Dental Guest',
+  password: '',
+  security: 'WPA',
+  hidden: false
+};
+
+function escapeWifiString(str) {
+  return String(str || '').replace(/([\\;,":])/g, '\\$1');
+}
+
+function buildWifiPayload({ ssid, password, security = 'WPA', hidden = false }) {
+  const cleanSsid = escapeWifiString(ssid || 'Infinity Dental Guest');
+  const cleanPass = escapeWifiString(password || '');
+  const sec = String(security || 'WPA').toUpperCase();
+  const secTag = (sec === 'NONE' || sec === 'NOPASS') ? 'nopass' : (sec === 'WEP' ? 'WEP' : 'WPA');
+  const passPart = secTag === 'nopass' ? '' : `P:${cleanPass};`;
+  const hiddenPart = hidden ? 'H:true;' : '';
+  return `WIFI:S:${cleanSsid};T:${secTag};${passPart}${hiddenPart};`;
+}
+
+async function loadClinicWifiConfig() {
+  try {
+    if (window.dentalWifi && window.dentalWifi.get) {
+      const res = await window.dentalWifi.get();
+      if (res && res.success && res.wifi) {
+        currentWifiConfig = res.wifi;
+      }
+    } else {
+      const res = await fetch('/api/wifi/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.wifi) currentWifiConfig = data.wifi;
+      }
+    }
+  } catch (_) {
+    try {
+      const local = localStorage.getItem('infinity_dental_wifi_config');
+      if (local) currentWifiConfig = JSON.parse(local);
+    } catch (_) {}
+  }
+  updateWifiModalFormValues();
+}
+
+function updateWifiModalFormValues() {
+  const ssidInp = document.getElementById('wifiSsidInput');
+  const passInp = document.getElementById('wifiPasswordInput');
+  const secSel = document.getElementById('wifiSecuritySelect');
+  const hiddenChk = document.getElementById('wifiHiddenCheckbox');
+  const ssidLabel = document.getElementById('niziWifiSsidLabel');
+  const previewSsid = document.getElementById('wifiModalPreviewSsid');
+
+  if (ssidInp && !ssidInp.matches(':focus')) ssidInp.value = currentWifiConfig.ssid || '';
+  if (passInp && !passInp.matches(':focus')) passInp.value = currentWifiConfig.password || '';
+  if (secSel) secSel.value = currentWifiConfig.security || 'WPA';
+  if (hiddenChk) hiddenChk.checked = Boolean(currentWifiConfig.hidden);
+
+  if (ssidLabel) ssidLabel.textContent = currentWifiConfig.ssid || 'Infinity Dental Guest';
+  if (previewSsid) previewSsid.textContent = currentWifiConfig.ssid || 'Infinity Dental Guest';
+
+  renderCurrentWifiQrPreview();
+}
+
+function renderCurrentWifiQrPreview() {
+  const wrap = document.getElementById('wifiModalQrWrap');
+  if (!wrap) return;
+  const payload = buildWifiPayload(currentWifiConfig);
+  renderQrToElement(wrap, payload, 144, 144);
+}
+
+function onWifiFormChange() {
+  const ssidInp = document.getElementById('wifiSsidInput');
+  const passInp = document.getElementById('wifiPasswordInput');
+  const secSel = document.getElementById('wifiSecuritySelect');
+  const hiddenChk = document.getElementById('wifiHiddenCheckbox');
+  const previewSsid = document.getElementById('wifiModalPreviewSsid');
+
+  const draftConfig = {
+    ssid: (ssidInp ? ssidInp.value : currentWifiConfig.ssid) || 'Infinity Dental Guest',
+    password: passInp ? passInp.value : currentWifiConfig.password,
+    security: secSel ? secSel.value : 'WPA',
+    hidden: hiddenChk ? hiddenChk.checked : false
+  };
+
+  if (previewSsid) previewSsid.textContent = draftConfig.ssid;
+  const wrap = document.getElementById('wifiModalQrWrap');
+  if (wrap) {
+    const payload = buildWifiPayload(draftConfig);
+    renderQrToElement(wrap, payload, 144, 144);
+  }
+}
+
+function openWifiModal() {
+  if (!currentUser || (currentUser.role !== 'superadmin' && currentUser.role !== 'manager')) {
+    alert('🔒 Authorized Access Only:\n\nOnly Clinic Admins and Managers can configure clinic guest Wi-Fi credentials and display the Wi-Fi QR on the NiZi Soundbox.\n\nPlease log in first with your Admin or Manager ID.');
+    return;
+  }
+
+  const badge = document.getElementById('wifiModalUserBadge');
+  if (badge) {
+    badge.textContent = `${currentUser.role === 'superadmin' ? '🛡️ Super Admin' : '👤 Manager'}: ${currentUser.username}`;
+  }
+
+  updateWifiModalFormValues();
+
+  const modal = document.getElementById('wifiModal');
+  if (modal) modal.classList.add('show');
+}
+
+function closeWifiModal() {
+  const modal = document.getElementById('wifiModal');
+  if (modal) modal.classList.remove('show');
+}
+
+async function saveWifiConfigFromModal() {
+  if (!currentUser || (currentUser.role !== 'superadmin' && currentUser.role !== 'manager')) {
+    alert('Unauthorized: Super Admin or Manager session required.');
+    return;
+  }
+
+  const ssid = (document.getElementById('wifiSsidInput')?.value || '').trim();
+  const password = (document.getElementById('wifiPasswordInput')?.value || '').trim();
+  const security = document.getElementById('wifiSecuritySelect')?.value || 'WPA';
+  const hidden = Boolean(document.getElementById('wifiHiddenCheckbox')?.checked);
+
+  if (!ssid) {
+    alert('Please enter a valid Wi-Fi Network Name (SSID).');
+    return;
+  }
+
+  const newConfig = { ssid, password, security, hidden };
+  const alertEl = document.getElementById('wifiModalAlert');
+
+  try {
+    if (window.dentalWifi && window.dentalWifi.save) {
+      await window.dentalWifi.save(newConfig);
+    } else {
+      await fetch('/api/wifi/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig)
+      });
+    }
+
+    try {
+      localStorage.setItem('infinity_dental_wifi_config', JSON.stringify(newConfig));
+    } catch (_) {}
+
+    currentWifiConfig = newConfig;
+    updateWifiModalFormValues();
+
+    if (alertEl) {
+      alertEl.style.display = 'block';
+      alertEl.style.background = '#dcfce7';
+      alertEl.style.color = '#15803d';
+      alertEl.style.border = '1px solid #bbf7d0';
+      alertEl.innerHTML = `✓ Wi-Fi credentials for <b>${esc(ssid)}</b> saved successfully!`;
+      setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 4000);
+    }
+  } catch (err) {
+    if (alertEl) {
+      alertEl.style.display = 'block';
+      alertEl.style.background = '#fee2e2';
+      alertEl.style.color = '#b91c1c';
+      alertEl.style.border = '1px solid #fecaca';
+      alertEl.textContent = 'Failed to save Wi-Fi config: ' + err.message;
+    }
+  }
+}
+
+async function showWifiOnNiziBox() {
+  if (!currentUser || (currentUser.role !== 'superadmin' && currentUser.role !== 'manager')) {
+    alert('🔒 Authorized Access Only:\n\nPlease log in as Super Admin or Manager to control the NiZi POS Soundbox display.');
+    return;
+  }
+
+  const ssid = currentWifiConfig.ssid || 'Infinity Dental Guest';
+  const password = currentWifiConfig.password || '';
+  const payload = buildWifiPayload(currentWifiConfig);
+
+  const cmd = {
+    command: 'show_wifi',
+    payload,
+    ssid,
+    password,
+    security: currentWifiConfig.security || 'WPA',
+    title: 'Guest Wi-Fi',
+    subtitle: 'Scan to Connect'
+  };
+
+  sendNiziCommand(cmd);
+
+  try {
+    await fetch('/api/wifi/show-on-nizi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentWifiConfig)
+    });
+  } catch (_) {}
+
+  // Update NiZi status pill
+  const pill = document.getElementById('niziHardwareStatusPill');
+  if (pill) {
+    pill.textContent = '📶 Wi-Fi QR on Screen';
+    pill.className = 'status-pill live';
+  }
+
+  console.log(`[NiZi Screen] 📶 Broadcasted Clinic Wi-Fi QR for "${ssid}" to soundbox screen.`);
+}
+
+async function resetNiziScreenFromWifi() {
+  resetNiziScreen();
+  sendNiziCommand({ command: 'display_logo', title: 'Infinity Dental' });
+  try {
+    await fetch('/api/wifi/reset-nizi', { method: 'POST' });
+  } catch (_) {}
+}
+
+function printWifiStandCard() {
+  const ssid = currentWifiConfig.ssid || 'Infinity Dental Guest';
+  const password = currentWifiConfig.password || 'None';
+  const payload = buildWifiPayload(currentWifiConfig);
+
+  const ssidLabel = document.getElementById('wifiPrintSsidLabel');
+  const passLabel = document.getElementById('wifiPrintPassLabel');
+  const qrWrap = document.getElementById('wifiPrintQrWrap');
+
+  if (ssidLabel) ssidLabel.textContent = ssid;
+  if (passLabel) passLabel.textContent = password || 'None (Open Network)';
+  if (qrWrap) renderQrToElement(qrWrap, payload, 180, 180);
+
+  document.body.classList.add('printing-wifi');
+  window.print();
+  setTimeout(() => {
+    document.body.classList.remove('printing-wifi');
+  }, 1000);
 }
 
 function getActiveTestQrAmount() {
