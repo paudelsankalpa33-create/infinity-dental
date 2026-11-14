@@ -37,7 +37,7 @@ const privateKeyPem = fs.readFileSync(KEY_FILE, 'utf8');
 console.log('✓ Successfully loaded private key from certs/npi_key.pem');
 
 const validationTraceId = 'TRC' + Date.now() + Math.floor(Math.random() * 1000);
-const safeBillNo = 'TEST-1793189999001';
+const safeBillNo = 'TEST-' + Date.now();
 const acquirerId = NPI_CONFIG.acquirerId;
 const merchantId = NPI_CONFIG.merchantId;
 const merchantCategoryCode = NPI_CONFIG.merchantCategoryCode;

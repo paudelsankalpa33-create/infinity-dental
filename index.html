@@ -84,14 +84,7 @@
     </div>
   </div>
   <div class="header-actions">
-    <div id="headerUserWrap" class="header-user-badge-wrap" style="display:none">
-      <span id="headerUserBadge" class="header-user-pill">🛡️ Super Admin (admin)</span>
-      <button id="headerStaffBtn" class="theme-toggle" style="display:none" onclick="showPage('staff')" title="Staff &amp; Account Management">👥 Staff Accounts</button>
-      <button id="headerWifiBtn" class="theme-toggle" style="display:none" onclick="openWifiModal()" title="Clinic Guest Wi-Fi &amp; NiZi Soundbox QR">📶 Wi-Fi QR</button>
-      <button id="headerLogoutBtn" class="theme-toggle logout-pill" onclick="logoutUser()" title="Sign Out of Clinic">🚪 Logout</button>
-    </div>
-    <button class="theme-toggle" id="updateBtn" onclick="openUpdateModal()" title="Check Software Updates">🔄 Updates <span id="appVersionBadge" style="font-size:10px;opacity:.85;margin-left:3px">v1.0.6</span></button>
-    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙 Dark Mode</button>
+    <button id="headerLogoutBtn" class="header-btn btn-logout" style="display:none" onclick="logoutUser()" title="Sign Out of Clinic">Logout</button>
     <div class="clock" id="clock"></div>
   </div>
 </header>
@@ -107,9 +100,140 @@
   </div>
 </div>
 <div class="layout"><aside>
-<button class="nav active" data-page="dashboard">Dashboard</button><button class="nav" data-page="register">Register Patient</button><button class="nav" data-page="patients">Search Patients / All Patients</button><button class="nav" data-page="profile">Patient Profile</button><button class="nav" data-page="transactions">Transactions</button><button class="nav" data-page="billing">Billing</button><button class="nav" data-page="appointments">Appointments</button><button class="nav" data-page="nepalpay">NepalPay QR & Soundbox</button><button class="nav" id="navStaff" data-page="staff" style="display:none">👥 Staff &amp; Accounts</button>
+<div class="nav-section-title" style="padding-top:4px">CLINICAL</div>
+<button class="nav active" data-page="dashboard"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect></svg><span>Dashboard</span></button>
+<button class="nav" data-page="register"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" x2="19" y1="8" y2="14"></line><line x1="22" x2="16" y1="11" y2="11"></line></svg><span>Register Patient</span></button>
+<button class="nav" data-page="patients"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><span>Search Patients</span></button>
+<button class="nav" data-page="profile"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><span>Patient Profile</span></button>
+<button class="nav" data-page="labworks"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"></path><path d="M14 9.3V1.99"></path><path d="M8.5 2h7"></path><path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path><path d="M5.52 16h12.96"></path></svg><span>Lab Works</span></button>
+<button class="nav" data-page="appointments"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg><span>Appointments</span></button>
+
+<div class="nav-section-divider"></div>
+<div class="nav-section-title">BILLING &amp; POS</div>
+<button class="nav" data-page="transactions"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 6v12"></path></svg><span>Transactions</span></button>
+<button class="nav" data-page="billing"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path><path d="M8 7h8"></path><path d="M8 11h8"></path><path d="M8 15h5"></path></svg><span>Billing</span></button>
+<button class="nav" data-page="nepalpay"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16.01" y1="18" y2="18"></line><rect width="8" height="4" x="8" y="10" rx="1"></rect></svg><span>NepalPay &amp; Soundbox</span></button>
+
+<div class="nav-section-divider"></div>
+<div class="nav-section-title">OPERATIONS</div>
+<button class="nav" data-page="purchases"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path></svg><span>Purchases &amp; Inventory</span></button>
+<button class="nav" data-page="stocks"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg><span>Stocks</span></button>
+<button class="nav" id="navStaff" data-page="staff" style="display:none"><svg class="nav-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><span>Staff &amp; Accounts</span></button>
+
+<div class="sidebar-spacer"></div>
+
+<div class="sidebar-footer" id="sidebarFooter">
+  <!-- Settings Dropup Flyout Panel holding all shifted items -->
+  <div id="settingsFlyout" class="settings-flyout" style="display:none">
+    <div class="settings-flyout-user">
+      <div id="settingsUserBadge" class="settings-user-pill">
+        <span class="user-role-dot"></span>
+        <span class="user-role-name">Super Admin</span>
+        <span class="user-name-sep">·</span>
+        <span class="user-acc-name">admin</span>
+      </div>
+    </div>
+    <div class="settings-flyout-divider"></div>
+    <div class="settings-flyout-menu">
+      <button id="settingsStaffBtn" class="settings-flyout-item" style="display:none" onclick="showPage('staff'); closeSettingsMenu();">
+        <span class="settings-item-title">Staff Accounts</span>
+      </button>
+      <button id="settingsWifiBtn" class="settings-flyout-item" onclick="openWifiModal(); closeSettingsMenu();">
+        <span class="settings-item-title">Wi-Fi QR</span>
+      </button>
+      <button id="settingsUpdateBtn" class="settings-flyout-item" onclick="openUpdateModal(); closeSettingsMenu();">
+        <span class="settings-item-title">Updates</span>
+        <span id="settingsVersionBadge" class="header-version-pill">v1.0.6</span>
+      </button>
+      <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
+        <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
+      </button>
+      <div class="settings-flyout-divider"></div>
+      <button id="settingsLogoutBtn" class="settings-flyout-item settings-item-danger" onclick="logoutUser(); closeSettingsMenu();">
+        <span class="settings-item-title">Logout</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Settings Trigger Button (Gear Sign) inside a subtle bordered pill button -->
+  <button class="nav-settings-btn" id="sidebarSettingsBtn" onclick="toggleSettingsMenu(event)" title="Clinic Settings &amp; Preferences">
+    <svg class="settings-gear-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+    <span>Settings</span>
+  </button>
+</div>
 </aside><main>
-<section id="dashboard" class="page active dashboard-page"><div class="dashboard-watermark-wrap"><img class="dashboard-watermark" src="assets/clinic-logo.png" alt="Infinity Dental Clinic"></div><div class="dashboard-content"><div class="title">Dashboard</div><div class="muted">Infinity Dental Clinic — local web app</div><div class="card" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap"><div><div class="section-title" style="font-size:16px">Patient Database</div><div class="muted" id="dataFolderStatus">Database: Browser storage (select a local folder)</div></div><button class="btn secondary" onclick="selectDataFolder()">SELECT LOCAL DATA FOLDER</button></div><div class="cards"><div class="card"><div class="muted">Total Patients</div><div class="stat" id="statPatients">0</div></div><div class="card"><div class="muted">Today's Patients</div><div class="stat" id="statToday">0</div></div><div class="card"><div class="muted">Next OPD</div><div class="stat" id="statOpd">1001</div></div><div class="card"><div class="muted">Pending Payments</div><div class="stat" id="statPending">0</div></div><div class="card"><div class="muted">Today's Appointments</div><div class="stat" id="statAppointments">0</div></div></div><div class="card"><div class="section-title">Today's Appointments</div><div class="muted" style="margin-bottom:12px">Patients scheduled for today</div><div id="todayAppointments"></div></div><div class="card" style="margin-top:18px"><div class="section-title">Recently Opened Patients</div><div class="muted" style="margin-bottom:12px">Patients you opened most recently</div><div id="recentPatients" class="muted">No recently opened patients.</div></div></div></section>
+<section id="dashboard" class="page active dashboard-page"><div class="dashboard-watermark-wrap"><img class="dashboard-watermark" src="assets/clinic-logo.png" alt="Infinity Dental Clinic"></div><div class="dashboard-content"><div class="title">Dashboard</div><div class="muted">Infinity Dental Clinic — local web app</div><div class="card patient-db-card" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap"><div><div class="section-title" style="font-size:16px">Patient Database</div><div class="muted" id="dataFolderStatus">Database: Browser storage (select a local folder)</div></div><button class="btn secondary" onclick="selectDataFolder()">SELECT LOCAL DATA FOLDER</button></div><div class="cards">
+      <div class="card">
+        <div class="kpi-header">
+          <div class="muted">Total Patients</div>
+          <div class="kpi-icon-badge kpi-badge-cyan">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </div>
+        </div>
+        <div class="stat" id="statPatients">0</div>
+      </div>
+      <div class="card">
+        <div class="kpi-header">
+          <div class="muted">Today's Patients</div>
+          <div class="kpi-icon-badge kpi-badge-emerald">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="stat" id="statToday">0</div>
+      </div>
+      <div class="card">
+        <div class="kpi-header">
+          <div class="muted">Next OPD</div>
+          <div class="kpi-icon-badge kpi-badge-purple">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="9" y2="9"></line><line x1="4" x2="20" y1="15" y2="15"></line><line x1="10" x2="8" y1="3" y2="21"></line><line x1="16" x2="14" y1="3" y2="21"></line></svg>
+          </div>
+        </div>
+        <div class="stat" id="statOpd">1001</div>
+      </div>
+      <div class="card">
+        <div class="kpi-header">
+          <div class="muted">Pending Payments</div>
+          <div class="kpi-icon-badge kpi-badge-rose">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>
+          </div>
+        </div>
+        <div class="stat" id="statPending">0</div>
+      </div>
+      <div class="card">
+        <div class="kpi-header">
+          <div class="muted">Today's Appointments</div>
+          <div class="kpi-icon-badge kpi-badge-amber">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line><circle cx="12" cy="14" r="2"></circle></svg>
+          </div>
+        </div>
+        <div class="stat" id="statAppointments">0</div>
+      </div>
+    </div>
+    <div class="dashboard-bottom-grid">
+      <div class="card">
+        <div class="section-title">Today's Appointments</div>
+        <div class="muted" style="margin-bottom:12px">Patients scheduled for today</div>
+        <div id="todayAppointments">
+          <div class="empty">
+            <svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
+            <div>No appointments scheduled for today.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Recently Opened Patients</div>
+        <div class="muted" style="margin-bottom:12px">Patients you opened most recently</div>
+        <div id="recentPatients">
+          <div class="empty">
+            <svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <div>No recently opened patients.</div>
+          </div>
+        </div>
+      </div>
+    </div></div></section>
 <section id="register" class="page"><div class="title">Register Patient</div><div class="muted">Date, time and OPD number are automatic.</div><div class="card" style="margin-top:18px"><div class="formgrid"><div class="field"><label>Patient name *</label><input id="name" required></div><div class="field"><label>Contact number *</label><input id="contact" required inputmode="tel"></div><div class="field"><label>Address</label><input id="address"></div><div class="field"><label>Age</label><input id="age"></div><div class="field"><label>Gender *</label><select id="gender" required><option value="">Select gender</option><option>Male</option><option>Female</option><option>Other</option></select></div></div><div class="card" style="margin-top:15px;background:#eef8fb;border:0"><b>Next OPD: <span id="nextOpd">1001</span></b></div><div class="actions"><button class="btn primary" onclick="registerPatient()">REGISTER PATIENT</button><button class="btn secondary" onclick="clearForm()">CLEAR</button></div></div></section>
 <section id="patients" class="page"><div class="title">Search Patients / All Patients</div><div class="muted">Search and open a patient profile.</div><div class="toolbar"><input id="search" placeholder="Search by OPD, name or contact" oninput="renderPatients()"><button class="btn secondary" onclick="document.getElementById('search').value='';renderPatients()">Clear</button></div><div class="tablewrap"><table class="table"><thead><tr><th>OPD</th><th>Patient name</th><th>Contact</th><th>Registered</th><th>Payment</th></tr></thead><tbody id="patientRows"></tbody></table></div></section>
 <section id="profile" class="page"><div class="title">Patient Profile</div><div class="muted">Select a patient from the Patients screen.</div><div id="profileContent" style="margin-top:18px"><div class="card empty">No patient selected.</div></div></section>
@@ -189,7 +313,7 @@
       </div>
 
       <div style="width:100%;margin-top:8px">
-        <button class="btn" id="niziShowWifiBtn" style="width:100%;font-size:11.5px;padding:9px;background:#0284c7;color:#fff;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer" onclick="showWifiOnNiziBox()" title="Show Clinic Guest Wi-Fi QR on NiZi POS soundbox screen">
+        <button class="btn btn-wifi" id="niziShowWifiBtn" style="width:100%;font-size:12px;padding:10px" onclick="showWifiOnNiziBox()" title="Show Clinic Guest Wi-Fi QR on NiZi POS soundbox screen">
           📶 SHOW WI-FI QR ON NIZI BOX
         </button>
       </div>
@@ -251,15 +375,18 @@
           <div style="background:var(--card-bg,#0b1320);border:1px solid var(--border,#334155);border-radius:12px;padding:12px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
             <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px">
               <span class="status-pill live" style="font-size:9.5px;padding:2px 6px">● Live QR</span>
-              <span>NepalPay QR</span>
+              <span>NEPALPAY QR</span>
+            </div>
+            <div style="background:#ffffff;padding:4px 10px;border-radius:6px;margin:0 auto 8px auto;display:inline-block">
+              <img src="assets/nepalpay-qr-logo.png" alt="NEPALPAY QR" style="height:20px;object-fit:contain;display:block">
             </div>
             <div id="terminalInlineQrWrap" style="background:#fff;padding:6px;border-radius:8px;width:148px;height:148px;margin:0 auto;display:flex;align-items:center;justify-content:center;overflow:hidden">
               <!-- Rendered QR -->
             </div>
             <div id="terminalInlinePrice" style="font-size:16px;font-weight:800;color:#38bdf8;margin-top:6px">Rs. 1,500</div>
             <div id="terminalInlinePatient" class="muted" style="font-size:10.5px">Ram Shrestha</div>
-            <div class="muted" style="font-size:9px;margin-top:3px">Tag 29 NepalQR (eSewa / Khalti / ConnectIPS)</div>
-            <button class="btn primary" style="background:#16a34a;width:100%;font-size:10.5px;padding:6px 6px;margin-top:8px" onclick="simulateActiveQrPayment()">✓ SIMULATE PAYMENT</button>
+            <div class="muted" style="font-size:9px;margin-top:3px">Tag 29 NEPALPAY QR (ConnectIPS / Mobile Banking)</div>
+            <button class="btn btn-success" style="width:100%;font-size:11px;padding:8px 6px;margin-top:8px" onclick="simulateActiveQrPayment()">✓ SIMULATE PAYMENT</button>
           </div>
         </div>
       </div>
@@ -419,34 +546,432 @@
     </div>
   </div>
 </section>
+
+<!-- =========================================================================
+     LAB WORKS MODULE
+     ========================================================================= -->
+<section id="labworks" class="page">
+<div class="head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+  <div>
+    <div class="title">Lab Works</div>
+    <div class="muted">Lab assignments, delivery progress and laboratory accounts</div>
+  </div>
+  <div class="actions">
+    <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
+    <button class="btn primary" onclick="labTab('new')">＋ Assign Lab Work</button>
+  </div>
+</div>
+<div class="tabs">
+  <button class="tab active" onclick="labTab('overview')" id="lt-overview">Overview</button>
+  <button class="tab" onclick="labTab('records')" id="lt-records">Lab Work Records</button>
+  <button class="tab" onclick="labTab('new')" id="lt-new">New Assignment</button>
+  <button class="tab" onclick="labTab('accounts')" id="lt-accounts">Lab Accounts (Admin)</button>
+  <button class="tab" onclick="labTab('history')" id="lt-history">Previous Months (Admin)</button>
+  <button class="tab" onclick="labTab('delete')" id="lt-delete">Delete Records (Admin)</button>
+</div>
+<div id="lab-overview">
+  <div class="cards c5" id="lo-cards"></div>
+  <div class="cols">
+    <div class="panel">
+      <div class="ph">Recent Lab Works</div>
+      <div class="pb"><div style="overflow:auto"><table class="table" data-name="Recent Lab Works"><thead><tr><th>OPD No.</th><th>Patient / Work</th><th>Lab</th><th>Status</th></tr></thead><tbody id="lo-body"></tbody></table></div></div>
+    </div>
+    <div class="panel">
+      <div class="ph">Workflow</div>
+      <div class="pb">
+        <b>Pending</b> → <b>Ongoing</b> → <b>To Be Received</b> → <b>Received</b> → <b>To Be Fitted</b> → <b>Fitted / Completed</b>
+        <p class="foot">Every lab case is linked to the patient's OPD number and patient record in the clinic database. Charges, payments and monthly balances are admin-only.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="lab-records" class="hide">
+  <div class="panel">
+    <div class="ph">Lab Work Records</div>
+    <div class="pb">
+      <input id="lr-q" oninput="renderLab()" placeholder="Search OPD number, patient, lab or work type" style="padding:9px;width:100%;margin-bottom:12px;border:1px solid var(--border);border-radius:8px">
+      <div style="overflow:auto">
+        <table class="table">
+          <thead><tr><th>OPD No.</th><th>Patient</th><th>Age / Sex</th><th>Phone</th><th>Work</th><th>Lab</th><th>Sent (AD)</th><th>Expected (BS)</th><th>Status</th><th class="noexp">Action</th></tr></thead>
+          <tbody id="lr-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="lab-new" class="hide">
+  <div class="panel">
+    <div class="ph">New Lab Assignment</div>
+    <div class="pb">
+      <div class="formgrid">
+        <div class="field"><label>Patient OPD Number *</label><input id="ln-opd" list="opdl" placeholder="e.g. OPD-1001" oninput="fetchPat()"></div>
+        <div class="field"><label>Laboratory *</label><select id="ln-lab"><option value="">Select lab</option><option>Smile Lab</option><option>Dental Craft</option><option>Precision Dental Lab</option></select></div>
+        <div class="field"><label>Work Type *</label><input id="ln-work" placeholder="Crown / RPD / Denture"></div>
+        <div class="field"><label>Tooth Number</label><input id="ln-tooth" placeholder="e.g. 16"></div>
+        <div class="field"><label>Shade</label><input id="ln-shade" placeholder="e.g. A2"></div>
+        <div class="field"><label>Sent to Lab (AD)</label><input id="ln-sent" type="date"></div>
+        <div class="field"><label>Expected Delivery (BS)</label><input id="ln-exp" placeholder="YYYY-MM-DD"></div>
+        <div class="field"><label>Estimated Lab Charge (Rs.)</label><input id="ln-charge" type="number" min="0" placeholder="0.00"></div>
+      </div>
+      <datalist id="opdl"></datalist>
+      <div id="ln-pat" class="patbox">Enter an OPD number to load patient details.</div>
+      <div class="field" style="margin-top:10px">
+        <label>Lab Instructions / Clinical Notes</label>
+        <input id="ln-ins" placeholder="Lab instructions, margin details, notes" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn secondary" onclick="saveLab(0)">Save Draft</button>
+        <button class="btn primary" onclick="saveLab(1)">Save Assignment &amp; Dispatch</button>
+      </div>
+      <p id="ln-msg" class="foot"></p>
+    </div>
+  </div>
+</div>
+<div id="lab-accounts" class="hide">
+  <div class="muted" style="margin-bottom:10px">Month: <b id="ac-mname"></b> (current month)</div>
+  <div class="cards" id="ac-cards"></div>
+  <div class="panel">
+    <div class="ph">Lab Account Summary · Admin Only</div>
+    <div class="pb">
+      <div style="overflow:auto"><table class="table" id="ac-tbl"><thead><tr><th>Laboratory</th><th>Due from previous month</th><th>Charge of this month</th><th>Paid</th><th>Outstanding</th></tr></thead><tbody id="ac-body"></tbody></table></div>
+      <p class="foot">Outstanding = Due from previous month + Charge of this month − Paid. Click a lab row to see cases and details.</p>
+    </div>
+  </div>
+  <div id="ac-detail"></div>
+</div>
+<div id="lab-history" class="hide">
+  <div class="panel">
+    <div class="ph">Month-wise Summary · Admin Only</div>
+    <div class="pb">
+      <div style="overflow:auto"><table class="table" data-name="Month-wise Lab Summary"><thead><tr><th>Month (BS)</th><th>Due from previous month</th><th>Charge of this month</th><th>Paid</th><th>Outstanding</th></tr></thead><tbody id="hs-months"></tbody></table></div>
+      <p class="foot">Previous months only. Click a month to inspect its full account breakdown.</p>
+    </div>
+  </div>
+  <div id="hs-view" class="hide">
+    <div class="muted" style="margin-bottom:10px">Viewing: <b id="hs-mname"></b></div>
+    <div class="cards" id="hs-cards"></div>
+    <div class="panel">
+      <div class="ph">Lab Account Summary · <span id="hs-pt"></span></div>
+      <div class="pb"><div style="overflow:auto"><table class="table" id="hs-tbl"><thead><tr><th>Laboratory</th><th>Due from previous month</th><th>Charge of this month</th><th>Paid</th><th>Outstanding</th></tr></thead><tbody id="hs-body"></tbody></table></div></div>
+    </div>
+    <div id="hs-detail"></div>
+  </div>
+</div>
+<div id="lab-delete" class="hide">
+  <div class="panel">
+    <div class="ph">Delete Lab Records · Admin Only</div>
+    <div class="pb">
+      <p class="foot" style="margin:0 0 10px">Deleting removes the lab case permanently. Admin PIN required.</p>
+      <div style="overflow:auto"><table class="table" data-nox="1"><thead><tr><th>OPD No.</th><th>Patient</th><th>Work</th><th>Lab</th><th>Sent (AD)</th><th>Status</th><th class="noexp">Action</th></tr></thead><tbody id="dr-lab"></tbody></table></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- =========================================================================
+     PURCHASES & INVENTORY MODULE
+     ========================================================================= -->
+<section id="purchases" class="page">
+<div class="head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+  <div>
+    <div class="title">Purchases &amp; Inventory</div>
+    <div class="muted">Clinic purchases, suppliers and stock management</div>
+  </div>
+  <div class="actions">
+    <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
+    <button class="btn primary" onclick="buyTab('new')">＋ New Purchase</button>
+  </div>
+</div>
+<div class="tabs">
+  <button class="tab active" id="bt-overview" onclick="buyTab('overview')">Overview</button>
+  <button class="tab" id="bt-new" onclick="buyTab('new')">New Purchase</button>
+  <button class="tab" id="bt-suppliers" onclick="buyTab('suppliers')">Supplier Management</button>
+  <button class="tab" id="bt-records" onclick="buyTab('records')">Purchase Records</button>
+  <button class="tab" id="bt-delete" onclick="buyTab('delete')">Delete Records (Admin)</button>
+</div>
+<div id="buy-overview">
+  <div class="cards" id="bo-cards"></div>
+  <div class="cols">
+    <div class="panel">
+      <div class="ph">Recent Purchases</div>
+      <div class="pb"><div style="overflow:auto"><table class="table" data-name="Recent Purchases"><thead><tr><th>Supplier / Invoice</th><th>Date (BS)</th><th>Total</th></tr></thead><tbody id="bo-body"></tbody></table></div></div>
+    </div>
+    <div class="panel">
+      <div class="ph">Quick Actions</div>
+      <div class="pb quick">
+        <button type="button" onclick="buyTab('new')">＋ New Purchase<small>Enter supplier invoice</small></button>
+        <button type="button" onclick="showPage('stocks')">▣ Receive Goods<small>Confirm stock received</small></button>
+        <button type="button" onclick="showPage('stocks');stTab('moves')">⇄ Stock Movement<small>Issue / update counts</small></button>
+        <button type="button" onclick="buyTab('suppliers');supForm(1)">♙ Add Supplier<small>Supplier details</small></button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="buy-new" class="hide">
+  <div class="panel">
+    <div class="ph">New Purchase Invoice</div>
+    <div class="pb">
+      <div class="formgrid">
+        <div class="field"><label>Supplier *</label><select id="pn-sup" onchange="supChange()"></select></div>
+        <div class="field"><label>Invoice Number *</label><input id="pn-inv" placeholder="Supplier invoice no."></div>
+        <div class="field"><label>Purchase Date (BS) *</label><input id="pn-date" placeholder="YYYY-MM-DD"></div>
+        <div class="field"><label>Due Date (BS)</label><input id="pn-due" placeholder="YYYY-MM-DD"></div>
+        <div class="field"><label>Amount Paid (Rs.)</label><input id="pn-paid" type="number" min="0" placeholder="0.00" oninput="calcInv()"></div>
+        <div class="field"><label>Payment Method</label><select id="pn-pm"><option>Unpaid / Credit</option><option>Cash</option><option>Bank Transfer</option><option>ConnectIPS</option></select></div>
+      </div>
+      <p class="muted" style="margin-top:14px">Delivery person</p>
+      <div class="formgrid" style="grid-template-columns:1fr 1fr">
+        <div class="field"><label>Name (pick a saved one or type a new one)</label><input id="pn-dn" list="pn-dl" oninput="dnFill()" placeholder="Who delivered the goods"></div>
+        <div class="field"><label>Phone</label><input id="pn-dp" placeholder="98XXXXXXXX"></div>
+      </div>
+      <datalist id="pn-dl"></datalist>
+      <datalist id="itemsl"></datalist>
+      <p class="muted" style="margin-top:16px">Invoice items · add as many items as the invoice contains</p>
+      <div style="overflow:auto"><table class="items table"><thead><tr><th>Item</th><th>Category</th><th>Quantity</th><th>Unit</th><th>Unit Cost (Rs.)</th><th>Line Total</th><th></th></tr></thead><tbody id="pn-items"></tbody></table></div>
+      <div class="actions" style="margin-top:8px"><button class="btn secondary" onclick="addItem(1)">＋ Add Item</button></div>
+      <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
+        <div class="card"><div class="muted">Subtotal</div><div id="pn-sub" class="stat num" style="font-size:20px">Rs. 0</div></div>
+        <div class="card"><div class="muted">Discount (Rs.)</div><input id="pn-disc" type="number" min="0" value="0" oninput="calcInv()" style="margin-top:4px;padding:6px;width:100%;border:1px solid var(--border);border-radius:6px"></div>
+        <div class="card"><div class="muted">Invoice Total</div><div id="pn-tot" class="stat num" style="font-size:20px;color:var(--primary)">Rs. 0</div></div>
+        <div class="card"><div class="muted">Balance Due</div><div id="pn-bal" class="stat num" style="font-size:20px;color:#b42318">Rs. 0</div></div>
+      </div>
+      <p class="foot">Invoice entry does not increase stock. Stock is added only after goods are physically received and confirmed.</p>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn secondary" onclick="clearInv()">Clear Form</button>
+        <button class="btn primary" onclick="savePur()">Save Purchase</button>
+      </div>
+      <p id="pn-msg" class="foot"></p>
+    </div>
+  </div>
+</div>
+<div id="buy-suppliers" class="hide">
+  <div class="cards" id="bs-cards"></div>
+  <div id="sup-form" class="panel hide">
+    <div class="ph">Add Supplier</div>
+    <div class="pb">
+      <div class="formgrid">
+        <div class="field"><label>Supplier Name *</label><input id="sf-name"></div>
+        <div class="field"><label>Contact Person</label><input id="sf-contact"></div>
+        <div class="field"><label>Phone *</label><input id="sf-phone" placeholder="98XXXXXXXX"></div>
+        <div class="field"><label>Alternate Phone</label><input id="sf-alt"></div>
+        <div class="field"><label>Email</label><input id="sf-email" type="email"></div>
+        <div class="field"><label>Address</label><input id="sf-addr"></div>
+        <div class="field"><label>PAN / VAT No.</label><input id="sf-pan"></div>
+        <div class="field"><label>Credit Terms (days)</label><input id="sf-credit" type="number" min="0"></div>
+        <div class="field"><label>Opening Balance (Rs.) · admin</label><input id="sf-open" type="number" min="0"></div>
+      </div>
+      <p class="muted" style="margin-top:12px">Categories supplied</p>
+      <div class="chk" id="sf-cats"></div>
+      <p class="muted" style="margin-top:12px">Delivery person (optional · more can be added while entering invoices)</p>
+      <div class="formgrid" style="grid-template-columns:1fr 1fr">
+        <div class="field"><label>Name</label><input id="sf-dn"></div>
+        <div class="field"><label>Phone</label><input id="sf-dp"></div>
+      </div>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn primary" onclick="saveSup()">Save Supplier</button>
+        <button class="btn secondary" onclick="supForm(0)">Close</button>
+      </div>
+      <p id="sf-msg" class="foot"></p>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph">
+      <span>Supplier Management</span>
+      <button class="btn primary mini" onclick="supForm(1)">＋ Add Supplier</button>
+    </div>
+    <div class="pb">
+      <input id="bs-q" oninput="renderSup()" placeholder="Search supplier name / phone / PAN" style="width:100%;padding:9px;margin-bottom:12px;border:1px solid var(--border);border-radius:8px">
+      <div style="overflow:auto"><table class="table"><thead><tr><th>Supplier</th><th>Contact</th><th>Phone</th><th>PAN / VAT</th><th>Categories</th><th>Delivery persons</th><th>Outstanding</th><th>Status</th></tr></thead><tbody id="bs-body"></tbody></table></div>
+      <p class="foot">Supplier balances and payment controls are admin-only.</p>
+    </div>
+  </div>
+</div>
+<div id="buy-records" class="hide">
+  <div class="panel">
+    <div class="ph">Purchase Records</div>
+    <div class="pb">
+      <div class="filters" style="grid-template-columns:2fr 1fr 1fr 1fr">
+        <input id="pr-q" placeholder="Search invoice / supplier / item / delivery person" oninput="renderPur()">
+        <input id="pr-from" placeholder="From date (BS)" oninput="renderPur()">
+        <input id="pr-to" placeholder="To date (BS)" oninput="renderPur()">
+        <select id="pr-st" onchange="renderPur()"><option>All receipt statuses</option><option>Pending</option><option>Partial</option><option>Received</option></select>
+      </div>
+      <div style="overflow:auto"><table class="table"><thead><tr><th>Invoice</th><th>Supplier</th><th>Date (BS)</th><th>Items</th><th>Total</th><th>Paid</th><th>Balance</th><th>Delivery person</th><th>Receipt</th></tr></thead><tbody id="pr-body"></tbody></table></div>
+      <p class="foot">Click an invoice to see all its items.</p>
+    </div>
+  </div>
+  <div id="pr-detail"></div>
+</div>
+<div id="buy-delete" class="hide">
+  <div class="panel">
+    <div class="ph">Suppliers · Deactivate or Delete</div>
+    <div class="pb">
+      <p class="foot" style="margin:0 0 10px">A supplier that has invoices cannot be deleted. Delete those invoices first, or deactivate the supplier instead. Admin PIN required.</p>
+      <div style="overflow:auto"><table class="table" data-nox="1"><thead><tr><th>Supplier</th><th>Phone</th><th>Invoices</th><th>Status</th><th class="noexp">Action</th></tr></thead><tbody id="dr-sup"></tbody></table></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph">Purchase Invoices · Delete</div>
+    <div class="pb">
+      <div style="overflow:auto"><table class="table" data-nox="1"><thead><tr><th>Invoice</th><th>Supplier</th><th>Date (BS)</th><th>Items</th><th>Total</th><th class="noexp">Action</th></tr></thead><tbody id="dr-pur"></tbody></table></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- =========================================================================
+     STOCKS & INVENTORY MODULE
+     ========================================================================= -->
+<section id="stocks" class="page">
+<div class="head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+  <div>
+    <div class="title">Stocks &amp; Inventory</div>
+    <div class="muted">Stock count, daily usage and movement history</div>
+  </div>
+  <div class="actions">
+    <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
+    <button class="btn primary" onclick="stTab('update')">✎ Update Count</button>
+  </div>
+</div>
+<div class="tabs">
+  <button class="tab active" id="st-list" onclick="stTab('list')">Stock List</button>
+  <button class="tab" id="st-update" onclick="stTab('update')">Update Count</button>
+  <button class="tab" id="st-moves" onclick="stTab('moves')">Movements</button>
+  <button class="tab" id="st-loc" onclick="stTab('loc')">Locations</button>
+  <button class="tab" id="st-delete" onclick="stTab('delete')">Delete Records (Admin)</button>
+</div>
+<div id="stock-list">
+  <div class="cards">
+    <div class="card"><div class="muted">Stock Items</div><div class="stat num" id="c-items">0</div></div>
+    <div class="card"><div class="muted">Low / Out of Stock</div><div class="stat num" id="c-low">0</div></div>
+    <div class="card"><div class="muted">Expiring ≤ 90 Days</div><div class="stat num" id="c-exp">0</div></div>
+    <div class="card"><div class="muted">Locations</div><div class="stat num">4</div></div>
+  </div>
+  <div class="panel">
+    <div class="ph">Current Stock</div>
+    <div class="pb">
+      <div class="filters">
+        <input id="f-q" placeholder="Search item / batch" oninput="renderStock()">
+        <select id="f-loc" onchange="renderStock()"><option>All Locations</option><option>Main Store</option><option>Surgery Room</option><option>Sterilization Room</option><option>OPD Cabinet</option></select>
+        <select id="f-st" onchange="renderStock()"><option>All Status</option><option>Low Stock</option><option>Out of Stock</option><option>Expiring Soon</option><option>Expired</option></select>
+      </div>
+      <div style="overflow:auto"><table class="table"><thead><tr><th>Item</th><th>Batch</th><th>Location</th><th>Available</th><th>Expiry</th><th>Status</th><th class="noexp">Quick use</th></tr></thead><tbody id="stock-body"></tbody></table></div>
+    </div>
+  </div>
+</div>
+<div id="stock-update" class="hide">
+  <div class="cols">
+    <div>
+      <div class="panel">
+        <div class="ph">Update Stock Count</div>
+        <div class="pb">
+          <div class="field" style="margin-bottom:10px"><label>Item</label><select id="u-item" onchange="showCur()"></select></div>
+          <div class="field" style="margin-bottom:10px"><label>Current count</label><div class="stat num" id="u-cur" style="margin:0;font-size:24px">—</div></div>
+          <div class="formgrid" style="grid-template-columns:1fr 1fr">
+            <div class="field"><label>Action</label><select id="u-type" onchange="showCur()"><option value="use">Used / Issued (−)</option><option value="waste">Damaged / Wasted (−)</option><option value="add">Received / Added (+)</option><option value="set">Physical count (set exact)</option><option value="remove">Item used up – remove from list</option></select></div>
+            <div class="field"><label id="u-ql">Quantity</label><input id="u-qty" type="number" min="0" value="1"></div>
+          </div>
+          <div class="field" style="margin:10px 0"><label>Note (patient / reason, optional)</label><input id="u-note" placeholder="e.g. Used for Patient 1001, tooth 16"></div>
+          <p class="foot" id="u-prev"></p>
+          <div class="actions"><button class="btn primary" onclick="applyUpdate()">Update Count</button></div>
+          <p id="u-msg" class="foot" style="color:#21804b"></p>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <div class="ph">Update from Phone · Scan QR</div>
+        <div class="pb">
+          <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+            <div id="qr" style="width:170px;height:170px;flex:none;background:#fff;padding:8px;border:1px solid var(--border);border-radius:10px"></div>
+            <div style="flex:1;min-width:210px">
+              <p style="margin:0 0 8px">Scan with a phone on clinic Wi-Fi to open mobile stock updater. Updates update the shared database immediately in real time.</p>
+              <div class="field"><label>Address of this app on the clinic Wi-Fi</label><input id="qr-addr" placeholder="http://192.168.1.10:3000" oninput="drawQR()"></div>
+              <p class="foot" id="qr-warn"></p>
+              <div class="actions" style="margin-top:8px">
+                <button class="btn secondary mini" onclick="refreshPhoneNetworkQr()">🔄 Auto-Detect LAN IP</button>
+                <button class="btn secondary mini" onclick="window.open((document.getElementById('qr-addr').value||location.origin)+'/?phone=stock','_blank')">Preview phone form</button>
+              </div>
+            </div>
+          </div>
+          <p class="foot" id="qr-url" style="word-break:break-all;margin-top:10px"></p>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph">Recent Updates</div>
+      <div class="pb"><table class="table"><thead><tr><th>Time</th><th>Item</th><th>Change</th><th>Balance</th></tr></thead><tbody id="recent-body"></tbody></table></div>
+    </div>
+  </div>
+</div>
+<div id="stock-moves" class="hide">
+  <div class="panel">
+    <div class="ph">
+      <span>Stock Movements</span>
+      <button class="btn secondary mini" onclick="resetStock()">Reset sample data</button>
+    </div>
+    <div class="pb" style="overflow:auto"><table class="table"><thead><tr><th>Date / Time</th><th>Item</th><th>Location</th><th>Type</th><th>Qty</th><th>Before → After</th><th>Note</th></tr></thead><tbody id="moves-body"></tbody></table></div>
+  </div>
+</div>
+<div id="stock-loc" class="hide">
+  <div class="panel">
+    <div class="ph">Storage Locations</div>
+    <div class="pb">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:13px;padding:6px 14px">Main Store</span>
+        <span class="badge" style="background:#dcfce7;color:#15803d;font-size:13px;padding:6px 14px">Surgery Room</span>
+        <span class="badge" style="background:#fef3c7;color:#b45309;font-size:13px;padding:6px 14px">Sterilization Room</span>
+        <span class="badge" style="background:#f3e8ff;color:#7e22ce;font-size:13px;padding:6px 14px">OPD Cabinet</span>
+      </div>
+      <p class="foot">Expiry alert triggers 90 days before expiry date. All counts and movements are saved in the shared SQLite database.</p>
+    </div>
+  </div>
+</div>
+<div id="stock-delete" class="hide">
+  <div class="panel">
+    <div class="ph">Delete Stock Items · Admin Only</div>
+    <div class="pb">
+      <p class="foot" style="margin:0 0 10px">Movement history is kept permanently as an audit record. Admin PIN required.</p>
+      <div style="overflow:auto"><table class="table" data-nox="1"><thead><tr><th>Item</th><th>Batch</th><th>Location</th><th>Available</th><th>Expiry</th><th class="noexp">Action</th></tr></thead><tbody id="dr-stock"></tbody></table></div>
+    </div>
+  </div>
+</div>
+</section>
+
 </main></div>
 
 <!-- NepalPay Dynamic QR Modal -->
 <div id="nepalPayQrModal" class="modal" onclick="if(event.target===this)closeNepalPayModal()">
   <div class="qr-modal-box">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <img src="assets/clinic-logo.png" style="width:36px;height:36px;object-fit:contain" alt="Logo">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="assets/clinic-logo.png" style="width:36px;height:36px;object-fit:contain" alt="Clinic Logo">
         <div style="text-align:left">
           <div style="font-weight:800;font-size:16px">NEPALPAY DYNAMIC QR</div>
           <div class="muted" style="font-size:11px">Infinity Dental Clinic • Merchant: 2501F6MCTZZ</div>
         </div>
       </div>
-      <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeNepalPayModal()">✕</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/nepalpay-qr-logo.png" style="height:26px;object-fit:contain" alt="NEPALPAY QR">
+        <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeNepalPayModal()">✕</button>
+      </div>
     </div>
 
     <div class="qr-amount-badge" id="modalQrAmount">Rs. 0.00</div>
     <div class="muted" id="modalQrPatientInfo">Patient: — | Bill: —</div>
 
     <div class="qr-container">
+      <!-- Official NEPALPAY QR Logo Badge -->
+      <div class="nepalpay-logo-badge" style="background:#ffffff;padding:8px 22px;border-radius:10px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,0.06);border:1px solid #e2e8f0;display:inline-flex;align-items:center;justify-content:center">
+        <img src="assets/nepalpay-qr-logo.png" alt="NEPALPAY QR" style="height:36px;max-width:200px;object-fit:contain;display:block">
+      </div>
+
       <div class="qr-canvas-wrap" id="modalQrCanvasWrap">
         <!-- QR code rendered here -->
       </div>
-      <div style="margin-top:10px;font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
+      <div style="margin-top:12px;font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
         <span class="status-pill live" id="modalQrStatusPill">Listening on WebSocket</span>
       </div>
-      <div class="muted" style="font-size:11px;margin-top:4px">
-        Scan with <b>eSewa, Khalti, ConnectIPS</b> or any <b>Mobile Banking App</b>
+      <div class="muted" style="font-size:11.5px;margin-top:6px;letter-spacing:0.15px">
+        Scan with <b>ConnectIPS</b> or any supported <b>Mobile Banking App</b>
       </div>
     </div>
 
@@ -456,7 +981,7 @@
     </div>
 
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-      <button class="btn primary" style="background:#16a34a" onclick="simulateActiveQrPayment()">✓ SIMULATE CUSTOMER PAYMENT (TEST)</button>
+      <button class="btn btn-success" style="padding:10px 18px" onclick="simulateActiveQrPayment()">✓ SIMULATE CUSTOMER PAYMENT (TEST)</button>
       <button class="btn secondary" onclick="closeNepalPayModal()">CANCEL</button>
     </div>
   </div>
@@ -511,7 +1036,7 @@
         <span style="font-size:12px;color:#15803d;font-weight:700">● Infinity Cloud (Connected)</span>
       </div>
       <!-- Hidden repository input keeping the GitHub repo connection without exposing personal names to clients -->
-      <input id="githubRepoInput" type="hidden" value="Sankalpannt/dental-">
+      <input id="githubRepoInput" type="hidden" value="paudelsankalpa33-create/infinity-dental">
     </div>
 
     <div id="updateStatusArea" style="margin-top:14px;padding:12px;border-radius:10px;display:none">
@@ -652,7 +1177,7 @@
     <!-- Soundbox Screen Push Bar -->
     <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" style="background:#0284c7;color:#fff;font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;border:none;cursor:pointer" onclick="showWifiOnNiziBox()">
+        <button class="btn btn-wifi" style="font-size:12px;padding:9px 18px" onclick="showWifiOnNiziBox()">
           📶 SHOW ON NIZI BOX SCREEN
         </button>
         <button class="btn secondary" style="font-size:12px;padding:8px 14px" onclick="resetNiziScreenFromWifi()" title="Return soundbox to payment / clinic welcome screen">
@@ -698,5 +1223,29 @@
 </div>
 
 <script src="app.js"></script>
+
+<!-- Download Records Modal (Offline Excel .xlsx & PDF export) -->
+<div id="dlm" class="modal hide" onclick="if(event.target===this)dlClose()"><div class="mbox"><div class="mh"><span>Download Records</span><button class="btn secondary mini" onclick="dlClose()">✕</button></div><div class="mb">
+<div class="mf"><label>What to download</label><select id="dl-scope"></select></div>
+<div class="mf"><label>Date range (optional)</label><div class="row2"><input id="dl-from" placeholder="From · YYYY-MM-DD"><input id="dl-to" placeholder="To · YYYY-MM-DD"></div></div>
+<div class="mf"><label>Date type</label><select id="dl-cal" onchange="dlNote()"><option value="BS">BS (Nepali)</option><option value="AD">AD</option></select></div>
+<p class="foot" id="dl-note" style="margin:0"></p>
+<div class="mf"><label>File format</label><div class="fmt"><label><input type="radio" name="dl-fmt" value="x" checked> Excel (.xlsx)</label><label><input type="radio" name="dl-fmt" value="p"> PDF</label></div></div>
+<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="dlGo()">Download</button><button class="btn secondary" onclick="dlClose()">Cancel</button></div></div></div></div>
+
+<!-- Offline Print Container -->
+<div id="pa"></div>
+
+<!-- Mobile Phone View for Wi-Fi QR Stock Scanner -->
+<div id="phone-view"><div class="pv"><div class="pvh"><span>Infinity Dental · Stock Update</span><span style="font-size:12px;opacity:0.85">Clinic Wi-Fi Live</span></div><div class="pvb">
+<label>Your name</label><input id="ph-name" placeholder="Staff name">
+<label>Item</label><select id="ph-item" onchange="phShow()"></select>
+<div class="pvc"><small class="muted">Current count</small><div id="ph-cur" class="pvn">—</div></div>
+<label>What happened?</label><select id="ph-type" onchange="phShow()"><option value="use">Used (−)</option><option value="waste">Damaged / wasted (−)</option><option value="add">Received / added (+)</option><option value="set">Physical count (set exact)</option></select>
+<label id="ph-ql">Quantity</label><input id="ph-qty" type="number" inputmode="numeric" min="0" value="1" oninput="phShow()">
+<label>Note (optional)</label><input id="ph-note" placeholder="e.g. Patient 1001, tooth 16">
+<p id="ph-prev" class="pvp"></p><button class="pvbtn" onclick="phApply()">Update Count</button><button class="pvbtn red" onclick="phRemove()">Item used up — remove from list</button><p id="ph-msg" class="pvp"></p>
+<label style="margin-top:14px">Recent updates</label><div id="ph-recent"></div></div></div></div>
+
 </body>
 </html>

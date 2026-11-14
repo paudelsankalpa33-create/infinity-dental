@@ -1,10 +1,12 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 const https = require('https');
 const { DatabaseSync } = require('node:sqlite');
 const WebSocket = require('ws');
+const nizi = require('./niziProtocol');
 let SerialPort = null;
 try {
   const serialModule = require('serialport');
@@ -125,7 +127,7 @@ function callNchlGenerateQr({ amount, billNumber, remarks, patientContact }) {
       transactionAmount: transactionAmount,
       valueOfConvenienceFeeFixed: '0.00',
       billNumber: billNo,
-      referenceLabel: remarks || 'Dental Treatment',
+      referenceLabel: String(remarks || 'Dental Treatment').trim().slice(0, 25),
       mobileNo: patientContact || null,
       storeLabel: NPI_CONFIG.storeLabel,
       terminalLabel: NPI_CONFIG.terminalLabel,
@@ -474,6 +476,223 @@ function initDatabase() {
       value TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`);
+
+
+    // --- LAB, PURCHASES & STOCKS DATABASE TABLES ---
+
+    // 1. Lab Works Cases Table (Linked to patients OPD number)
+    db.exec(`CREATE TABLE IF NOT EXISTS lab_cases (
+      id TEXT PRIMARY KEY,
+      opd_number TEXT NOT NULL,
+      lab TEXT NOT NULL,
+      work_type TEXT NOT NULL,
+      tooth TEXT,
+      shade TEXT,
+      sent_date TEXT,
+      expected_date_bs TEXT,
+      status TEXT NOT NULL DEFAULT 'Pending',
+      instructions TEXT,
+      charge REAL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+    // 2. Lab Payments Table
+    db.exec(`CREATE TABLE IF NOT EXISTS lab_payments (
+      id TEXT PRIMARY KEY,
+      lab TEXT NOT NULL,
+      month_bs TEXT,
+      date_bs TEXT NOT NULL,
+      method TEXT NOT NULL,
+      amount REAL NOT NULL,
+      created_at TEXT NOT NULL
+    )`);
+
+    // 3. Suppliers Table
+    db.exec(`CREATE TABLE IF NOT EXISTS suppliers (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      contact TEXT,
+      phone TEXT NOT NULL,
+      alt_phone TEXT,
+      email TEXT,
+      address TEXT,
+      pan TEXT,
+      credit_days INTEGER DEFAULT 0,
+      opening_balance REAL DEFAULT 0,
+      categories TEXT,
+      delivery_persons TEXT,
+      active INTEGER DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+    // 4. Purchase Invoices Table
+    db.exec(`CREATE TABLE IF NOT EXISTS purchase_invoices (
+      id TEXT PRIMARY KEY,
+      supplier TEXT NOT NULL,
+      invoice_no TEXT NOT NULL,
+      date_bs TEXT NOT NULL,
+      due_date_bs TEXT,
+      paid REAL DEFAULT 0,
+      payment_method TEXT DEFAULT 'Unpaid / Credit',
+      delivery_name TEXT,
+      delivery_phone TEXT,
+      discount REAL DEFAULT 0,
+      receipt_status TEXT DEFAULT 'Pending',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+    // 5. Purchase Invoice Items Table
+    db.exec(`CREATE TABLE IF NOT EXISTS purchase_items (
+      id TEXT PRIMARY KEY,
+      invoice_id TEXT NOT NULL,
+      item_name TEXT NOT NULL,
+      category TEXT,
+      quantity REAL NOT NULL,
+      unit TEXT,
+      unit_cost REAL NOT NULL,
+      line_total REAL NOT NULL
+    )`);
+
+    // 6. Stock Items Table (with location, batch, expiry, min stock)
+    db.exec(`CREATE TABLE IF NOT EXISTS stock_items (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      batch TEXT,
+      location TEXT NOT NULL,
+      quantity REAL NOT NULL,
+      unit TEXT NOT NULL,
+      expiry TEXT NOT NULL,
+      min_quantity REAL DEFAULT 0,
+      active INTEGER DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+    // 7. Stock Movements Audit Log Table
+    db.exec(`CREATE TABLE IF NOT EXISTS stock_movements (
+      id TEXT PRIMARY KEY,
+      item_id TEXT,
+      item_name TEXT NOT NULL,
+      location TEXT NOT NULL,
+      type TEXT NOT NULL,
+      quantity REAL NOT NULL,
+      before_qty REAL NOT NULL,
+      after_qty REAL NOT NULL,
+      note TEXT,
+      unit TEXT,
+      created_at TEXT NOT NULL
+    )`);
+
+    // Seed default Admin Delete PIN if not present
+    const pinRow = db.prepare("SELECT value FROM clinic_settings WHERE key='admin_delete_pin'").get();
+    if (!pinRow) {
+      db.prepare("INSERT INTO clinic_settings (key, value, updated_at) VALUES ('admin_delete_pin', ?, ?)").run('1234', new Date().toISOString());
+    }
+
+    // Seed initial stock items if empty
+    const stockCount = db.prepare('SELECT COUNT(*) as count FROM stock_items').get().count;
+    if (stockCount === 0) {
+      const now = new Date().toISOString();
+      const seedStock = [
+        { id: '1', name: 'Composite Resin', batch: 'CR-26A', loc: 'Main Store', qty: 5, unit: 'syringes', exp: '2027-04-30', min: 3 },
+        { id: '2', name: 'Local Anaesthetic', batch: 'LA-114', loc: 'Surgery Room', qty: 18, unit: 'cartridges', exp: '2026-12-15', min: 10 },
+        { id: '3', name: 'Nitrile Gloves (M)', batch: 'NG-052', loc: 'Main Store', qty: 2, unit: 'boxes', exp: '2028-01-01', min: 4 },
+        { id: '4', name: 'Bonding Agent', batch: 'BA-09', loc: 'OPD Cabinet', qty: 6, unit: 'bottles', exp: '2027-08-20', min: 2 },
+        { id: '5', name: 'Sterilization Pouches', batch: 'SP-31', loc: 'Sterilization Room', qty: 12, unit: 'packs', exp: '2029-01-01', min: 5 }
+      ];
+      const insertStock = db.prepare(`INSERT INTO stock_items (id, name, batch, location, quantity, unit, expiry, min_quantity, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`);
+      for (const s of seedStock) {
+        insertStock.run(s.id, s.name, s.batch, s.loc, s.qty, s.unit, s.exp, s.min, now, now);
+      }
+      console.log('✓ Seeded initial Stock items');
+    }
+
+    // Seed initial suppliers if empty
+    const supCount = db.prepare('SELECT COUNT(*) as count FROM suppliers').get().count;
+    if (supCount === 0) {
+      const now = new Date().toISOString();
+      const seedSup = [
+        { id: '1', name: 'Dental Mart', contact: 'Ramesh', phone: '9841234567', cats: JSON.stringify(['Dental materials']), del: JSON.stringify([{n:'Bikash',p:'9841987654'}]), credit: 30, open: 0 },
+        { id: '2', name: 'Med Supplies', contact: 'Sunita', phone: '9851234568', cats: JSON.stringify(['Medicines', 'Consumables']), del: JSON.stringify([{n:'Prakash',p:'9851987655'}]), credit: 15, open: 0 },
+        { id: '3', name: 'Ortho Traders', contact: '', phone: '9861234569', cats: JSON.stringify(['Orthodontic materials']), del: JSON.stringify([]), credit: 0, open: 0 }
+      ];
+      const insertSup = db.prepare(`INSERT INTO suppliers (id, name, contact, phone, alt_phone, email, address, pan, credit_days, opening_balance, categories, delivery_persons, active, created_at, updated_at) VALUES (?, ?, ?, ?, '', '', '', '', ?, ?, ?, ?, 1, ?, ?)`);
+      for (const s of seedSup) {
+        insertSup.run(s.id, s.name, s.contact, s.phone, s.credit, s.open, s.cats, s.del, now, now);
+      }
+      console.log('✓ Seeded initial Suppliers');
+    }
+
+    // Seed initial purchases if empty
+    const purCount = db.prepare('SELECT COUNT(*) as count FROM purchase_invoices').get().count;
+    if (purCount === 0) {
+      const now = new Date().toISOString();
+      const p1Id = '1';
+      db.prepare(`INSERT INTO purchase_invoices (id, supplier, invoice_no, date_bs, due_date_bs, paid, payment_method, delivery_name, delivery_phone, discount, receipt_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        p1Id, 'Dental Mart', 'DM-2081', '2083-07-12', '2083-08-11', 18500, 'Cash', 'Bikash', '9841987654', 0, 'Received', now, now
+      );
+      db.prepare(`INSERT INTO purchase_items (id, invoice_id, item_name, category, quantity, unit, unit_cost, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        'pi-1', p1Id, 'Composite Resin', 'Dental materials', 5, 'Syringe', 2200, 11000
+      );
+      db.prepare(`INSERT INTO purchase_items (id, invoice_id, item_name, category, quantity, unit, unit_cost, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        'pi-2', p1Id, 'Bonding Agent', 'Dental materials', 3, 'Bottle', 2500, 7500
+      );
+
+      const p2Id = '2';
+      db.prepare(`INSERT INTO purchase_invoices (id, supplier, invoice_no, date_bs, due_date_bs, paid, payment_method, delivery_name, delivery_phone, discount, receipt_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        p2Id, 'Med Supplies', 'MS-441', '2083-07-10', '2083-07-25', 3000, 'Cash', 'Prakash', '9851987655', 0, 'Partial', now, now
+      );
+      db.prepare(`INSERT INTO purchase_items (id, invoice_id, item_name, category, quantity, unit, unit_cost, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        'pi-3', p2Id, 'Nitrile Gloves (M)', 'Consumables', 4, 'Box', 1200, 4800
+      );
+      db.prepare(`INSERT INTO purchase_items (id, invoice_id, item_name, category, quantity, unit, unit_cost, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        'pi-4', p2Id, 'Local Anaesthetic', 'Medicines', 12, 'Cartridge', 200, 2400
+      );
+      console.log('✓ Seeded initial Purchases');
+    }
+
+    // Seed initial lab cases and historical payments if empty
+    const labCount = db.prepare('SELECT COUNT(*) as count FROM lab_cases').get().count;
+    if (labCount === 0) {
+      const now = new Date().toISOString();
+      const seedLab = [
+        { id: '1', opd: 'OPD-1001', lab: 'Smile Lab', work: 'Zirconia crown', tooth: '16', shade: 'A2', sent: '2026-11-11', exp: '2083-07-18', st: 'Ongoing', charge: 6500 },
+        { id: '2', opd: 'OPD-1002', lab: 'Dental Craft', work: 'RPD', tooth: '36–37', shade: '', sent: '2026-11-08', exp: '2083-07-17', st: 'To Be Received', charge: 7500 },
+        { id: '3', opd: 'OPD-1003', lab: 'Smile Lab', work: 'Denture repair', tooth: '', shade: '', sent: '2026-11-09', exp: '2083-07-14', st: 'Received', charge: 1500 },
+        { id: '4', opd: 'OPD-1121', lab: 'Smile Lab', work: 'Zirconia crown', tooth: '25', shade: 'A3', sent: '2026-11-14', exp: '2083-07-27', st: 'Ongoing', charge: 6500 },
+        { id: '5', opd: 'OPD-1124', lab: 'Dental Craft', work: 'Night guard', tooth: '', shade: '', sent: '2026-11-14', exp: '2083-07-26', st: 'Ongoing', charge: 3500 },
+        { id: '6', opd: 'OPD-1126', lab: 'Precision Dental Lab', work: 'Implant crown', tooth: '36', shade: 'A2', sent: '2026-11-06', exp: '2083-07-16', st: 'To Be Fitted', charge: 12000 }
+      ];
+      const insertLab = db.prepare(`INSERT INTO lab_cases (id, opd_number, lab, work_type, tooth, shade, sent_date, expected_date_bs, status, instructions, charge, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?)`);
+      for (const l of seedLab) {
+        insertLab.run(l.id, l.opd, l.lab, l.work, l.tooth, l.shade, l.sent, l.exp, l.st, l.charge, now, now);
+      }
+
+      // Seed payments for monthly accounting
+      const seedPayments = [
+        ['Smile Lab', '04', '2083-04-20', 'Cash', 10000],
+        ['Dental Craft', '04', '2083-04-25', 'Bank Transfer', 5000],
+        ['Precision Dental Lab', '04', '2083-04-28', 'Cash', 5000],
+        ['Smile Lab', '05', '2083-05-15', 'Cash', 15000],
+        ['Dental Craft', '05', '2083-05-20', 'Bank Transfer', 10000],
+        ['Precision Dental Lab', '05', '2083-05-25', 'Cash', 10000],
+        ['Smile Lab', '06', '2083-06-18', 'Cash', 12000],
+        ['Dental Craft', '06', '2083-06-22', 'Bank Transfer', 8000],
+        ['Precision Dental Lab', '06', '2083-06-26', 'Cash', 10000],
+        ['Smile Lab', '07', '2083-07-10', 'Cash', 12000],
+        ['Dental Craft', '07', '2083-07-12', 'Bank Transfer', 6000],
+        ['Precision Dental Lab', '07', '2083-07-15', 'Cash', 10000]
+      ];
+      const insertPay = db.prepare(`INSERT INTO lab_payments (id, lab, month_bs, date_bs, method, amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+      for (let pi = 0; pi < seedPayments.length; pi++) {
+        const p = seedPayments[pi];
+        insertPay.run('pay-' + (pi + 1), p[0], p[1], p[2], p[3], p[4], now);
+      }
+      console.log('✓ Seeded initial Lab cases & payments');
+    }
 
     console.log('✓ SQLite Database initialized successfully at:', activeDbPath);
   } catch (e) {
@@ -1010,15 +1229,27 @@ async function openSoundboxPort(portName, isAuto = false) {
       console.log(`[Soundbox Serial] ✅ Connection successfully opened on ${portName} at 115200 baud (8-N-1)! NiZi Soundbox is ONLINE.`);
       broadcastToClients({ type: 'soundbox_status', status: soundboxStatus });
 
-      // Send initial logo command packet to initialize LCD screen
-      sendSoundboxSerialCommand({ command: 'display_logo', title: 'Infinity Dental' });
+      // Configure modem signals (DTR=False, RTS=False) per B30Sdk.py / dynamic_qr_commands.html
+      port.set({ dtr: false, rts: false }, (sigErr) => {
+        if (!sigErr) {
+          console.log(`[Soundbox Serial] Handshake signals configured: DTR=false, RTS=false`);
+        }
+      });
+
+      // Send initial wake and logo command packet to initialize LCD screen
+      sendSoundboxSerialCommand({ command: 'wake' });
+      setTimeout(() => {
+        sendSoundboxSerialCommand({ command: 'idle' });
+      }, 500);
+
       resolve(soundboxStatus);
     });
 
     port.on('data', (chunk) => {
       const text = chunk.toString().trim();
-      if (text) {
-        console.log(`[Soundbox Serial Rx on ${portName}]:`, text);
+      const hex = chunk.toString('hex').match(/.{1,2}/g).join(' ').toUpperCase();
+      if (text || hex) {
+        console.log(`[Soundbox Serial Rx on ${portName}]:`, text || `(raw hex: ${hex})`);
       }
     });
 
@@ -1040,42 +1271,54 @@ async function openSoundboxPort(portName, isAuto = false) {
   });
 }
 
-// Transmit commands directly to physical soundbox over serial (115200 baud)
+// Transmit commands directly to physical soundbox over serial (115200 baud) using official NiZi B30/B33 protocol
 function sendSoundboxSerialCommand(cmd) {
   if (!activeSoundboxPort || !activeSoundboxPort.isOpen) return false;
   try {
-    // 1. Send JSON packet with CRLF (Yarsa Tech NiZi POS Protocol)
-    const jsonPacket = JSON.stringify(cmd) + '\r\n';
-    activeSoundboxPort.write(jsonPacket);
+    let packet = null;
 
-    // 2. Specific command format handling
-    if (cmd.command === 'show_qr') {
-      const altJson = JSON.stringify({
-        command: 'qr_payload',
-        payload: cmd.payload,
-        amount: cmd.amount,
-        currency: cmd.currency || 'NPR',
-        title: cmd.title || 'Infinity Dental',
-        billNumber: cmd.billNumber || ''
-      }) + '\r\n';
-      activeSoundboxPort.write(altJson);
-      const textFrame = `QR:${cmd.payload}\r\nAMT:${Number(cmd.amount || 0).toFixed(2)}\r\n`;
-      activeSoundboxPort.write(textFrame);
-    } else if (cmd.command === 'success') {
-      const textFrame = `PAID:${Number(cmd.amount || 0).toFixed(2)}\r\n`;
-      activeSoundboxPort.write(textFrame);
+    if (cmd.command === 'show_qr' || cmd.command === 'qr') {
+      // 1. Official Dynamic QR: QR**Rs. <amount>**<message>**<payload>\n
+      const msg = cmd.message || 'SCAN TO PAY';
+      packet = nizi.buildQrPacket(cmd.amount, msg, cmd.payload || '');
+    } else if (cmd.command === 'success' || cmd.command === 'payment_success') {
+      // 2. Official Payment Voice Announcement: PASS**<title>**<message>\n
+      // Triggers physical soundbox voice broadcast ("Rs. 1500 received") and success screen
+      const title = cmd.title || 'SUCCESS!';
+      const msg = cmd.message || (cmd.amount ? `Rs. ${cmd.amount} received` : 'Payment successful');
+      packet = nizi.buildSuccessPacket(title, msg);
     } else if (cmd.command === 'show_wifi') {
-      const altJson = JSON.stringify({
-        command: 'qr_payload',
-        payload: cmd.payload,
-        title: 'Guest Wi-Fi',
-        billNumber: cmd.ssid || 'Scan to Connect'
-      }) + '\r\n';
-      activeSoundboxPort.write(altJson);
-      const textFrame = `QR:${cmd.payload}\r\nSSID:${cmd.ssid || ''}\r\nPWD:${cmd.password || ''}\r\n`;
-      activeSoundboxPort.write(textFrame);
+      // 3. Official Guest Wi-Fi QR on Screen: QR**FREE WI-FI**<SSID>**<payload>\n
+      packet = nizi.buildWifiQrPacket(cmd.ssid || 'Clinic Guest Wi-Fi', cmd.payload || '');
+    } else if (cmd.command === 'idle' || cmd.command === 'display_logo') {
+      // 4. Standby / Welcome Screen: IDLE\n
+      packet = nizi.buildIdlePacket();
+    } else if (cmd.command === 'waiting' || cmd.command === 'loading') {
+      // 5. Waiting Screen: WAIT**Rs. <amount>**<message>\n
+      packet = nizi.buildWaitPacket(cmd.amount, cmd.message || 'Please wait...');
+    } else if (cmd.command === 'failure' || cmd.command === 'fail') {
+      // 6. Payment Failure: FAIL**Rs. <amount>**<message>\n
+      packet = nizi.buildFailPacket(cmd.amount, cmd.message || 'Payment Failed');
+    } else if (cmd.command === 'text') {
+      // 7. Text Display: TEXT**<title>**<subtitle>**<message>\n
+      packet = nizi.buildTextPacket(cmd.title, cmd.subtitle, cmd.message);
+    } else if (cmd.command === 'wake') {
+      packet = nizi.buildWakePacket();
+    } else if (cmd.command === 'reset') {
+      packet = nizi.buildResetPacket();
+    } else if (cmd.command === 'clear') {
+      packet = nizi.buildClearPacket();
+    } else if (cmd.command === 'volume') {
+      packet = nizi.buildVolumePacket(cmd.volume || 100);
+    } else {
+      packet = nizi.packetToHex(cmd.raw || (cmd.command ? `${cmd.command}\n` : 'IDLE\n'));
     }
-    console.log(`[Soundbox Serial Tx on ${soundboxStatus.port}]:`, cmd.command, cmd.amount ? `Rs. ${cmd.amount}` : '');
+
+    if (packet) {
+      activeSoundboxPort.write(packet.buffer);
+      console.log(`[NiZi Serial Tx on ${soundboxStatus.port}] Official Protocol:`, JSON.stringify(packet.raw.trim()), `[Hex: ${packet.hex}]`);
+    }
+
     return true;
   } catch (e) {
     console.warn('[Soundbox Serial Tx Warning]:', e.message);
@@ -2078,6 +2321,758 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+
+  // =========================================================================
+  // 16. NETWORK INFO & WI-FI PHONE QR ENDPOINT
+  // =========================================================================
+  if (pathname === '/api/network-info' && req.method === 'GET') {
+    try {
+      const interfaces = os.networkInterfaces();
+      const addresses = [];
+      for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+          if (iface.family === 'IPv4' && !iface.internal) {
+            addresses.push({ interface: name, address: iface.address });
+          }
+        }
+      }
+      // Prioritize Wi-Fi or Ethernet LAN IPv4
+      const primaryIp = addresses.find(a => /wi-?fi|wlan/i.test(a.interface))?.address || addresses.find(a => !/virtual|vethernet|vmware|vbox|host-only/i.test(a.interface) && !a.address.startsWith('192.168.56.'))?.address || addresses[0]?.address || '127.0.0.1';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        port: PORT,
+        primaryIp,
+        addresses,
+        phoneUrl: `http://${primaryIp}:${PORT}?phone=stock`
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Phone Route Shortcut
+  if ((pathname === '/phone' || pathname === '/stock-phone') && req.method === 'GET') {
+    res.writeHead(302, { 'Location': '/?phone=stock' });
+    res.end();
+    return;
+  }
+
+  // =========================================================================
+  // 17. ADMIN PIN VERIFICATION (DELETE ACTIONS)
+  // =========================================================================
+  if (pathname === '/api/admin/verify-pin' && req.method === 'POST') {
+    try {
+      const { pin } = await parseJsonBody(req);
+      const cleanPin = String(pin || '').trim();
+      let storedPin = '1234';
+      try {
+        const row = db.prepare("SELECT value FROM clinic_settings WHERE key='admin_delete_pin'").get();
+        if (row && row.value) storedPin = row.value.trim();
+      } catch (_) {}
+
+      // Accepts either dedicated admin PIN or superadmin password 'admin123'
+      if (cleanPin === storedPin || cleanPin === 'admin123') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, authorized: true }));
+      } else {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, authorized: false, error: 'Incorrect Admin PIN' }));
+      }
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // =========================================================================
+  // 18. PATIENT LOOKUP (FOR LAB ASSIGNMENTS OPD LINKING)
+  // =========================================================================
+  if (pathname === '/api/patients/lookup' && req.method === 'GET') {
+    try {
+      const queryParams = url.searchParams;
+      const opdQuery = String(queryParams.get('opd') || queryParams.get('q') || '').trim().toUpperCase();
+      const row = db.prepare('SELECT patients_json FROM app_data WHERE id=1').get();
+      const patients = JSON.parse(row?.patients_json || '[]');
+
+      if (!opdQuery) {
+        // Return patient summary list for auto-complete datalists
+        const list = patients.map(p => ({
+          opd: 'OPD-' + p.OPDNumber,
+          opdNumber: p.OPDNumber,
+          name: p.FullName || p.Name,
+          phone: p.Contact || p.Phone,
+          age: p.Age,
+          gender: p.Gender
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, patients: list }));
+        return;
+      }
+
+      const numMatch = opdQuery.replace(/^OPD-?/i, '');
+      const patient = patients.find(p =>
+        String(p.OPDNumber) === numMatch ||
+        ('OPD-' + p.OPDNumber).toUpperCase() === opdQuery ||
+        String(p.FullName || '').toUpperCase().includes(opdQuery)
+      );
+
+      if (patient) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          patient: {
+            opd: 'OPD-' + patient.OPDNumber,
+            opdNumber: patient.OPDNumber,
+            name: patient.FullName || patient.Name,
+            phone: patient.Contact || patient.Phone,
+            age: patient.Age,
+            gender: patient.Gender,
+            address: patient.Address
+          }
+        }));
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Patient not found' }));
+      }
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // =========================================================================
+  // 19. LAB WORKS REST APIS
+  // =========================================================================
+  // List all lab cases
+  if (pathname === '/api/lab/cases' && req.method === 'GET') {
+    try {
+      const cases = db.prepare('SELECT * FROM lab_cases ORDER BY created_at DESC').all();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, cases }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Create new lab case
+  if (pathname === '/api/lab/cases' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const id = String(body.id || Date.now());
+      const now = new Date().toISOString();
+      const opdNumber = String(body.opd_number || body.opd || '').trim();
+      const lab = String(body.lab || '').trim();
+      const workType = String(body.work_type || body.work || '').trim();
+      const tooth = String(body.tooth || '').trim();
+      const shade = String(body.shade || '').trim();
+      const sentDate = String(body.sent_date || body.sent || '').trim();
+      const expectedDateBs = String(body.expected_date_bs || body.exp || '').trim();
+      const status = String(body.status || body.st || 'Pending').trim();
+      const instructions = String(body.instructions || body.ins || '').trim();
+      const charge = Number(body.charge || 0);
+
+      db.prepare(`
+        INSERT INTO lab_cases (id, opd_number, lab, work_type, tooth, shade, sent_date, expected_date_bs, status, instructions, charge, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, opdNumber, lab, workType, tooth, shade, sentDate, expectedDateBs, status, instructions, charge, now, now);
+
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, id, message: 'Lab case created successfully' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Advance lab case workflow: Pending -> Ongoing -> To Be Received -> Received -> To Be Fitted -> Fitted
+  if (pathname.startsWith('/api/lab/cases/') && pathname.endsWith('/advance') && req.method === 'PUT') {
+    try {
+      const id = pathname.replace('/api/lab/cases/', '').replace('/advance', '').trim();
+      const current = db.prepare('SELECT * FROM lab_cases WHERE id = ?').get(id);
+      if (!current) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Lab case not found' }));
+        return;
+      }
+
+      const WF = ['Pending', 'Ongoing', 'To Be Received', 'Received', 'To Be Fitted', 'Fitted'];
+      const curIdx = WF.indexOf(current.status);
+      if (curIdx < WF.length - 1) {
+        const nextStatus = WF[curIdx + 1];
+        let sentDate = current.sent_date;
+        if (nextStatus === 'Ongoing' && !sentDate) {
+          sentDate = new Date().toISOString().split('T')[0];
+        }
+        const now = new Date().toISOString();
+        db.prepare('UPDATE lab_cases SET status = ?, sent_date = ?, updated_at = ? WHERE id = ?').run(nextStatus, sentDate, now, id);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, status: nextStatus, sent_date: sentDate }));
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, status: current.status, message: 'Already fitted/completed' }));
+      }
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Delete lab case
+  if (pathname.startsWith('/api/lab/cases/') && req.method === 'DELETE') {
+    try {
+      const id = pathname.replace('/api/lab/cases/', '').trim();
+      db.prepare('DELETE FROM lab_cases WHERE id = ?').run(id);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Lab case deleted' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Monthly Lab Accounts Summary (Due from previous month + Charge of this month - Paid)
+  if (pathname === '/api/lab/accounts' && req.method === 'GET') {
+    try {
+      const queryParams = url.searchParams;
+      const monthBs = queryParams.get('month') || '07';
+      const LABS = { 'Smile Lab': 8000, 'Dental Craft': 0, 'Precision Dental Lab': 5000 };
+      const MS = ['04', '05', '06', '07'];
+
+      const cases = db.prepare('SELECT * FROM lab_cases').all();
+      const payments = db.prepare('SELECT * FROM lab_payments').all();
+
+      const calcAccount = (m, labName, openBal) => {
+        let due = openBal;
+        for (const k of MS) {
+          const ch = cases
+            .filter(c => c.lab === labName && (c.expected_date_bs || '').includes('-' + k + '-'))
+            .reduce((sum, c) => sum + (c.charge || 0), 0);
+          const pd = payments
+            .filter(p => p.lab === labName && (p.month_bs === k || (p.date_bs || '').includes('-' + k + '-')))
+            .reduce((sum, p) => sum + (p.amount || 0), 0);
+          if (k === m) {
+            return { due, ch, pd, out: due + ch - pd };
+          }
+          due += ch - pd;
+        }
+        return { due, ch: 0, pd: 0, out: due };
+      };
+
+      const summaries = Object.keys(LABS).map(labName => {
+        const acct = calcAccount(monthBs, labName, LABS[labName]);
+        const labCases = cases.filter(c => c.lab === labName && (c.expected_date_bs || '').includes('-' + monthBs + '-'));
+        const labPays = payments.filter(p => p.lab === labName && (p.month_bs === monthBs || (p.date_bs || '').includes('-' + monthBs + '-')));
+        return {
+          lab: labName,
+          due: acct.due,
+          charge: acct.ch,
+          paid: acct.pd,
+          outstanding: acct.out,
+          cases: labCases,
+          payments: labPays
+        };
+      });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, month: monthBs, summaries }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Lab Payments: GET and POST
+  if (pathname === '/api/lab/payments' && req.method === 'GET') {
+    try {
+      const rows = db.prepare('SELECT * FROM lab_payments ORDER BY date_bs DESC, created_at DESC').all();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, payments: rows }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/lab/payments' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const id = String(body.id || 'pay-' + Date.now());
+      const lab = String(body.lab || '').trim();
+      const monthBs = String(body.month_bs || '').trim();
+      const dateBs = String(body.date_bs || '').trim();
+      const method = String(body.method || 'Cash').trim();
+      const amount = Number(body.amount || 0);
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO lab_payments (id, lab, month_bs, date_bs, method, amount, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(id, lab, monthBs, dateBs, method, amount, now);
+
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, id, message: 'Lab payment recorded successfully' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // =========================================================================
+  // 20. SUPPLIERS REST APIS
+  // =========================================================================
+  if (pathname === '/api/suppliers' && req.method === 'GET') {
+    try {
+      const rows = db.prepare('SELECT * FROM suppliers ORDER BY active DESC, name ASC').all();
+      const suppliers = rows.map(r => ({
+        ...r,
+        categories: JSON.parse(r.categories || '[]'),
+        delivery_persons: JSON.parse(r.delivery_persons || '[]')
+      }));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, suppliers }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/suppliers' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const id = String(body.id || Date.now());
+      const name = String(body.name || '').trim();
+      const contact = String(body.contact || '').trim();
+      const phone = String(body.phone || '').trim();
+      const altPhone = String(body.alt_phone || '').trim();
+      const email = String(body.email || '').trim();
+      const address = String(body.address || '').trim();
+      const pan = String(body.pan || '').trim();
+      const creditDays = Number(body.credit_days || 0);
+      const openingBalance = Number(body.opening_balance || 0);
+      const categories = JSON.stringify(Array.isArray(body.categories) ? body.categories : []);
+      const deliveryPersons = JSON.stringify(Array.isArray(body.delivery_persons) ? body.delivery_persons : []);
+      const now = new Date().toISOString();
+
+      if (!name) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Supplier name is required' }));
+        return;
+      }
+
+      db.prepare(`
+        INSERT INTO suppliers (id, name, contact, phone, alt_phone, email, address, pan, credit_days, opening_balance, categories, delivery_persons, active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `).run(id, name, contact, phone, altPhone, email, address, pan, creditDays, openingBalance, categories, deliveryPersons, now, now);
+
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, id, message: 'Supplier created successfully' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith('/api/suppliers/') && pathname.endsWith('/toggle') && req.method === 'PUT') {
+    try {
+      const id = pathname.replace('/api/suppliers/', '').replace('/toggle', '').trim();
+      const sup = db.prepare('SELECT active FROM suppliers WHERE id = ?').get(id);
+      if (!sup) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Supplier not found' }));
+        return;
+      }
+      const newActive = sup.active ? 0 : 1;
+      const now = new Date().toISOString();
+      db.prepare('UPDATE suppliers SET active = ?, updated_at = ? WHERE id = ?').run(newActive, now, id);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, active: newActive }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith('/api/suppliers/') && req.method === 'DELETE') {
+    try {
+      const id = pathname.replace('/api/suppliers/', '').trim();
+      const sup = db.prepare('SELECT name FROM suppliers WHERE id = ?').get(id);
+      if (!sup) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Supplier not found' }));
+        return;
+      }
+      const invCount = db.prepare('SELECT COUNT(*) as count FROM purchase_invoices WHERE supplier = ?').get(sup.name).count;
+      if (invCount > 0) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: `Cannot delete supplier "${sup.name}": ${invCount} invoice(s) exist. Please delete those invoices first or deactivate the supplier.` }));
+        return;
+      }
+      db.prepare('DELETE FROM suppliers WHERE id = ?').run(id);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Supplier deleted successfully' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // =========================================================================
+  // 21. PURCHASES REST APIS
+  // =========================================================================
+  if (pathname === '/api/purchases' && req.method === 'GET') {
+    try {
+      const invoices = db.prepare('SELECT * FROM purchase_invoices ORDER BY date_bs DESC, created_at DESC').all();
+      const allItems = db.prepare('SELECT * FROM purchase_items').all();
+      const purchases = invoices.map(inv => {
+        const items = allItems.filter(i => i.invoice_id === inv.id);
+        const subtotal = items.reduce((s, it) => s + (it.line_total || (it.quantity * it.unit_cost)), 0);
+        const total = Math.max(0, subtotal - (inv.discount || 0));
+        return {
+          ...inv,
+          items,
+          subtotal,
+          total,
+          balance: Math.max(0, total - (inv.paid || 0))
+        };
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, purchases }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/purchases' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const id = String(body.id || Date.now());
+      const supplier = String(body.supplier || body.sup || '').trim();
+      const invoiceNo = String(body.invoice_no || body.inv || '').trim();
+      const dateBs = String(body.date_bs || body.date || '').trim();
+      const dueBs = String(body.due_date_bs || body.due || '').trim();
+      const paid = Number(body.paid || 0);
+      const paymentMethod = String(body.payment_method || body.pm || 'Unpaid / Credit').trim();
+      const deliveryName = String(body.delivery_name || body.dn || '').trim();
+      const deliveryPhone = String(body.delivery_phone || body.dp || '').trim();
+      const discount = Number(body.discount || body.disc || 0);
+      const receiptStatus = String(body.receipt_status || body.rec || 'Pending').trim();
+      const items = Array.isArray(body.items) ? body.items : [];
+      const now = new Date().toISOString();
+
+      if (!supplier || !invoiceNo || !dateBs) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Supplier, Invoice number, and Date (BS) are required.' }));
+        return;
+      }
+
+      // Check unique invoice for supplier
+      const existing = db.prepare('SELECT id FROM purchase_invoices WHERE LOWER(supplier) = LOWER(?) AND LOWER(invoice_no) = LOWER(?)').get(supplier, invoiceNo);
+      if (existing) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: `Invoice "${invoiceNo}" already exists for supplier "${supplier}".` }));
+        return;
+      }
+
+      db.prepare(`
+        INSERT INTO purchase_invoices (id, supplier, invoice_no, date_bs, due_date_bs, paid, payment_method, delivery_name, delivery_phone, discount, receipt_status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, supplier, invoiceNo, dateBs, dueBs, paid, paymentMethod, deliveryName, deliveryPhone, discount, receiptStatus, now, now);
+
+      const insertItem = db.prepare(`
+        INSERT INTO purchase_items (id, invoice_id, item_name, category, quantity, unit, unit_cost, line_total)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const itId = 'pi-' + id + '-' + (i + 1);
+        const q = Number(it.quantity || it.q || 0);
+        const c = Number(it.unit_cost || it.c || 0);
+        insertItem.run(itId, id, it.name || it.item_name || it.n, it.category || it.cat || 'Dental materials', q, it.unit || it.u || 'Piece', c, q * c);
+      }
+
+      // If delivery person entered, remember on supplier record
+      if (deliveryName) {
+        const sup = db.prepare('SELECT * FROM suppliers WHERE name = ?').get(supplier);
+        if (sup) {
+          const dels = JSON.parse(sup.delivery_persons || '[]');
+          if (!dels.some(d => (d.n || '').toLowerCase() === deliveryName.toLowerCase())) {
+            dels.push({ n: deliveryName, p: deliveryPhone });
+            db.prepare('UPDATE suppliers SET delivery_persons = ? WHERE id = ?').run(JSON.stringify(dels), sup.id);
+          }
+        }
+      }
+
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, id, message: 'Purchase invoice saved. Stock is increased only after confirmation of goods receipt.' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Delete purchase invoice
+  if (pathname.startsWith('/api/purchases/') && req.method === 'DELETE') {
+    try {
+      const id = pathname.replace('/api/purchases/', '').trim();
+      db.prepare('DELETE FROM purchase_items WHERE invoice_id = ?').run(id);
+      db.prepare('DELETE FROM purchase_invoices WHERE id = ?').run(id);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Purchase invoice deleted successfully' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // =========================================================================
+  // 22. STOCK & INVENTORY REST APIS
+  // =========================================================================
+  if (pathname === '/api/stock/items' && req.method === 'GET') {
+    try {
+      const items = db.prepare('SELECT * FROM stock_items WHERE active = 1 ORDER BY name ASC').all();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, items }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/stock/items' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const id = String(body.id || Date.now());
+      const name = String(body.name || '').trim();
+      const batch = String(body.batch || '').trim();
+      const location = String(body.location || body.loc || 'Main Store').trim();
+      const quantity = Number(body.quantity || body.qty || 0);
+      const unit = String(body.unit || 'pieces').trim();
+      const expiry = String(body.expiry || body.exp || '').trim();
+      const minQuantity = Number(body.min_quantity || body.min || 0);
+      const now = new Date().toISOString();
+
+      if (!name) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Item name is required' }));
+        return;
+      }
+
+      db.prepare(`
+        INSERT INTO stock_items (id, name, batch, location, quantity, unit, expiry, min_quantity, active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `).run(id, name, batch, location, quantity, unit, expiry, minQuantity, now, now);
+
+      // Audit movement
+      db.prepare(`
+        INSERT INTO stock_movements (id, item_id, item_name, location, type, quantity, before_qty, after_qty, note, unit, created_at)
+        VALUES (?, ?, ?, ?, 'Added', ?, 0, ?, 'New stock item registered', ?, ?)
+      `).run('mov-' + Date.now(), id, name, location, quantity, quantity, unit, now);
+
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, id, message: 'Stock item added successfully' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Quick Use (-1 or custom qty)
+  if (pathname.startsWith('/api/stock/items/') && pathname.endsWith('/use') && req.method === 'POST') {
+    try {
+      const id = pathname.replace('/api/stock/items/', '').replace('/use', '').trim();
+      const body = await parseJsonBody(req);
+      const qtyToUse = Math.max(1, Number(body.quantity || 1));
+      const note = String(body.note || 'Quick use').trim();
+
+      const item = db.prepare('SELECT * FROM stock_items WHERE id = ?').get(id);
+      if (!item) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Stock item not found' }));
+        return;
+      }
+
+      if (item.quantity < qtyToUse) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: `Not enough stock: only ${item.quantity} ${item.unit} available.` }));
+        return;
+      }
+
+      const before = item.quantity;
+      const after = before - qtyToUse;
+      const now = new Date().toISOString();
+
+      db.prepare('UPDATE stock_items SET quantity = ?, updated_at = ? WHERE id = ?').run(after, now, id);
+      db.prepare(`
+        INSERT INTO stock_movements (id, item_id, item_name, location, type, quantity, before_qty, after_qty, note, unit, created_at)
+        VALUES (?, ?, ?, ?, 'Used', ?, ?, ?, ?, ?, ?)
+      `).run('mov-' + Date.now(), id, item.name, item.location, qtyToUse, before, after, note, item.unit, now);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, quantity: after, message: `Used ${qtyToUse} ${item.unit}. Remaining: ${after} ${item.unit}` }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // General Stock Update (use, waste, add, set, remove)
+  if (pathname.startsWith('/api/stock/items/') && pathname.endsWith('/update') && req.method === 'POST') {
+    try {
+      const id = pathname.replace('/api/stock/items/', '').replace('/update', '').trim();
+      const body = await parseJsonBody(req);
+      const action = String(body.action || body.type || 'use').toLowerCase();
+      const qty = Math.max(0, Number(body.quantity || body.qty || 0));
+      const note = String(body.note || '').trim();
+
+      const item = db.prepare('SELECT * FROM stock_items WHERE id = ?').get(id);
+      if (!item) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Stock item not found' }));
+        return;
+      }
+
+      const before = item.quantity;
+      let after = before;
+      let typeLabel = 'Used';
+
+      if (action === 'remove') {
+        const now = new Date().toISOString();
+        db.prepare('UPDATE stock_items SET active = 0, quantity = 0, updated_at = ? WHERE id = ?').run(now, id);
+        db.prepare(`
+          INSERT INTO stock_movements (id, item_id, item_name, location, type, quantity, before_qty, after_qty, note, unit, created_at)
+          VALUES (?, ?, ?, ?, 'Removed', ?, ?, 0, ?, ?, ?)
+        `).run('mov-' + Date.now(), id, item.name, item.location, before, before, note || 'Item used up - removed', item.unit, now);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, removed: true, message: `${item.name} removed from stock list.` }));
+        return;
+      }
+
+      if (action === 'use') {
+        if (before < qty) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: `Not enough stock: only ${before} ${item.unit} available.` }));
+          return;
+        }
+        after = before - qty;
+        typeLabel = 'Used';
+      } else if (action === 'waste') {
+        if (before < qty) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: `Not enough stock: only ${before} ${item.unit} available.` }));
+          return;
+        }
+        after = before - qty;
+        typeLabel = 'Wasted';
+      } else if (action === 'add') {
+        after = before + qty;
+        typeLabel = 'Added';
+      } else if (action === 'set') {
+        after = qty;
+        typeLabel = 'Count set';
+      }
+
+      const now = new Date().toISOString();
+      db.prepare('UPDATE stock_items SET quantity = ?, updated_at = ? WHERE id = ?').run(after, now, id);
+      db.prepare(`
+        INSERT INTO stock_movements (id, item_id, item_name, location, type, quantity, before_qty, after_qty, note, unit, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run('mov-' + Date.now(), id, item.name, item.location, typeLabel, qty, before, after, note, item.unit, now);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, quantity: after, message: `Updated: ${item.name} is now ${after} ${item.unit}` }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Delete Stock Item (Admin)
+  if (pathname.startsWith('/api/stock/items/') && req.method === 'DELETE') {
+    try {
+      const id = pathname.replace('/api/stock/items/', '').trim();
+      const item = db.prepare('SELECT * FROM stock_items WHERE id = ?').get(id);
+      if (item) {
+        const now = new Date().toISOString();
+        db.prepare('UPDATE stock_items SET active = 0, updated_at = ? WHERE id = ?').run(now, id);
+        db.prepare(`
+          INSERT INTO stock_movements (id, item_id, item_name, location, type, quantity, before_qty, after_qty, note, unit, created_at)
+          VALUES (?, ?, ?, ?, 'Deleted', ?, ?, 0, 'Deleted by admin', ?, ?)
+        `).run('mov-' + Date.now(), id, item.name, item.location, item.quantity, item.quantity, item.unit, now);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Stock item deleted' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Stock Movements Audit Log
+  if (pathname === '/api/stock/movements' && req.method === 'GET') {
+    try {
+      const movements = db.prepare('SELECT * FROM stock_movements ORDER BY created_at DESC LIMIT 200').all();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, movements }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // Reset stock to initial sample data
+  if (pathname === '/api/stock/reset' && req.method === 'POST') {
+    try {
+      db.prepare('DELETE FROM stock_items').run();
+      db.prepare('DELETE FROM stock_movements').run();
+      const now = new Date().toISOString();
+      const seedStock = [
+        { id: '1', name: 'Composite Resin', batch: 'CR-26A', loc: 'Main Store', qty: 5, unit: 'syringes', exp: '2027-04-30', min: 3 },
+        { id: '2', name: 'Local Anaesthetic', batch: 'LA-114', loc: 'Surgery Room', qty: 18, unit: 'cartridges', exp: '2026-12-15', min: 10 },
+        { id: '3', name: 'Nitrile Gloves (M)', batch: 'NG-052', loc: 'Main Store', qty: 2, unit: 'boxes', exp: '2028-01-01', min: 4 },
+        { id: '4', name: 'Bonding Agent', batch: 'BA-09', loc: 'OPD Cabinet', qty: 6, unit: 'bottles', exp: '2027-08-20', min: 2 },
+        { id: '5', name: 'Sterilization Pouches', batch: 'SP-31', loc: 'Sterilization Room', qty: 12, unit: 'packs', exp: '2029-01-01', min: 5 }
+      ];
+      const insertStock = db.prepare(`INSERT INTO stock_items (id, name, batch, location, quantity, unit, expiry, min_quantity, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`);
+      for (const s of seedStock) {
+        insertStock.run(s.id, s.name, s.batch, s.loc, s.qty, s.unit, s.exp, s.min, now, now);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Stock reset to sample data' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
   // Default: Serve Static Frontend
   serveStatic(req, res, pathname);
 });
@@ -2096,7 +3091,7 @@ server.on('upgrade', (req, socket, head) => {
 
 // Start Server
 initDatabase();
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log('========================================================');
   console.log(`🚀 INFINITY DENTAL CLINIC LOCAL DEV SERVER RUNNING!`);
   console.log(`🌐 Local URL:   http://localhost:${PORT}`);

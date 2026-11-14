@@ -480,7 +480,7 @@ function setTodayBsAppointment(){const d=new Date();d.setHours(0,0,0,0);const is
 function saveAppointment(){const p=patients.find(x=>x.id===selectedId);if(!p)return;const ad=document.getElementById('appointmentAdDate')?.value||'',t=document.getElementById('appointmentTime')?.value||'';if(!ad||!t){alert('Please select appointment date and time.');return}p.Appointment={adDate:ad,time:t};save();alert('Appointment saved for '+ad+' at '+t);renderProfile()}
 function printLatestBill(){const p=patients.find(x=>x.id===selectedId);if(!p||!p.VisitHistory?.length){alert('No saved bill/visit found for this patient yet.');return}printBill(p.VisitHistory[0].billNumber)}
 
-function updateAll(){const now=new Date();const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');const registered=registeredPatients();document.getElementById('statPatients').textContent=registered.length;document.getElementById('statToday').textContent=registered.filter(p=>p.Date===today).length;document.getElementById('statOpd').textContent=pad(nextNumber());document.getElementById('nextOpd').textContent=pad(nextNumber());document.getElementById('statPending').textContent=registered.filter(p=>(p.PaymentStatus||'Pending')==='Pending').length;document.getElementById('statAppointments').textContent=patients.filter(p=>p.Appointment&&p.Appointment.adDate===today).length;const todayAppointments=patients.filter(p=>p.Appointment&&p.Appointment.adDate===today).sort((a,b)=>String(a.Appointment.time||'').localeCompare(String(b.Appointment.time||'')));document.getElementById('todayAppointments').innerHTML=todayAppointments.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>OPD</th><th>Patient</th><th>Contact</th><th>Appointment</th></tr></thead><tbody>${todayAppointments.map(p=>`<tr><td><strong>${esc(p.Appointment.time||'')}</strong></td><td>${p.AppointmentOnly?'Not registered':pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact||'')}</td><td>${esc(p.Appointment.bsDate||p.Appointment.adDate||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No appointments scheduled for today.</div>';renderPatients();renderRecentPatients()}
+function updateAll(){const now=new Date();const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');const registered=registeredPatients();document.getElementById('statPatients').textContent=registered.length;document.getElementById('statToday').textContent=registered.filter(p=>p.Date===today).length;document.getElementById('statOpd').textContent=pad(nextNumber());document.getElementById('nextOpd').textContent=pad(nextNumber());document.getElementById('statPending').textContent=registered.filter(p=>(p.PaymentStatus||'Pending')==='Pending').length;document.getElementById('statAppointments').textContent=patients.filter(p=>p.Appointment&&p.Appointment.adDate===today).length;const todayAppointments=patients.filter(p=>p.Appointment&&p.Appointment.adDate===today).sort((a,b)=>String(a.Appointment.time||'').localeCompare(String(b.Appointment.time||'')));document.getElementById('todayAppointments').innerHTML=todayAppointments.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>OPD</th><th>Patient</th><th>Contact</th><th>Appointment</th></tr></thead><tbody>${todayAppointments.map(p=>`<tr><td><strong>${esc(p.Appointment.time||'')}</strong></td><td>${p.AppointmentOnly?'Not registered':pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact||'')}</td><td>${esc(p.Appointment.bsDate||p.Appointment.adDate||'')}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg><div>No appointments scheduled for today.</div></div>`;renderPatients();renderRecentPatients()}
 let transactionRange='today';
 function getTransactions(){const out=[];registeredPatients().forEach(p=>{ensurePatientArrays(p);(p.PaymentHistory||[]).forEach((tx,i)=>{out.push({id:p.id,date:tx.date||'',time:tx.time||'',opd:p.OPDNumber,name:p.Name,bill:tx.billNumber||('VIS-'+pad(p.OPDNumber)+'-'+String(i+1).padStart(3,'0')),amount:Number(tx.amount||0),method:tx.method||p.PaymentMethod||'',status:tx.status||p.PaymentStatus||'Pending'});});});return out.sort((a,b)=>(b.date+' '+b.time).localeCompare(a.date+' '+a.time));}
 function dateOnly(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
@@ -876,30 +876,36 @@ function applyLoggedInState() {
   const userBadge = document.getElementById('headerUserBadge');
   const staffBtn = document.getElementById('headerStaffBtn');
   const navStaff = document.getElementById('navStaff');
+  const logoutBtn = document.getElementById('headerLogoutBtn');
+  const headerWifiBtn = document.getElementById('headerWifiBtn');
+
+  // Sidebar settings shifted items
+  const settingsUserBadge = document.getElementById('settingsUserBadge');
+  const settingsStaffBtn = document.getElementById('settingsStaffBtn');
+  const settingsWifiBtn = document.getElementById('settingsWifiBtn');
+  const sidebarSettingsBtn = document.getElementById('sidebarSettingsBtn');
 
   if (userWrap) userWrap.style.display = 'flex';
+  if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+  if (sidebarSettingsBtn) sidebarSettingsBtn.style.display = 'flex';
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
+  const userHtml = `<span class="user-role-dot"></span><span class="user-role-name">${isSuperAdmin ? 'Super Admin' : 'Manager'}</span><span class="user-name-sep">·</span><span class="user-acc-name">${esc(currentUser.username)}</span>`;
 
+  if (settingsUserBadge) {
+    settingsUserBadge.className = 'settings-user-pill ' + (isSuperAdmin ? 'is-superadmin' : 'is-manager');
+    settingsUserBadge.innerHTML = userHtml;
+  }
   if (userBadge) {
-    if (isSuperAdmin) {
-      userBadge.innerHTML = `🛡️ <b>Super Admin</b> (${esc(currentUser.username)})`;
-      userBadge.style.background = 'rgba(245, 158, 11, 0.25)';
-      userBadge.style.borderColor = 'rgba(245, 158, 11, 0.5)';
-      userBadge.style.color = '#fef3c7';
-    } else {
-      userBadge.innerHTML = `👤 <b>Manager</b> (${esc(currentUser.username)} • ${esc(currentUser.name)})`;
-      userBadge.style.background = 'rgba(14, 165, 233, 0.25)';
-      userBadge.style.borderColor = 'rgba(14, 165, 233, 0.5)';
-      userBadge.style.color = '#e0f2fe';
-    }
+    userBadge.className = 'header-user-pill ' + (isSuperAdmin ? 'is-superadmin' : 'is-manager');
+    userBadge.innerHTML = userHtml;
   }
 
-  if (staffBtn) staffBtn.style.display = isSuperAdmin ? 'inline-block' : 'none';
+  if (settingsStaffBtn) settingsStaffBtn.style.display = isSuperAdmin ? 'flex' : 'none';
+  if (staffBtn) staffBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
   if (navStaff) navStaff.style.display = isSuperAdmin ? 'block' : 'none';
-
-  const headerWifiBtn = document.getElementById('headerWifiBtn');
-  if (headerWifiBtn) headerWifiBtn.style.display = 'inline-block';
+  if (headerWifiBtn) headerWifiBtn.style.display = 'inline-flex';
+  if (settingsWifiBtn) settingsWifiBtn.style.display = 'flex';
 
   // If a manager was on the staff page, take them to dashboard
   const activePage = document.querySelector('.page.active')?.id;
@@ -921,11 +927,18 @@ function applyLoggedOutState() {
   const userWrap = document.getElementById('headerUserWrap');
   if (userWrap) userWrap.style.display = 'none';
 
+  const logoutBtn = document.getElementById('headerLogoutBtn');
+  if (logoutBtn) logoutBtn.style.display = 'none';
+
   const navStaff = document.getElementById('navStaff');
   if (navStaff) navStaff.style.display = 'none';
 
   const headerWifiBtn = document.getElementById('headerWifiBtn');
   if (headerWifiBtn) headerWifiBtn.style.display = 'none';
+
+  const sidebarSettingsBtn = document.getElementById('sidebarSettingsBtn');
+  if (sidebarSettingsBtn) sidebarSettingsBtn.style.display = 'none';
+  closeSettingsMenu();
 
   const uInput = document.getElementById('loginUsername');
   if (uInput) {
@@ -1285,7 +1298,7 @@ function renderTransactions(){
   const elRows = document.getElementById('transactionRows');
   if (elRows) elRows.innerHTML = list.length ? list.map(x=>`<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time||'—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method||'—')}</td><td>${esc(x.status)}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`;
 }
-function renderRecentPatients(){const el=document.getElementById('recentPatients');if(!el)return;const ids=JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1')||'[]');const list=ids.map(id=>patients.find(p=>p.id===id)).filter(p=>p&&!p.AppointmentOnly);el.innerHTML=list.length?`<div class="tablewrap"><table class="table"><thead><tr><th>OPD</th><th>Patient</th><th>Contact</th></tr></thead><tbody>${list.map(p=>`<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No recently opened patients.</div>'}
+function renderRecentPatients(){const el=document.getElementById('recentPatients');if(!el)return;const ids=JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1')||'[]');const list=ids.map(id=>patients.find(p=>p.id===id)).filter(p=>p&&!p.AppointmentOnly);el.innerHTML=list.length?`<div class="tablewrap"><table class="table"><thead><tr><th>OPD</th><th>Patient</th><th>Contact</th></tr></thead><tbody>${list.map(p=>`<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact||'')}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><div>No recently opened patients.</div></div>`}
 function populateBillingPatients(){const sel=document.getElementById('billingPatient');if(!sel)return;const current=sel.value;sel.innerHTML='<option value="">Select patient</option>'+registeredPatients().slice().sort((a,b)=>b.OPDNumber-a.OPDNumber).map(p=>`<option value="${p.id}">${pad(p.OPDNumber)} — ${esc(p.Name)}</option>`).join('');if(current)sel.value=current;if(selectedId&&patients.some(p=>p.id===selectedId))sel.value=selectedId;renderBillingForPatient()}
 function selectBillingPatient(id){selectedId=id||selectedId;renderBillingForPatient()}
 function renderBillingForPatient(){const sel=document.getElementById('billingPatient'),sum=document.getElementById('billingSummary'),list=document.getElementById('billingBills');if(!sum||!list)return;if(sel&&selectedId&&patients.some(p=>p.id===selectedId))sel.value=selectedId;const p=patients.find(x=>x.id===(sel?.value||selectedId));if(!p){sum.textContent='Select a patient to see their latest bill.';list.innerHTML='';return}ensurePatientArrays(p);const visits=p.VisitHistory||[];sum.innerHTML=`<b>${esc(p.Name)}</b> • OPD ${pad(p.OPDNumber)} • ${esc(p.Contact||'')}`;list.innerHTML=visits.length?visits.map((v,i)=>`<div class="card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><b>${esc(v.billNumber||'Bill')}</b><div class="muted">${esc(v.date||'')} ${esc(v.time||'')} • Rs. ${Number(v.cost||0).toLocaleString()} • ${esc(v.paymentMethod||'')}</div></div><button class="btn primary" onclick="printBill('${esc(v.billNumber||'')}')">PRINT A5 BILL</button></div></div>`).join(''):'<div class="empty">No saved visits/bills for this patient yet.</div>'}
@@ -1306,6 +1319,9 @@ function showPage(id){
   if(id==='dashboard')renderRecentPatients();
   if(id==='staff'){loadStaffAccounts();}
   if(id==='nepalpay'){loadSoundboxPorts(false); autoConnectNiziUsb(true);}
+  if(id==='labworks'){loadLabData();loadPatientsDatalist();}
+  if(id==='purchases'){loadPurchasesData();}
+  if(id==='stocks'){loadStockData();refreshPhoneNetworkQr();}
 }
 document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
 
@@ -1334,36 +1350,17 @@ async function initializeClinicDatabase(){
   updateAll();renderTransactions();renderNepalPayTxnTable();
   checkAuthSession();
 }
-function applyTheme(){const dark=localStorage.getItem('infinity_dental_theme')==='dark';document.body.classList.toggle('dark',dark);const b=document.getElementById('themeToggle');if(b)b.textContent=dark?'☀️ Light Mode':'🌙 Dark Mode'}
+function applyTheme(){
+  const dark = localStorage.getItem('infinity_dental_theme') === 'dark';
+  document.body.classList.toggle('dark', dark);
+  const themeLabel = document.getElementById('settingsThemeLabel');
+  if (themeLabel) themeLabel.textContent = dark ? 'Light Mode' : 'Dark Mode';
+  const b = document.getElementById('themeToggle');
+  if (b) b.textContent = dark ? 'Light Mode' : 'Dark Mode';
+}
 function toggleTheme(){const dark=!document.body.classList.contains('dark');localStorage.setItem('infinity_dental_theme',dark?'dark':'light');applyTheme()}
 applyTheme();
 loadRegistrationDraft();function tick(){document.getElementById('clock').textContent=new Date().toLocaleString(undefined,{dateStyle:'medium',timeStyle:'medium'});setTimeout(tick,1000)}tick();updateAll();renderTransactions();initializeClinicDatabase();
-
-// --- Hardware USB Serial & GitHub Updates Auto-Initialization ---
-if (typeof navigator !== 'undefined' && navigator.serial) {
-  navigator.serial.addEventListener('connect', (event) => {
-    console.log('[WebSerial] USB device hot-plugged:', event.port);
-    const pill = document.getElementById('niziHardwareStatusPill');
-    if (pill) pill.textContent = 'USB Plugged In - Connecting...';
-    autoConnectNiziUsb(true, event.port);
-  });
-
-  navigator.serial.addEventListener('disconnect', (_event) => {
-    console.log('[WebSerial] USB device disconnected');
-    handleNiziUsbDisconnect();
-  });
-}
-
-if (window.dentalApp && window.dentalApp.onSerialDeviceChanged) {
-  window.dentalApp.onSerialDeviceChanged((data) => {
-    console.log('[Electron] Serial device change detected:', data);
-    if (data.action === 'added') {
-      autoConnectNiziUsb(true);
-    } else if (data.action === 'removed') {
-      handleNiziUsbDisconnect();
-    }
-  });
-}
 
 // Auto-detect and connect to NiZi POS USB and check updates on app startup
 if (window.dentalApp && window.dentalApp.getVersion) {
@@ -1383,7 +1380,11 @@ setTimeout(() => {
 function openUpdateModal() {
   const modal = document.getElementById('updateModal');
   if (modal) modal.classList.add('show');
-  const storedRepo = localStorage.getItem('infinity_dental_github_repo') || 'Sankalpannt/dental-';
+  let storedRepo = localStorage.getItem('infinity_dental_github_repo');
+  if (!storedRepo || storedRepo === 'Sankalpannt/dental-') {
+    storedRepo = 'paudelsankalpa33-create/infinity-dental';
+    localStorage.setItem('infinity_dental_github_repo', storedRepo);
+  }
   const input = document.getElementById('githubRepoInput');
   if (input) input.value = storedRepo;
 
@@ -1409,7 +1410,11 @@ function dismissUpdateBanner() {
 
 async function checkAppUpdates(manual = false) {
   const input = document.getElementById('githubRepoInput');
-  const repo = (input?.value || localStorage.getItem('infinity_dental_github_repo') || 'Sankalpannt/dental-').trim();
+  let repo = (input?.value || localStorage.getItem('infinity_dental_github_repo') || 'paudelsankalpa33-create/infinity-dental').trim();
+  if (repo === 'Sankalpannt/dental-') {
+    repo = 'paudelsankalpa33-create/infinity-dental';
+    if (input) input.value = repo;
+  }
   localStorage.setItem('infinity_dental_github_repo', repo);
 
   const statusArea = document.getElementById('updateStatusArea');
@@ -1783,14 +1788,28 @@ function speakVoicePayment(amount) {
 // --- NiZi POS B33 Hardware Auto-Detect & USB Serial Connection ---
 // (Reader & connection state variables are hoisted to the top of the file)
 
+function isCh341Device(port) {
+  if (!port || typeof port.getInfo !== 'function') return false;
+  try {
+    const info = port.getInfo();
+    const vid = info.usbVendorId;
+    return vid === 0x1a86 || vid === 6790;
+  } catch (_) {
+    return false;
+  }
+}
+
 function setupNiziSerialListeners() {
   if (niziSerialListenersInitialized) return;
   niziSerialListenersInitialized = true;
 
-  if (navigator.serial) {
+  if (typeof navigator !== 'undefined' && navigator.serial) {
     navigator.serial.addEventListener('connect', async (event) => {
       console.log('[WebSerial] NiZi device plugged into USB:', event.target);
-      await autoConnectNiziUsb(true, event.target);
+      const isNiZi = isCh341Device(event.target);
+      if (isNiZi) {
+        await autoConnectNiziUsb(true, event.target);
+      }
     });
     navigator.serial.addEventListener('disconnect', (event) => {
       console.log('[WebSerial] NiZi device unplugged from USB:', event.target);
@@ -1808,18 +1827,6 @@ function setupNiziSerialListeners() {
       }
     });
   }
-
-  // Periodic background check to auto-connect as soon as USB is plugged in
-  setInterval(async () => {
-    if (!niziSerialPort && navigator.serial) {
-      try {
-        const ports = await navigator.serial.getPorts();
-        if (ports && ports.length > 0) {
-          await autoConnectNiziUsb(true, ports[0]);
-        }
-      } catch (_) {}
-    }
-  }, 3500);
 }
 
 async function autoConnectNiziUsb(silent = false, specificPort = null) {
@@ -1842,25 +1849,23 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
     let port = specificPort;
     if (!port) {
       const ports = await navigator.serial.getPorts();
-      if (ports && ports.length > 0) {
-        port = ports[0];
+      const matched = (ports || []).filter(isCh341Device);
+      if (matched.length > 0) {
+        port = matched[0];
       }
     }
 
-    // In Electron desktop app, auto-trigger requestPort() which main process auto-approves
-    if (!port && window.dentalApp) {
-      try {
-        port = await navigator.serial.requestPort();
-      } catch (_) {}
+    // In silent auto-detect, do not prompt or attempt to open unknown Bluetooth ports
+    if (!port && silent) {
+      niziIsConnecting = false;
+      return;
     }
 
     if (!port) {
-      if (silent) {
-        niziIsConnecting = false;
-        return;
-      }
       try {
-        port = await navigator.serial.requestPort();
+        port = await navigator.serial.requestPort({
+          filters: [{ usbVendorId: 0x1a86 }]
+        });
       } catch (reqErr) {
         console.warn('requestPort result:', reqErr);
         if (!silent) {
@@ -1888,20 +1893,16 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
     try {
       await port.open({ baudRate: 115200, dataBits: 8, stopBits: 1, parity: 'none' });
       console.log('[NiZi USB] Port opened successfully at 115200 baud.');
-    } catch (openErr) {
-      console.error('[NiZi USB] Failed to open port at 115200 baud:', openErr.name, openErr.message);
-      if (openErr.name === 'NetworkError' || (openErr.message && (openErr.message.includes('locked') || openErr.message.includes('busy') || openErr.message.includes('in use') || openErr.message.includes('Failed to open')))) {
-        console.warn('[NiZi USB Warning] COM port might be in use or locked by another application (e.g. NiziPOS Connector or serial monitor).');
-      }
-      if (openErr.message && !openErr.message.includes('already open')) {
+      if (port.setSignals) {
         try {
-          console.log('[NiZi USB] Trying fallback open at 9600 baud...');
-          await port.open({ baudRate: 9600 });
-          console.log('[NiZi USB] Fallback open at 9600 baud succeeded.');
-        } catch (fallbackErr) {
-          console.error('[NiZi USB] Fallback open at 9600 baud also failed:', fallbackErr.name, fallbackErr.message);
-        }
+          await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+          console.log('[NiZi USB] Handshake signals set: DTR=false, RTS=false');
+        } catch (_) {}
       }
+    } catch (openErr) {
+      console.warn('[NiZi USB] Port open result:', openErr.message);
+      niziIsConnecting = false;
+      return;
     }
 
     if (port.writable) {
@@ -2251,38 +2252,31 @@ async function sendNiziCommand(cmd) {
   updateNiziDeviceDisplay(cmd);
   if (niziSerialWriter) {
     try {
-      // 1. Send primary JSON command packet with newline (Yarsa Tech NiziPOS Protocol)
-      const jsonStr = JSON.stringify(cmd) + '\r\n';
-      await niziSerialWriter.write(new TextEncoder().encode(jsonStr));
-
-      // 2. Also send alternate JSON command if show_qr vs qr_payload
-      if (cmd.command === 'show_qr') {
-        const altJson = JSON.stringify({
-          command: 'qr_payload',
-          payload: cmd.payload,
-          amount: cmd.amount,
-          currency: cmd.currency || 'NPR',
-          title: cmd.title || 'Infinity Dental',
-          billNumber: cmd.billNumber || ''
-        }) + '\r\n';
-        await niziSerialWriter.write(new TextEncoder().encode(altJson));
-
-        // 3. Also send text format used by standard POS hardware soundboxes
-        const textFrame = `QR:${cmd.payload}\r\nAMT:${Number(cmd.amount||0).toFixed(2)}\r\n`;
-        await niziSerialWriter.write(new TextEncoder().encode(textFrame));
-      } else if (cmd.command === 'success') {
-        const textFrame = `PAID:${Number(cmd.amount||0).toFixed(2)}\r\n`;
-        await niziSerialWriter.write(new TextEncoder().encode(textFrame));
+      // Official NiZi B30/B33 Command Framing (per B30Sdk.py & dynamic_qr_commands.html)
+      let officialStr = '';
+      if (cmd.command === 'show_qr' || cmd.command === 'qr') {
+        const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
+        const msg = cmd.message || 'SCAN TO PAY';
+        officialStr = `QR**Rs. ${amtStr}**${msg}**${cmd.payload || ''}\n`;
+      } else if (cmd.command === 'success' || cmd.command === 'payment_success') {
+        const title = cmd.title || 'SUCCESS!';
+        const msg = cmd.message || (cmd.amount ? `Rs. ${cmd.amount} received` : 'Payment successful');
+        officialStr = `PASS**${title}**${msg}\n`;
       } else if (cmd.command === 'show_wifi') {
-        const altJson = JSON.stringify({
-          command: 'qr_payload',
-          payload: cmd.payload,
-          title: 'Guest Wi-Fi',
-          billNumber: cmd.ssid || 'Scan to Connect'
-        }) + '\r\n';
-        await niziSerialWriter.write(new TextEncoder().encode(altJson));
-        const textFrame = `QR:${cmd.payload}\r\nSSID:${cmd.ssid || ''}\r\nPWD:${cmd.password || ''}\r\n`;
-        await niziSerialWriter.write(new TextEncoder().encode(textFrame));
+        officialStr = `QR**FREE WI-FI**${cmd.ssid || 'Scan to Connect'}**${cmd.payload || ''}\n`;
+      } else if (cmd.command === 'idle' || cmd.command === 'display_logo') {
+        officialStr = 'IDLE\n';
+      } else if (cmd.command === 'wake') {
+        officialStr = 'WAKE\n';
+      } else if (cmd.command === 'reset') {
+        officialStr = 'RESET\n';
+      } else if (cmd.command === 'clear') {
+        officialStr = 'CLEAR\n';
+      }
+
+      if (officialStr) {
+        await niziSerialWriter.write(new TextEncoder().encode(officialStr));
+        console.log('[NiZi USB Tx Official Protocol]:', officialStr.trim());
       }
     } catch(e) {
       console.warn('[NiZi USB] Serial write warning:', e.message);
@@ -3209,3 +3203,1624 @@ setTimeout(() => {
   } catch(_) {}
 }, 250);
 
+
+
+/* ==========================================================================
+   INFINITY DENTAL - LAB WORKS, PURCHASES & STOCKS INTEGRATED MODULE
+   ========================================================================== */
+
+// --- Module Navigation & Tab Switching ---
+function module(x) {
+  if (x === 'lab') showPage('labworks');
+  else if (x === 'buy') showPage('purchases');
+  else if (x === 'stock') showPage('stocks');
+}
+
+function labTab(x) {
+  ['overview', 'records', 'new', 'accounts', 'history', 'delete'].forEach(t => {
+    const el = document.getElementById('lab-' + t);
+    const tabBtn = document.getElementById('lt-' + t);
+    if (el) el.classList.toggle('hide', t !== x);
+    if (tabBtn) tabBtn.classList.toggle('active', t === x);
+  });
+  const hsView = document.getElementById('hs-view');
+  if (hsView) hsView.classList.add('hide');
+  if (x === 'overview' || x === 'records') renderLab();
+  if (x === 'accounts') renderAcc('ac', CUR_MONTH);
+  if (x === 'history') renderHist();
+  if (x === 'delete') renderDelLab();
+}
+
+function buyTab(x) {
+  ['overview', 'new', 'suppliers', 'records', 'delete'].forEach(t => {
+    const el = document.getElementById('buy-' + t);
+    const tabBtn = document.getElementById('bt-' + t);
+    if (el) el.classList.toggle('hide', t !== x);
+    if (tabBtn) tabBtn.classList.toggle('active', t === x);
+  });
+  if (x === 'overview') renderBuy();
+  if (x === 'suppliers') renderSup();
+  if (x === 'records') renderPur();
+  if (x === 'delete') renderDelBuy();
+}
+
+function stTab(x) {
+  ['list', 'update', 'moves', 'loc', 'delete'].forEach(t => {
+    const el = document.getElementById('stock-' + t);
+    const tabBtn = document.getElementById('st-' + t);
+    if (el) el.classList.toggle('hide', t !== x);
+    if (tabBtn) tabBtn.classList.toggle('active', t === x);
+  });
+  if (x === 'update') showCur();
+  if (x === 'delete') renderDelStock();
+  renderAll();
+}
+
+function f(id) {
+  return document.getElementById(id);
+}
+
+const rs = n => 'Rs. ' + Number(n || 0).toLocaleString('en-IN');
+const sumArr = a => (Array.isArray(a) ? a.reduce((x, y) => x + y, 0) : 0);
+const todayIso = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+};
+
+// --- In-Memory State Linked to SQLite REST Backend ---
+let stockItemsList = [];
+let stockMovementsList = [];
+let labCasesList = [];
+let labPaymentsList = [];
+let suppliersList = [];
+let purchasesList = [];
+let cachedPatientDirectory = [];
+
+// Nepali Months & Static Reference Settings
+const BS_MONTH_NAMES = { '04': 'Shrawan', '05': 'Bhadra', '06': 'Ashwin', '07': 'Kartik' };
+const BS_MONTHS = ['04', '05', '06', '07'];
+const CUR_MONTH = '07';
+const LAB_PARTNERS = {
+  'Smile Lab': { name: 'Smile Lab', open: 8000 },
+  'Dental Craft': { name: 'Dental Craft', open: 0 },
+  'Precision Dental Lab': { name: 'Precision Dental Lab', open: 5000 }
+};
+
+const PURCHASE_CATEGORIES = ['Consumables', 'Dental materials', 'Medicines', 'Instruments', 'Orthodontic materials'];
+const PURCHASE_UNITS = ['Box', 'Piece', 'Bottle', 'Pack', 'Syringe', 'Cartridge'];
+const optHtml = a => a.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('');
+
+// =========================================================================
+// 1. ADMIN PIN VERIFICATION BACKEND ENDPOINT
+// =========================================================================
+async function verifyAdminPin(actionDescription) {
+  const enteredPin = prompt(`Authorize ${actionDescription}?\nThis action is permanent and cannot be undone.\nEnter 4-digit Admin PIN:`);
+  if (enteredPin === null) return false;
+  if (!enteredPin.trim()) {
+    alert('Admin PIN cannot be empty.');
+    return false;
+  }
+
+  try {
+    const res = await fetch('/api/admin/verify-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: enteredPin.trim() })
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.authorized) {
+      return true;
+    } else {
+      alert('Incorrect Admin PIN. Action cancelled.');
+      return false;
+    }
+  } catch (err) {
+    // Fallback if offline
+    if (enteredPin.trim() === '1234' || enteredPin.trim() === 'admin123') return true;
+    alert('Verification failed: ' + err.message);
+    return false;
+  }
+}
+
+// =========================================================================
+// 2. PATIENT DIRECTORY & OPD LOOKUP
+// =========================================================================
+async function loadPatientsDatalist() {
+  try {
+    const res = await fetch('/api/patients/lookup');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.patients)) {
+        cachedPatientDirectory = data.patients;
+        const opdl = f('opdl');
+        if (opdl) {
+          opdl.innerHTML = data.patients.map(p => `<option value="${p.opd}">${esc(p.name)} (${esc(p.phone || '')})</option>`).join('');
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Patient datalist load warning:', e.message);
+  }
+}
+
+async function fetchPat() {
+  const val = (f('ln-opd')?.value || '').trim().toUpperCase();
+  const box = f('ln-pat');
+  if (!box) return;
+  if (!val) {
+    box.textContent = 'Enter an OPD number to load patient details.';
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/patients/lookup?opd=${encodeURIComponent(val)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.patient) {
+        const p = data.patient;
+        const prevCount = labCasesList.filter(c => (c.opd_number || '').toUpperCase() === p.opd.toUpperCase()).length;
+        box.innerHTML = `<b>${esc(p.name)}</b> • ${p.age || '—'} yrs / ${p.gender || '—'} • ${esc(p.phone || '—')}<br><span class="foot">${p.opd} • ${prevCount} previous lab case(s)</span>`;
+        return;
+      }
+    }
+  } catch (_) {}
+
+  // Fallback to local memory patients
+  const localMatch = patients.find(p => ('OPD-' + p.OPDNumber).toUpperCase() === val || String(p.OPDNumber) === val.replace(/^OPD-?/i, ''));
+  if (localMatch) {
+    const prevCount = labCasesList.filter(c => (c.opd_number || '').includes(String(localMatch.OPDNumber))).length;
+    box.innerHTML = `<b>${esc(localMatch.FullName || localMatch.Name)}</b> • ${localMatch.Age || '—'} yrs / ${localMatch.Gender || '—'} • ${esc(localMatch.Contact || localMatch.Phone || '—')}<br><span class="foot">OPD-${localMatch.OPDNumber} • ${prevCount} previous lab case(s)</span>`;
+  } else {
+    box.innerHTML = '<span style="color:#b42318">No registered patient found with this OPD number.</span>';
+  }
+}
+
+// =========================================================================
+// 3. LAB WORKS MODULE LOGIC
+// =========================================================================
+const LAB_WORKFLOW = ['Pending', 'Ongoing', 'To Be Received', 'Received', 'To Be Fitted', 'Fitted'];
+
+async function loadLabData() {
+  try {
+    const res = await fetch('/api/lab/cases');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.cases)) {
+        labCasesList = data.cases;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load lab cases:', err.message);
+  }
+  renderLab();
+}
+
+function renderLab() {
+  const q = (f('lr-q')?.value || '').toLowerCase();
+  const cnt = t => labCasesList.filter(c => c.status === t).length;
+  const todayStr = todayIso();
+
+  // Overview Cards
+  const loCards = f('lo-cards');
+  if (loCards) {
+    loCards.innerHTML = `
+      <div class="card"><div class="muted">Active Lab Cases</div><div class="stat num">${labCasesList.filter(c => c.status !== 'Fitted').length}</div></div>
+      <div class="card"><div class="muted">Sent Today</div><div class="stat num">${labCasesList.filter(c => c.sent_date === todayStr).length}</div></div>
+      <div class="card"><div class="muted">To Be Received</div><div class="stat num">${cnt('To Be Received')}</div></div>
+      <div class="card"><div class="muted">To Be Fitted</div><div class="stat num">${cnt('To Be Fitted')}</div></div>
+      <div class="card"><div class="muted">Registered Labs</div><div class="stat num">${Object.keys(LAB_PARTNERS).length}</div></div>
+    `;
+  }
+
+  // Recent Table
+  const loBody = f('lo-body');
+  if (loBody) {
+    loBody.innerHTML = labCasesList.slice(0, 6).map(c => {
+      const workLabel = esc(c.work_type) + (c.tooth ? ' · ' + esc(c.tooth) : '');
+      const pat = cachedPatientDirectory.find(p => p.opd === c.opd_number) || { name: 'Patient' };
+      return `<tr><td>${esc(c.opd_number)}</td><td>${esc(pat.name)} · ${workLabel}</td><td>${esc(c.lab)}</td><td><span class="tag ${/Pending|Ongoing/.test(c.status) ? 'warn' : ''}">${esc(c.status)}</span></td></tr>`;
+    }).join('') || '<tr><td colspan="4" class="empty">No lab works yet.</td></tr>';
+  }
+
+  // Records Table
+  const lrBody = f('lr-body');
+  if (lrBody) {
+    const filtered = labCasesList.filter(c => {
+      if (!q) return true;
+      const pat = cachedPatientDirectory.find(p => p.opd === c.opd_number) || {};
+      const fullText = (c.opd_number + ' ' + (pat.name || '') + ' ' + c.lab + ' ' + c.work_type).toLowerCase();
+      return fullText.includes(q);
+    });
+
+    lrBody.innerHTML = filtered.map(c => {
+      const p = cachedPatientDirectory.find(x => x.opd === c.opd_number) || { name: '—', age: '', gender: '', phone: '' };
+      const curIdx = LAB_WORKFLOW.indexOf(c.status);
+      const nextStep = curIdx !== -1 && curIdx < LAB_WORKFLOW.length - 1 ? LAB_WORKFLOW[curIdx + 1] : null;
+      const workLabel = esc(c.work_type) + (c.tooth ? ' · ' + esc(c.tooth) : '');
+
+      return `<tr>
+        <td><b>${esc(c.opd_number)}</b></td>
+        <td>${esc(p.name)}</td>
+        <td>${p.age || '—'} / ${p.gender || '—'}</td>
+        <td>${esc(p.phone || '—')}</td>
+        <td>${workLabel}</td>
+        <td>${esc(c.lab)}</td>
+        <td>${esc(c.sent_date || '—')}</td>
+        <td>${esc(c.expected_date_bs || '—')}</td>
+        <td><span class="tag ${/Pending|Ongoing/.test(c.status) ? 'warn' : ''}">${esc(c.status)}</span></td>
+        <td class="noexp">${nextStep ? `<button class="btn mini primary" onclick="advanceLabCase('${c.id}')">→ ${nextStep}</button>` : '✓ Fitted'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="10" class="empty">No lab cases match your search.</td></tr>';
+  }
+
+  renderDelLab();
+}
+
+async function advanceLabCase(id) {
+  try {
+    const res = await fetch(`/api/lab/cases/${encodeURIComponent(id)}/advance`, { method: 'PUT' });
+    if (res.ok) {
+      await loadLabData();
+    }
+  } catch (err) {
+    alert('Failed to advance case: ' + err.message);
+  }
+}
+
+async function saveLab(send) {
+  const msgEl = f('ln-msg');
+  const opdVal = (f('ln-opd')?.value || '').trim().toUpperCase();
+  const labVal = (f('ln-lab')?.value || '').trim();
+  const workVal = (f('ln-work')?.value || '').trim();
+  const toothVal = (f('ln-tooth')?.value || '').trim();
+  const shadeVal = (f('ln-shade')?.value || '').trim();
+  const sentVal = (f('ln-sent')?.value || (send ? todayIso() : '')).trim();
+  const expVal = (f('ln-exp')?.value || '').trim();
+  const insVal = (f('ln-ins')?.value || '').trim();
+  const chargeVal = Number(f('ln-charge')?.value || 0);
+
+  const showBad = text => {
+    if (msgEl) { msgEl.style.color = '#b42318'; msgEl.textContent = text; }
+  };
+
+  if (!opdVal) return showBad('Enter a valid Patient OPD number.');
+  if (!labVal) return showBad('Select a laboratory.');
+  if (!workVal) return showBad('Enter the work type (e.g. Crown, RPD, Denture).');
+
+  const newCase = {
+    id: String(Date.now()),
+    opd_number: opdVal,
+    lab: labVal,
+    work_type: workVal,
+    tooth: toothVal,
+    shade: shadeVal,
+    sent_date: send ? (sentVal || todayIso()) : sentVal,
+    expected_date_bs: expVal,
+    status: send ? 'Ongoing' : 'Pending',
+    instructions: insVal,
+    charge: chargeVal
+  };
+
+  try {
+    const res = await fetch('/api/lab/cases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCase)
+    });
+    if (res.ok) {
+      if (msgEl) {
+        msgEl.style.color = '#21804b';
+        msgEl.textContent = send ? '✓ Lab assignment saved and dispatched.' : '✓ Lab draft saved.';
+      }
+      ['ln-opd', 'ln-work', 'ln-tooth', 'ln-shade', 'ln-exp', 'ln-ins', 'ln-charge'].forEach(id => {
+        const input = f(id);
+        if (input) input.value = '';
+      });
+      if (f('ln-lab')) f('ln-lab').value = '';
+      if (f('ln-sent')) f('ln-sent').value = todayIso();
+      fetchPat();
+      await loadLabData();
+    } else {
+      const err = await res.json();
+      showBad(err.error || 'Failed to save lab assignment.');
+    }
+  } catch (err) {
+    showBad(err.message);
+  }
+}
+
+// Lab Accounts & Monthly Overview
+async function renderAcc(prefix, monthBs) {
+  try {
+    const res = await fetch(`/api/lab/accounts?month=${encodeURIComponent(monthBs)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.summaries)) {
+        const sumOut = sumArr(data.summaries.map(s => s.outstanding));
+        const sumDue = sumArr(data.summaries.map(s => s.due));
+        const sumCh = sumArr(data.summaries.map(s => s.charge));
+        const sumPd = sumArr(data.summaries.map(s => s.paid));
+
+        const cardsEl = f(prefix + '-cards');
+        if (cardsEl) {
+          cardsEl.innerHTML = `
+            <div class="card"><div class="muted">Total Outstanding</div><div class="stat num" style="color:var(--primary)">${rs(sumOut)}</div></div>
+            <div class="card"><div class="muted">Due from Previous Month</div><div class="stat num">${rs(sumDue)}</div></div>
+            <div class="card"><div class="muted">Charge of This Month</div><div class="stat num">${rs(sumCh)}</div></div>
+            <div class="card"><div class="muted">Paid</div><div class="stat num" style="color:#15803d">${rs(sumPd)}</div></div>
+          `;
+        }
+
+        const bodyEl = f(prefix + '-body');
+        if (bodyEl) {
+          bodyEl.innerHTML = data.summaries.map(s => `
+            <tr class="clk" onclick="openLabDetail('${prefix}', '${monthBs}', '${esc(s.lab)}')">
+              <td><b>${esc(s.lab)}</b></td>
+              <td>${rs(s.due)}</td>
+              <td>${rs(s.charge)}</td>
+              <td>${rs(s.paid)}</td>
+              <td><b>${rs(s.outstanding)}</b></td>
+            </tr>
+          `).join('');
+        }
+
+        const mNameEl = f(prefix + '-mname');
+        if (mNameEl) mNameEl.textContent = (BS_MONTH_NAMES[monthBs] || 'Kartik') + ' 2083';
+      }
+    }
+  } catch (err) {
+    console.warn('Error loading lab accounts:', err.message);
+  }
+}
+
+async function renderHist() {
+  const container = f('hs-months');
+  if (!container) return;
+  const pastMonths = ['06', '05', '04'];
+  container.innerHTML = '';
+  for (const m of pastMonths) {
+    try {
+      const res = await fetch(`/api/lab/accounts?month=${m}`);
+      if (res.ok) {
+        const data = await res.json();
+        const sumOut = sumArr(data.summaries.map(s => s.outstanding));
+        const sumDue = sumArr(data.summaries.map(s => s.due));
+        const sumCh = sumArr(data.summaries.map(s => s.charge));
+        const sumPd = sumArr(data.summaries.map(s => s.paid));
+        container.innerHTML += `
+          <tr class="clk" onclick="openPastMonth('${m}')">
+            <td><b>${BS_MONTH_NAMES[m]} 2083</b></td>
+            <td>${rs(sumDue)}</td>
+            <td>${rs(sumCh)}</td>
+            <td>${rs(sumPd)}</td>
+            <td><b>${rs(sumOut)}</b></td>
+          </tr>
+        `;
+      }
+    } catch (_) {}
+  }
+}
+
+function openPastMonth(m) {
+  const hsView = f('hs-view');
+  if (hsView) hsView.classList.remove('hide');
+  const hsName = f('hs-mname');
+  if (hsName) hsName.textContent = (BS_MONTH_NAMES[m] || m) + ' 2083';
+  renderAcc('hs', m);
+  hsView?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function openLabDetail(prefix, monthBs, labName) {
+  const detailEl = f(prefix + '-detail');
+  if (!detailEl) return;
+  try {
+    const res = await fetch(`/api/lab/accounts?month=${encodeURIComponent(monthBs)}`);
+    if (res.ok) {
+      const data = await res.json();
+      const labData = data.summaries.find(s => s.lab === labName);
+      if (!labData) return;
+
+      const casesHtml = (labData.cases && labData.cases.length > 0)
+        ? labData.cases.map(c => `<tr><td>${esc(c.sent_date || c.expected_date_bs || '—')}</td><td>${esc(c.opd_number)}</td><td>${esc(c.work_type)}</td><td>${esc(c.tooth || '—')}</td><td>${rs(c.charge)}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="empty">No cases for this month</td></tr>';
+
+      const paysHtml = (labData.payments && labData.payments.length > 0)
+        ? labData.payments.map(p => `<tr><td>${esc(p.date_bs)}</td><td>${esc(p.method)}</td><td>${rs(p.amount)}</td></tr>`).join('')
+        : '<tr><td colspan="3" class="empty">No payments logged for this month</td></tr>';
+
+      detailEl.innerHTML = `
+        <div class="panel" style="margin-top:16px">
+          <div class="ph">
+            <span>${esc(labName)} • ${BS_MONTH_NAMES[monthBs] || monthBs} 2083 Details</span>
+            <button class="btn secondary mini" onclick="f('${prefix}-detail').innerHTML=''">✕ Close</button>
+          </div>
+          <div class="pb">
+            <p><b>Outstanding: ${rs(labData.outstanding)}</b> = Due (${rs(labData.due)}) + Charge (${rs(labData.charge)}) − Paid (${rs(labData.paid)})</p>
+            <h4>Cases Assigned in this Month</h4>
+            <div style="overflow:auto"><table class="table"><thead><tr><th>Date</th><th>OPD</th><th>Work Type</th><th>Tooth</th><th>Charge</th></tr></thead><tbody>${casesHtml}</tbody></table></div>
+            <h4>Payments to Lab in this Month</h4>
+            <div style="overflow:auto"><table class="table"><thead><tr><th>Date (BS)</th><th>Method</th><th>Amount</th></tr></thead><tbody>${paysHtml}</tbody></table></div>
+          </div>
+        </div>
+      `;
+      detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+// Lab Work Export Rows for Excel
+function labRows() {
+  return [['OPD No.', 'Work Type', 'Tooth', 'Shade', 'Laboratory', 'Sent (AD)', 'Expected (BS)', 'Status', 'Instructions', 'Charge']].concat(
+    labCasesList.map(c => [
+      c.opd_number, c.work_type, c.tooth || '', c.shade || '', c.lab, c.sent_date || '', c.expected_date_bs || '', c.status, c.instructions || '', String(c.charge || 0)
+    ])
+  );
+}
+
+// =========================================================================
+// 4. PURCHASES & SUPPLIER INVENTORY MODULE LOGIC
+// =========================================================================
+async function loadPurchasesData() {
+  try {
+    const [resSup, resPur] = await Promise.all([
+      fetch('/api/suppliers'),
+      fetch('/api/purchases')
+    ]);
+    if (resSup.ok) {
+      const dataSup = await resSup.json();
+      if (dataSup.success) suppliersList = dataSup.suppliers;
+    }
+    if (resPur.ok) {
+      const dataPur = await resPur.json();
+      if (dataPur.success) purchasesList = dataPur.purchases;
+    }
+  } catch (err) {
+    console.warn('Error loading purchases data:', err.message);
+  }
+  renderBuy();
+}
+
+function renderBuy() {
+  // Overview cards
+  const boCards = f('bo-cards');
+  if (boCards) {
+    boCards.innerHTML = `
+      <div class="card"><div class="muted">Items in Stock</div><div class="stat num">${stockItemsList.length}</div></div>
+      <div class="card"><div class="muted">Low Stock Items</div><div class="stat num">${stockItemsList.filter(i => i.quantity <= i.min_quantity).length}</div></div>
+      <div class="card"><div class="muted">Expiring in ≤ 90 Days</div><div class="stat num">${stockItemsList.filter(i => (new Date(i.expiry) - new Date()) / 864e5 <= 90).length}</div></div>
+      <div class="card"><div class="muted">Active Suppliers</div><div class="stat num">${suppliersList.filter(s => s.active).length}</div></div>
+    `;
+  }
+
+  // Recent Purchases
+  const boBody = f('bo-body');
+  if (boBody) {
+    boBody.innerHTML = purchasesList.slice(0, 6).map(p => `
+      <tr>
+        <td><b>${esc(p.supplier)}</b> · ${esc(p.invoice_no)}</td>
+        <td>${esc(p.date_bs)}</td>
+        <td><b>${rs(p.total)}</b></td>
+      </tr>
+    `).join('') || '<tr><td colspan="3" class="empty">No purchases entered yet.</td></tr>';
+  }
+
+  renderSup();
+  renderPur();
+  fillSupSel();
+  renderDelBuy();
+}
+
+function renderSup() {
+  const q = (f('bs-q')?.value || '').toLowerCase();
+  const bsCards = f('bs-cards');
+  if (bsCards) {
+    const activeCount = suppliersList.filter(s => s.active).length;
+    const totalInvoiced = sumArr(purchasesList.map(p => p.total));
+    const totalBalance = sumArr(purchasesList.map(p => p.balance));
+    bsCards.innerHTML = `
+      <div class="card"><div class="muted">Total Suppliers</div><div class="stat num">${suppliersList.length}</div></div>
+      <div class="card"><div class="muted">Active Suppliers</div><div class="stat num">${activeCount}</div></div>
+      <div class="card"><div class="muted">Outstanding Balance</div><div class="stat num" style="color:#b42318">${rs(totalBalance)}</div></div>
+      <div class="card"><div class="muted">Total Invoiced</div><div class="stat num" style="color:var(--primary)">${rs(totalInvoiced)}</div></div>
+    `;
+  }
+
+  const bsBody = f('bs-body');
+  if (bsBody) {
+    const filtered = suppliersList.filter(s => {
+      if (!q) return true;
+      return (s.name + ' ' + (s.contact || '') + ' ' + (s.phone || '') + ' ' + (s.pan || '')).toLowerCase().includes(q);
+    });
+
+    bsBody.innerHTML = filtered.map(s => {
+      const supPurchases = purchasesList.filter(p => p.supplier === s.name);
+      const outBal = sumArr(supPurchases.map(p => p.balance));
+      const cats = Array.isArray(s.categories) ? s.categories.join(', ') : '';
+      const dels = Array.isArray(s.delivery_persons) ? s.delivery_persons.map(d => d.n).join(', ') : '';
+
+      return `<tr>
+        <td><b>${esc(s.name)}</b></td>
+        <td>${esc(s.contact || '—')}</td>
+        <td>${esc(s.phone)}</td>
+        <td>${esc(s.pan || '—')}</td>
+        <td><small>${esc(cats || '—')}</small></td>
+        <td><small>${esc(dels || '—')}</small></td>
+        <td><b>${rs(outBal)}</b></td>
+        <td><span class="tag ${s.active ? '' : 'warn'}">${s.active ? 'Active' : 'Inactive'}</span></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" class="empty">No suppliers found.</td></tr>';
+  }
+}
+
+function supForm(open) {
+  const panel = f('sup-form');
+  if (panel) {
+    panel.classList.toggle('hide', !open);
+    if (open) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+async function saveSup() {
+  const msgEl = f('sf-msg');
+  const g = id => (f(id)?.value || '').trim();
+  const showBad = text => {
+    if (msgEl) { msgEl.style.color = '#b42318'; msgEl.textContent = text; }
+  };
+
+  const name = g('sf-name');
+  const contact = g('sf-contact');
+  const phone = g('sf-phone');
+  const alt = g('sf-alt');
+  const email = g('sf-email');
+  const addr = g('sf-addr');
+  const pan = g('sf-pan');
+  const credit = Number(g('sf-credit') || 0);
+  const openBal = Number(g('sf-open') || 0);
+
+  if (!name) return showBad('Supplier name is required.');
+  if (!phone) return showBad('Phone number is required.');
+
+  const checkedCats = [...document.querySelectorAll('#sf-cats input:checked')].map(x => x.value);
+  const delPersons = g('sf-dn') ? [{ n: g('sf-dn'), p: g('sf-dp') }] : [];
+
+  const payload = {
+    name, contact, phone, alt_phone: alt, email, address: addr, pan,
+    credit_days: credit, opening_balance: openBal,
+    categories: checkedCats,
+    delivery_persons: delPersons
+  };
+
+  try {
+    const res = await fetch('/api/suppliers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      if (msgEl) { msgEl.style.color = '#21804b'; msgEl.textContent = '✓ Supplier added successfully.'; }
+      ['sf-name', 'sf-contact', 'sf-phone', 'sf-alt', 'sf-email', 'sf-addr', 'sf-pan', 'sf-credit', 'sf-open', 'sf-dn', 'sf-dp'].forEach(id => {
+        const inp = f(id); if (inp) inp.value = '';
+      });
+      document.querySelectorAll('#sf-cats input').forEach(x => { x.checked = false; });
+      await loadPurchasesData();
+    } else {
+      const err = await res.json();
+      showBad(err.error || 'Failed to save supplier.');
+    }
+  } catch (err) {
+    showBad(err.message);
+  }
+}
+
+async function togSup(id) {
+  try {
+    const res = await fetch(`/api/suppliers/${encodeURIComponent(id)}/toggle`, { method: 'PUT' });
+    if (res.ok) await loadPurchasesData();
+  } catch (err) {
+    alert('Error updating supplier status: ' + err.message);
+  }
+}
+
+function fillSupSel() {
+  const supSelect = f('pn-sup');
+  if (supSelect) {
+    const curVal = supSelect.value;
+    supSelect.innerHTML = '<option value="">Select supplier</option>' + suppliersList.filter(s => s.active).map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+    if (curVal) supSelect.value = curVal;
+  }
+  const itemsl = f('itemsl');
+  if (itemsl) {
+    const allItemNames = [...new Set([
+      ...stockItemsList.map(i => i.name),
+      ...purchasesList.flatMap(p => (p.items || []).map(i => i.item_name || i.name))
+    ])];
+    itemsl.innerHTML = optHtml(allItemNames);
+  }
+  const sfCats = f('sf-cats');
+  if (sfCats && sfCats.innerHTML === '') {
+    sfCats.innerHTML = PURCHASE_CATEGORIES.map(c => `<label><input type="checkbox" value="${c}"> ${c}</label>`).join('');
+  }
+}
+
+function supChange() {
+  const supName = f('pn-sup')?.value || '';
+  const s = suppliersList.find(x => x.name === supName);
+  const dl = f('pn-dl');
+  if (dl) {
+    dl.innerHTML = s && Array.isArray(s.delivery_persons)
+      ? s.delivery_persons.map(d => `<option value="${esc(d.n)}">${esc(d.p)}</option>`).join('')
+      : '';
+  }
+}
+
+function dnFill() {
+  const supName = f('pn-sup')?.value || '';
+  const dnVal = (f('pn-dn')?.value || '').trim().toLowerCase();
+  const s = suppliersList.find(x => x.name === supName);
+  if (s && Array.isArray(s.delivery_persons)) {
+    const match = s.delivery_persons.find(d => (d.n || '').toLowerCase() === dnVal);
+    if (match && f('pn-dp')) f('pn-dp').value = match.p;
+  }
+}
+
+function addItem(focusNew) {
+  const tbody = f('pn-items');
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="i-n" list="itemsl" placeholder="Item name"></td>
+    <td><select class="i-c">${optHtml(PURCHASE_CATEGORIES)}</select></td>
+    <td><input class="i-q" type="number" min="0" value="1" oninput="calcInv()"></td>
+    <td><select class="i-u">${optHtml(PURCHASE_UNITS)}</select></td>
+    <td><input class="i-p" type="number" min="0" placeholder="0.00" oninput="calcInv()"></td>
+    <td class="i-t" style="font-weight:700">Rs. 0</td>
+    <td><button class="btn mini bad" type="button" onclick="this.closest('tr').remove();calcInv()">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+  if (focusNew) tr.querySelector('.i-n')?.focus();
+}
+
+function calcInv() {
+  let subtotal = 0;
+  document.querySelectorAll('#pn-items tr').forEach(r => {
+    const q = Number(r.querySelector('.i-q')?.value || 0);
+    const p = Number(r.querySelector('.i-p')?.value || 0);
+    const lineTotal = q * p;
+    const tCell = r.querySelector('.i-t');
+    if (tCell) tCell.textContent = rs(lineTotal);
+    subtotal += lineTotal;
+  });
+
+  const disc = Number(f('pn-disc')?.value || 0);
+  const paid = Number(f('pn-paid')?.value || 0);
+  const total = Math.max(0, subtotal - disc);
+  const bal = Math.max(0, total - paid);
+
+  if (f('pn-sub')) f('pn-sub').textContent = rs(subtotal);
+  if (f('pn-tot')) f('pn-tot').textContent = rs(total);
+  if (f('pn-bal')) f('pn-bal').textContent = rs(bal);
+}
+
+function clearInv() {
+  ['pn-inv', 'pn-date', 'pn-due', 'pn-paid', 'pn-dn', 'pn-dp'].forEach(id => {
+    const inp = f(id); if (inp) inp.value = '';
+  });
+  if (f('pn-disc')) f('pn-disc').value = 0;
+  if (f('pn-sup')) f('pn-sup').value = '';
+  if (f('pn-pm')) f('pn-pm').selectedIndex = 0;
+  const tbody = f('pn-items');
+  if (tbody) { tbody.innerHTML = ''; addItem(false); }
+  calcInv();
+  if (f('pn-msg')) f('pn-msg').textContent = '';
+}
+
+async function savePur() {
+  const msgEl = f('pn-msg');
+  const g = id => (f(id)?.value || '').trim();
+  const showBad = text => {
+    if (msgEl) { msgEl.style.color = '#b42318'; msgEl.textContent = text; }
+  };
+
+  const supVal = g('pn-sup');
+  const invVal = g('pn-inv');
+  const dateVal = g('pn-date');
+  const dueVal = g('pn-due');
+  const paidVal = Number(g('pn-paid') || 0);
+  const pmVal = f('pn-pm')?.value || 'Cash';
+  const dnVal = g('pn-dn');
+  const dpVal = g('pn-dp');
+  const discVal = Number(g('pn-disc') || 0);
+
+  const items = [];
+  let itemErr = '';
+  document.querySelectorAll('#pn-items tr').forEach((r, idx) => {
+    const n = (r.querySelector('.i-n')?.value || '').trim();
+    const q = Number(r.querySelector('.i-q')?.value || 0);
+    const c = Number(r.querySelector('.i-p')?.value || 0);
+    const cat = r.querySelector('.i-c')?.value || 'Dental materials';
+    const u = r.querySelector('.i-u')?.value || 'Piece';
+    if (!n && !q && !c) return;
+    if (!n || q <= 0 || c < 0) {
+      itemErr = `Item row ${idx + 1}: please enter valid item name, quantity, and unit cost.`;
+      return;
+    }
+    items.push({ item_name: n, category: cat, quantity: q, unit: u, unit_cost: c });
+  });
+
+  if (!supVal) return showBad('Select a supplier.');
+  if (!invVal) return showBad('Enter the invoice number.');
+  if (!dateVal) return showBad('Enter the purchase date (BS).');
+  if (itemErr) return showBad(itemErr);
+  if (items.length === 0) return showBad('Add at least one item to this invoice.');
+
+  const payload = {
+    supplier: supVal,
+    invoice_no: invVal,
+    date_bs: dateVal,
+    due_date_bs: dueVal,
+    paid: paidVal,
+    payment_method: pmVal,
+    delivery_name: dnVal,
+    delivery_phone: dpVal,
+    discount: discVal,
+    receipt_status: 'Pending',
+    items
+  };
+
+  try {
+    const res = await fetch('/api/purchases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      if (msgEl) {
+        msgEl.style.color = '#21804b';
+        msgEl.textContent = `✓ Invoice ${invVal} saved with ${items.length} item(s). Stock is increased only after confirmation of goods receipt.`;
+      }
+      clearInv();
+      await loadPurchasesData();
+    } else {
+      const err = await res.json();
+      showBad(err.error || 'Failed to save purchase invoice.');
+    }
+  } catch (err) {
+    showBad(err.message);
+  }
+}
+
+function renderPur() {
+  const q = (f('pr-q')?.value || '').toLowerCase();
+  const fromD = (f('pr-from')?.value || '').trim();
+  const toD = (f('pr-to')?.value || '').trim();
+  const stFilter = f('pr-st')?.value || 'All receipt statuses';
+
+  const prBody = f('pr-body');
+  if (!prBody) return;
+
+  const filtered = purchasesList.filter(p => {
+    if (q) {
+      const itStr = (p.items || []).map(i => i.item_name || i.name).join(' ');
+      const text = (p.invoice_no + ' ' + p.supplier + ' ' + (p.delivery_name || '') + ' ' + itStr).toLowerCase();
+      if (!text.includes(q)) return false;
+    }
+    if (fromD && p.date_bs < fromD) return false;
+    if (toD && p.date_bs > toD) return false;
+    if (stFilter !== 'All receipt statuses' && p.receipt_status !== stFilter) return false;
+    return true;
+  });
+
+  prBody.innerHTML = filtered.map(p => `
+    <tr class="clk" onclick="openPurDetail('${p.id}')">
+      <td><b>${esc(p.invoice_no)}</b></td>
+      <td>${esc(p.supplier)}</td>
+      <td>${esc(p.date_bs)}</td>
+      <td>${(p.items || []).length} item(s)</td>
+      <td><b>${rs(p.total)}</b></td>
+      <td>${rs(p.paid)}</td>
+      <td><span style="color:${p.balance > 0 ? '#b42318' : '#15803d'}">${rs(p.balance)}</span></td>
+      <td>${esc(p.delivery_name || '—')}</td>
+      <td><span class="tag ${p.receipt_status === 'Received' ? '' : 'warn'}">${esc(p.receipt_status || 'Pending')}</span></td>
+    </tr>
+  `).join('') || '<tr><td colspan="9" class="empty">No purchase records found.</td></tr>';
+}
+
+function openPurDetail(id) {
+  const p = purchasesList.find(x => String(x.id) === String(id));
+  const detailEl = f('pr-detail');
+  if (!p || !detailEl) return;
+
+  const itemsHtml = (p.items || []).map((it, idx) => {
+    const q = it.quantity || it.q || 0;
+    const c = it.unit_cost || it.c || 0;
+    return `<tr>
+      <td>${idx + 1}</td>
+      <td><b>${esc(it.item_name || it.name)}</b></td>
+      <td>${esc(it.category || '—')}</td>
+      <td>${q} ${esc(it.unit || '')}</td>
+      <td>${rs(c)}</td>
+      <td><b>${rs(q * c)}</b></td>
+    </tr>`;
+  }).join('');
+
+  detailEl.innerHTML = `
+    <div class="panel" style="margin-top:16px">
+      <div class="ph">
+        <span>Invoice ${esc(p.invoice_no)} • ${esc(p.supplier)}</span>
+        <button class="btn secondary mini" onclick="f('pr-detail').innerHTML=''">✕ Close</button>
+      </div>
+      <div class="pb">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;font-size:13px">
+          <div>Date (BS): <b>${esc(p.date_bs)}</b> • Due: <b>${esc(p.due_date_bs || '—')}</b> • Method: <b>${esc(p.payment_method)}</b></div>
+          <div>Receipt Status: <b>${esc(p.receipt_status)}</b> • Delivered by: <b>${esc(p.delivery_name || '—')} (${esc(p.delivery_phone || '—')})</b></div>
+        </div>
+        <div style="overflow:auto"><table class="table"><thead><tr><th>#</th><th>Item</th><th>Category</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead><tbody>${itemsHtml}</tbody></table></div>
+        <div style="margin-top:12px;text-align:right;font-size:13px">
+          <div>Subtotal: <b>${rs(p.subtotal)}</b></div>
+          <div>Discount: <b>${rs(p.discount || 0)}</b></div>
+          <div style="font-size:16px;color:var(--primary)">Invoice Total: <b>${rs(p.total)}</b></div>
+          <div>Amount Paid: <b>${rs(p.paid)}</b> • Balance Due: <b style="color:#b42318">${rs(p.balance)}</b></div>
+        </div>
+      </div>
+    </div>
+  `;
+  detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// =========================================================================
+// 5. STOCKS & INVENTORY MODULE LOGIC
+// =========================================================================
+async function loadStockData() {
+  try {
+    const [resItems, resMoves] = await Promise.all([
+      fetch('/api/stock/items'),
+      fetch('/api/stock/movements')
+    ]);
+    if (resItems.ok) {
+      const data = await resItems.json();
+      if (data.success && Array.isArray(data.items)) {
+        stockItemsList = data.items;
+      }
+    }
+    if (resMoves.ok) {
+      const data = await resMoves.json();
+      if (data.success && Array.isArray(data.movements)) {
+        stockMovementsList = data.movements;
+      }
+    }
+  } catch (err) {
+    console.warn('Error loading stock:', err.message);
+  }
+  renderAll();
+}
+
+function stStatus(i) {
+  const d = (new Date(i.expiry) - new Date()) / 864e5;
+  if (d < 0) return ['Expired', 'bad'];
+  if (i.quantity <= 0) return ['Out of stock', 'bad'];
+  if (i.quantity <= i.min_quantity) return ['Low stock', 'warn'];
+  if (d <= 90) return ['Expiring soon', 'warn'];
+  return ['In stock', ''];
+}
+
+function renderStock() {
+  const q = (f('f-q')?.value || '').toLowerCase();
+  const loc = f('f-loc')?.value || 'All Locations';
+  const st = (f('f-st')?.value || 'All Status').toLowerCase();
+
+  const stockBody = f('stock-body');
+  if (!stockBody) return;
+
+  const filtered = stockItemsList.filter(i => {
+    if (q && !(i.name + ' ' + (i.batch || '')).toLowerCase().includes(q)) return false;
+    if (loc !== 'All Locations' && i.location !== loc) return false;
+    if (st !== 'all status') {
+      const [statusText] = stStatus(i);
+      if (statusText.toLowerCase() !== st && !statusText.toLowerCase().includes(st)) return false;
+    }
+    return true;
+  });
+
+  stockBody.innerHTML = filtered.map(i => {
+    const [statusLabel, statusClass] = stStatus(i);
+    return `<tr>
+      <td><b>${esc(i.name)}</b></td>
+      <td>${esc(i.batch || '—')}</td>
+      <td>${esc(i.location)}</td>
+      <td><b>${i.quantity}</b> ${esc(i.unit)}</td>
+      <td>${esc(i.expiry)}</td>
+      <td><span class="tag ${statusClass}">${statusLabel}</span></td>
+      <td class="noexp"><button class="btn mini primary" onclick="quickUse('${i.id}', 1)">− 1 used</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">No stock items found.</td></tr>';
+
+  if (f('c-items')) f('c-items').textContent = stockItemsList.length;
+  if (f('c-low')) f('c-low').textContent = stockItemsList.filter(i => /Low|Out/.test(stStatus(i)[0])).length;
+  if (f('c-exp')) f('c-exp').textContent = stockItemsList.filter(i => (new Date(i.expiry) - new Date()) / 864e5 <= 90).length;
+}
+
+function fillSel() {
+  const sel = f('u-item');
+  if (!sel) return;
+  const curVal = sel.value;
+  sel.innerHTML = stockItemsList.map(i => `<option value="${i.id}">${esc(i.name)} · ${esc(i.batch || '')} · ${esc(i.location)}</option>`).join('');
+  if (curVal && stockItemsList.some(i => String(i.id) === String(curVal))) {
+    sel.value = curVal;
+  }
+}
+
+function cur() {
+  const selId = f('u-item')?.value;
+  return stockItemsList.find(i => String(i.id) === String(selId));
+}
+
+function showCur() {
+  const i = cur();
+  if (!i) return;
+  if (f('u-cur')) f('u-cur').textContent = `${i.quantity} ${i.unit}`;
+  const t = f('u-type')?.value;
+  if (f('u-ql')) f('u-ql').textContent = (t === 'set' ? 'New counted quantity' : 'Quantity');
+  preview();
+}
+
+function calcStockMath(i, type, n) {
+  if (type === 'use' || type === 'waste') return i.quantity - n;
+  if (type === 'add') return i.quantity + n;
+  return n;
+}
+
+function preview() {
+  const i = cur();
+  const n = Number(f('u-qty')?.value || 0);
+  const t = f('u-type')?.value;
+  const prevEl = f('u-prev');
+  if (!i || !prevEl) return;
+  if (t === 'remove') {
+    prevEl.textContent = `This will remove "${i.name}" from the active stock list (audit log is preserved).`;
+    return;
+  }
+  const r = calcStockMath(i, t, n);
+  prevEl.textContent = (r < 0) ? `Not enough stock: only ${i.quantity} ${i.unit} available.` : `After update: ${r} ${i.unit}`;
+}
+
+async function quickUse(id, qty) {
+  try {
+    const res = await fetch(`/api/stock/items/${encodeURIComponent(id)}/use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity: qty, note: 'Quick use from stock screen' })
+    });
+    if (res.ok) {
+      await loadStockData();
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Quick use failed');
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function applyUpdate() {
+  const i = cur();
+  const msgEl = f('u-msg');
+  if (!i) return;
+  const actionType = f('u-type')?.value || 'use';
+  const qtyVal = Number(f('u-qty')?.value || 0);
+  const noteVal = (f('u-note')?.value || '').trim();
+
+  try {
+    const res = await fetch(`/api/stock/items/${encodeURIComponent(i.id)}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: actionType, quantity: qtyVal, note: noteVal })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (msgEl) {
+        msgEl.style.color = '#21804b';
+        msgEl.textContent = data.message || 'Stock count updated successfully.';
+      }
+      if (f('u-note')) f('u-note').value = '';
+      await loadStockData();
+      showCur();
+    } else {
+      if (msgEl) {
+        msgEl.style.color = '#b42318';
+        msgEl.textContent = data.error || 'Failed to update stock.';
+      }
+    }
+  } catch (err) {
+    if (msgEl) { msgEl.style.color = '#b42318'; msgEl.textContent = err.message; }
+  }
+}
+
+function renderMoves() {
+  const movesBody = f('moves-body');
+  if (movesBody) {
+    movesBody.innerHTML = stockMovementsList.map(m => `
+      <tr>
+        <td>${esc(m.created_at ? m.created_at.replace('T', ' ').slice(0, 19) : '')}</td>
+        <td><b>${esc(m.item_name)}</b></td>
+        <td>${esc(m.location)}</td>
+        <td><span class="tag ${m.type === 'Used' || m.type === 'Wasted' ? 'warn' : ''}">${esc(m.type)}</span></td>
+        <td>${m.quantity} ${esc(m.unit || '')}</td>
+        <td>${m.before_qty} → <b>${m.after_qty}</b></td>
+        <td>${esc(m.note || '—')}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="7" class="empty">No movements logged yet.</td></tr>';
+  }
+
+  const recentBody = f('recent-body');
+  if (recentBody) {
+    recentBody.innerHTML = stockMovementsList.slice(0, 6).map(m => `
+      <tr>
+        <td>${esc(m.created_at ? m.created_at.slice(11, 16) : '')}</td>
+        <td>${esc(m.item_name)}</td>
+        <td>${esc(m.type)} ${m.quantity}</td>
+        <td><b>${m.after_qty}</b> ${esc(m.unit || '')}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="4" class="empty">No updates yet.</td></tr>';
+  }
+}
+
+async function resetStock() {
+  const ok = confirm('Reset all stock items and movement audit logs to default prototype records?');
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/stock/reset', { method: 'POST' });
+    if (res.ok) {
+      await loadStockData();
+      alert('Stock items reset to sample data.');
+    }
+  } catch (err) {
+    alert('Reset failed: ' + err.message);
+  }
+}
+
+function renderAll() {
+  fillSel();
+  renderStock();
+  renderMoves();
+  renderDelStock();
+}
+
+// =========================================================================
+// 6. DELETE RECORDS LOGIC (PROTECTED BY ADMIN PIN)
+// =========================================================================
+function renderDelLab() {
+  const drLab = f('dr-lab');
+  if (!drLab) return;
+  drLab.innerHTML = labCasesList.map(c => `
+    <tr>
+      <td><b>${esc(c.opd_number)}</b></td>
+      <td>${esc(c.work_type)}</td>
+      <td>${esc(c.work_type)}</td>
+      <td>${esc(c.lab)}</td>
+      <td>${esc(c.sent_date || '—')}</td>
+      <td><span class="tag">${esc(c.status)}</span></td>
+      <td class="noexp"><button class="btn mini bad" onclick="delLab('${c.id}')">🗑 Delete</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" class="empty">No lab records.</td></tr>';
+}
+
+function renderDelBuy() {
+  const drSup = f('dr-sup');
+  if (drSup) {
+    drSup.innerHTML = suppliersList.map(s => {
+      const invCount = purchasesList.filter(p => p.supplier === s.name).length;
+      return `<tr>
+        <td><b>${esc(s.name)}</b></td>
+        <td>${esc(s.phone)}</td>
+        <td>${invCount} invoice(s)</td>
+        <td><span class="tag ${s.active ? '' : 'warn'}">${s.active ? 'Active' : 'Inactive'}</span></td>
+        <td class="noexp">
+          <button class="btn mini secondary" onclick="togSup('${s.id}')">${s.active ? 'Deactivate' : 'Activate'}</button>
+          <button class="btn mini bad" onclick="delSup('${s.id}')">🗑 Delete</button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" class="empty">No suppliers.</td></tr>';
+  }
+
+  const drPur = f('dr-pur');
+  if (drPur) {
+    drPur.innerHTML = purchasesList.map(p => `
+      <tr>
+        <td><b>${esc(p.invoice_no)}</b></td>
+        <td>${esc(p.supplier)}</td>
+        <td>${esc(p.date_bs)}</td>
+        <td>${(p.items || []).length} item(s)</td>
+        <td>${rs(p.total)}</td>
+        <td class="noexp"><button class="btn mini bad" onclick="delPur('${p.id}')">🗑 Delete</button></td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" class="empty">No invoices.</td></tr>';
+  }
+}
+
+function renderDelStock() {
+  const drStock = f('dr-stock');
+  if (!drStock) return;
+  drStock.innerHTML = stockItemsList.map(i => `
+    <tr>
+      <td><b>${esc(i.name)}</b></td>
+      <td>${esc(i.batch || '—')}</td>
+      <td>${esc(i.location)}</td>
+      <td>${i.quantity} ${esc(i.unit)}</td>
+      <td>${esc(i.expiry)}</td>
+      <td class="noexp"><button class="btn mini bad" onclick="delStock('${i.id}')">🗑 Delete</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="empty">No stock items.</td></tr>';
+}
+
+async function delLab(id) {
+  const ok = await verifyAdminPin('deletion of Lab case');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/lab/cases/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) await loadLabData();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function delSup(id) {
+  const ok = await verifyAdminPin('deletion of Supplier');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/suppliers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      await loadPurchasesData();
+    } else {
+      alert(data.error || 'Failed to delete supplier');
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function delPur(id) {
+  const ok = await verifyAdminPin('deletion of Purchase Invoice');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/purchases/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) await loadPurchasesData();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function delStock(id) {
+  const ok = await verifyAdminPin('deletion of Stock Item');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/stock/items/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) await loadStockData();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+// =========================================================================
+// 7. LOCAL WI-FI PHONE QR STOCK SCANNER & MOBILE VIEW
+// =========================================================================
+async function refreshPhoneNetworkQr() {
+  try {
+    const res = await fetch('/api/network-info');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.phoneUrl) {
+        if (f('qr-addr')) {
+          f('qr-addr').value = `http://${data.primaryIp}:${data.port}`;
+        }
+        drawQR();
+        return;
+      }
+    }
+  } catch (_) {}
+  // Default to current location
+  if (f('qr-addr') && !f('qr-addr').value) {
+    f('qr-addr').value = location.origin;
+  }
+  drawQR();
+}
+
+function phoneUrl() {
+  const a = (f('qr-addr')?.value || '').trim().replace(/\/$/, '');
+  const base = a || location.origin;
+  return base + '/?phone=stock';
+}
+
+function drawQR() {
+  const container = f('qr');
+  if (!container) return;
+  container.innerHTML = '';
+  const url = phoneUrl();
+  const warn = f('qr-warn');
+  const urlLabel = f('qr-url');
+  if (warn) warn.textContent = f('qr-addr')?.value ? '' : 'Auto-detecting Wi-Fi IP address...';
+  if (urlLabel) urlLabel.textContent = url;
+
+  if (window.QRCode) {
+    new QRCode(container, {
+      text: url,
+      width: 154,
+      height: 154,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+}
+
+// Mobile Phone View Functions (When accessed via ?phone=stock)
+function phCur() {
+  const selId = f('ph-item')?.value;
+  return stockItemsList.find(i => String(i.id) === String(selId));
+}
+
+function phShow() {
+  const i = phCur();
+  const t = f('ph-type')?.value || 'use';
+  const n = Number(f('ph-qty')?.value || 0);
+  if (f('ph-ql')) f('ph-ql').textContent = (t === 'set' ? 'New counted quantity' : 'Quantity');
+  if (!i) {
+    if (f('ph-cur')) f('ph-cur').textContent = '—';
+    if (f('ph-prev')) f('ph-prev').textContent = '';
+    return;
+  }
+  if (f('ph-cur')) f('ph-cur').textContent = `${i.quantity} ${i.unit}`;
+  const r = calcStockMath(i, t, n);
+  if (f('ph-prev')) f('ph-prev').textContent = (r < 0) ? `Not enough stock: only ${i.quantity} available.` : `After update: ${r} ${i.unit}`;
+}
+
+function phRender() {
+  const sel = f('ph-item');
+  if (!sel) return;
+  const curVal = sel.value;
+  sel.innerHTML = stockItemsList.map(i => `<option value="${i.id}">${esc(i.name)} · ${esc(i.location)}</option>`).join('') || '<option value="">No items in stock</option>';
+  if (curVal && stockItemsList.some(i => String(i.id) === String(curVal))) sel.value = curVal;
+  phShow();
+
+  const phRec = f('ph-recent');
+  if (phRec) {
+    phRec.innerHTML = stockMovementsList.slice(0, 5).map(m => `
+      <div class="pvr">
+        <b>${esc(m.item_name)}</b> · ${esc(m.type)} ${m.quantity}<br>
+        <small class="muted">${esc(m.created_at ? m.created_at.slice(11, 16) : '')} ${m.note ? '· ' + esc(m.note) : ''}</small>
+      </div>
+    `).join('') || '<small class="muted">No recent updates</small>';
+  }
+}
+
+async function phApply() {
+  const i = phCur();
+  const msgEl = f('ph-msg');
+  if (!i) return;
+  const t = f('ph-type')?.value || 'use';
+  const n = Number(f('ph-qty')?.value || 0);
+  const staffName = (f('ph-name')?.value || '').trim();
+  const noteText = (f('ph-note')?.value || '').trim();
+  const fullNote = [staffName ? 'by ' + staffName : '', noteText, 'via mobile Wi-Fi'].filter(Boolean).join(' · ');
+
+  try {
+    const res = await fetch(`/api/stock/items/${encodeURIComponent(i.id)}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: t, quantity: n, note: fullNote })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (msgEl) {
+        msgEl.style.color = '#21804b';
+        msgEl.textContent = `✓ ${i.name} updated to ${data.quantity} ${i.unit}`;
+      }
+      if (f('ph-note')) f('ph-note').value = '';
+      await loadStockData();
+      phRender();
+    } else {
+      if (msgEl) { msgEl.style.color = '#b42318'; msgEl.textContent = data.error || 'Update failed.'; }
+    }
+  } catch (err) {
+    if (msgEl) { msgEl.style.color = '#b42318'; msgEl.textContent = err.message; }
+  }
+}
+
+async function phRemove() {
+  const i = phCur();
+  if (!i) return;
+  const ok = confirm(`Remove "${i.name}" from the active stock list? Use this only when it is completely finished.`);
+  if (!ok) return;
+
+  const staffName = (f('ph-name')?.value || '').trim();
+  const fullNote = [staffName ? 'by ' + staffName : '', 'Used up - removed via phone'].filter(Boolean).join(' · ');
+
+  try {
+    const res = await fetch(`/api/stock/items/${encodeURIComponent(i.id)}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'remove', note: fullNote })
+    });
+    if (res.ok) {
+      await loadStockData();
+      phRender();
+      if (f('ph-msg')) {
+        f('ph-msg').style.color = '#21804b';
+        f('ph-msg').textContent = `✓ ${i.name} removed from stock list.`;
+      }
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+// Check on load if opened from phone
+if (new URLSearchParams(location.search).get('phone') === 'stock') {
+  document.body.classList.add('phone');
+  window.addEventListener('DOMContentLoaded', () => {
+    loadStockData().then(() => phRender());
+  });
+}
+
+// =========================================================================
+// 8. BUILT-IN OFFLINE EXCEL (.XLSX) & PDF PRINT ENGINE
+// =========================================================================
+const CRC_TABLE = [];
+for (let n = 0; n < 256; n++) {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  CRC_TABLE[n] = c >>> 0;
+}
+const calcCrc = d => {
+  let c = -1;
+  for (let i = 0; i < d.length; i++) c = CRC_TABLE[(c ^ d[i]) & 255] ^ (c >>> 8);
+  return (c ^ -1) >>> 0;
+};
+
+function buildZipBlob(files) {
+  const enc = new TextEncoder();
+  const parts = [];
+  const cd = [];
+  let offset = 0;
+
+  for (const x of files) {
+    const nameBytes = enc.encode(x.n);
+    const crcVal = calcCrc(x.d);
+    const len = x.d.length;
+
+    const localHdr = new DataView(new ArrayBuffer(30));
+    localHdr.setUint32(0, 0x04034b50, true);
+    localHdr.setUint16(4, 20, true);
+    localHdr.setUint16(12, 33, true);
+    localHdr.setUint32(14, crcVal, true);
+    localHdr.setUint32(18, len, true);
+    localHdr.setUint32(22, len, true);
+    localHdr.setUint16(26, nameBytes.length, true);
+
+    parts.push(new Uint8Array(localHdr.buffer), nameBytes, x.d);
+
+    const cdHdr = new DataView(new ArrayBuffer(46));
+    cdHdr.setUint32(0, 0x02014b50, true);
+    cdHdr.setUint16(4, 20, true);
+    cdHdr.setUint16(6, 20, true);
+    cdHdr.setUint16(14, 33, true);
+    cdHdr.setUint32(16, crcVal, true);
+    cdHdr.setUint32(20, len, true);
+    cdHdr.setUint32(24, len, true);
+    cdHdr.setUint16(28, nameBytes.length, true);
+    cdHdr.setUint32(42, offset, true);
+
+    cd.push(new Uint8Array(cdHdr.buffer), nameBytes);
+    offset += 30 + nameBytes.length + len;
+  }
+
+  let cdLen = 0;
+  cd.forEach(x => cdLen += x.length);
+
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, files.length, true);
+  eocd.setUint16(10, files.length, true);
+  eocd.setUint32(12, cdLen, true);
+  eocd.setUint32(16, offset, true);
+
+  return new Blob([...parts, ...cd, new Uint8Array(eocd.buffer)], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+}
+
+const colLetter = n => {
+  let t = '';
+  n++;
+  while (n) {
+    const r = (n - 1) % 26;
+    t = String.fromCharCode(65 + r) + t;
+    n = Math.floor((n - 1) / 26);
+  }
+  return t;
+};
+
+const parseNumForExcel = v => {
+  const x = String(v).replace(/^Rs\.?\s*/, '').replace(/,/g, '');
+  return /^-?\d+(\.\d+)?$/.test(x) ? +x : null;
+};
+
+function generateXlsxBlob(sheets) {
+  const X = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const N = 'http://schemas.openxmlformats.org/';
+  const M = N + 'spreadsheetml/2006/main';
+  const E = new TextEncoder();
+  const O = N + 'officeDocument/2006/relationships/';
+
+  const F = [
+    ['[Content_Types].xml', X + '<Types xmlns="' + N + 'package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' + sheets.map((s, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('') + '</Types>'],
+    ['_rels/.rels', X + '<Relationships xmlns="' + N + 'package/2006/relationships"><Relationship Id="rId1" Type="' + O + 'officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', X + '<workbook xmlns="' + M + '" xmlns:r="' + O.slice(0, -1) + '"><sheets>' + sheets.map((s, i) => '<sheet name="' + esc(s.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join('') + '</sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', X + '<Relationships xmlns="' + N + 'package/2006/relationships">' + sheets.map((s, i) => '<Relationship Id="rId' + (i + 1) + '" Type="' + O + 'worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join('') + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="' + O + 'styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml', X + '<styleSheet xmlns="' + M + '"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf fontId="0" xfId="0"/><xf fontId="1" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>']
+  ];
+
+  sheets.forEach((s, i) => {
+    const colDefs = (s.rows[0] || []).map((_, j) => '<col min="' + (j + 1) + '" max="' + (j + 1) + '" width="' + Math.min(40, Math.max(10, ...s.rows.map(r => String(r[j] || '').length + 2))) + '" customWidth="1"/>').join('');
+    const rowDefs = s.rows.map((r, rIdx) => '<row r="' + (rIdx + 1) + '">' + r.map((v, j) => {
+      const ref = colLetter(j) + (rIdx + 1);
+      const num = rIdx > 0 ? parseNumForExcel(v) : null;
+      return num !== null
+        ? '<c r="' + ref + '"><v>' + num + '</v></c>'
+        : '<c r="' + ref + '" t="inlineStr"' + (rIdx ? '' : ' s="1"') + '><is><t>' + esc(v) + '</t></is></c>';
+    }).join('') + '</row>').join('');
+
+    F.push(['xl/worksheets/sheet' + (i + 1) + '.xml', X + '<worksheet xmlns="' + M + '"><cols>' + colDefs + '</cols><sheetData>' + rowDefs + '</sheetData></worksheet>']);
+  });
+
+  return buildZipBlob(F.map(x => ({ n: x[0], d: E.encode(x[1]) })));
+}
+
+function gatherTables(root) {
+  const out = [];
+  const seen = {};
+  root.querySelectorAll('table').forEach(t => {
+    if (t.dataset.nox || t.querySelector('input, select')) return;
+    const rows = [...t.rows].map(r => [...r.cells].filter(c => !c.classList.contains('noexp')).map(c => c.innerText.replace(/\s+/g, ' ').trim()));
+    if (rows.length < 2) return;
+    let title = (t.dataset.name || 'Sheet').replace(/[\[\]:*?\/\\]/g, '').slice(0, 31);
+    let key = title;
+    let count = 2;
+    while (seen[key]) key = title.slice(0, 28) + ' ' + count++;
+    seen[key] = 1;
+    out.push({ name: key, rows });
+  });
+  return out;
+}
+
+function downloadFile(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 500);
+}
+
+let ACTIVE_DL_SECTION = null;
+function dlOpen(btn) {
+  ACTIVE_DL_SECTION = btn.closest('section');
+  const scopeSelect = f('dl-scope');
+  if (scopeSelect && ACTIVE_DL_SECTION) {
+    const secTitle = ACTIVE_DL_SECTION.querySelector('.title')?.textContent || 'Module';
+    const activeTab = ACTIVE_DL_SECTION.querySelector('.tab.active')?.textContent || 'Current Tab';
+    scopeSelect.innerHTML = `
+      <option value="tab">This tab — ${esc(activeTab)}</option>
+      <option value="all">All tabs — ${esc(secTitle)}</option>
+    `;
+  }
+  dlNote();
+  f('dlm')?.classList.remove('hide');
+}
+
+function dlClose() {
+  f('dlm')?.classList.add('hide');
+}
+
+function dlNote() {
+  const noteEl = f('dl-note');
+  const calVal = f('dl-cal')?.value || 'BS';
+  if (noteEl) {
+    noteEl.style.color = '';
+    noteEl.textContent = 'Leave date fields empty to download all records. ' +
+      (calVal === 'BS' ? 'BS filters apply to Nepali calendar date fields; AD dates will be included in full.' : 'AD filters apply to English date fields; BS dates will be included in full.');
+  }
+}
+
+function dlGo() {
+  const noteEl = f('dl-note');
+  const showBad = t => { if (noteEl) { noteEl.style.color = '#b42318'; noteEl.textContent = t; } };
+  const fromVal = (f('dl-from')?.value || '').trim();
+  const toVal = (f('dl-to')?.value || '').trim();
+  const isAll = f('dl-scope')?.value === 'all';
+  const fmt = document.querySelector('input[name="dl-fmt"]:checked')?.value || 'x';
+
+  if (!ACTIVE_DL_SECTION) return;
+  const targetRoot = isAll ? ACTIVE_DL_SECTION : ([...ACTIVE_DL_SECTION.children].find(e => e.id && !e.classList.contains('hide')) || ACTIVE_DL_SECTION);
+  let sheets = gatherTables(targetRoot);
+
+  if (isAll) {
+    if (ACTIVE_DL_SECTION.id === 'labworks') {
+      sheets.push({ name: 'Lab Work Records (Full)', rows: labRows() });
+    }
+  }
+
+  if (sheets.length === 0) {
+    return showBad('No exportable data tables found for this view.');
+  }
+
+  const baseName = `Infinity_${ACTIVE_DL_SECTION.id}_${todayIso()}`;
+  dlClose();
+
+  if (fmt === 'x') {
+    const xlsxBlob = generateXlsxBlob(sheets);
+    downloadFile(xlsxBlob, baseName + '.xlsx');
+  } else {
+    printToPdf(ACTIVE_DL_SECTION.querySelector('.title')?.textContent || 'Export', sheets);
+  }
+}
+
+function printToPdf(title, sheets) {
+  const pa = f('pa');
+  if (!pa) return;
+  pa.innerHTML = `
+    <h2>Infinity Dental Clinic — ${esc(title)}</h2>
+    <p class="foot">Export generated on ${new Date().toLocaleString()}</p>
+    ${sheets.map(s => `
+      <h3>${esc(s.name)}</h3>
+      <table>
+        ${s.rows.map((r, i) => `<tr>${r.map(c => i ? `<td>${esc(c)}</td>` : `<th>${esc(c)}</th>`).join('')}</tr>`).join('')}
+      </table>
+    `).join('')}
+  `;
+  document.body.classList.add('printing');
+  setTimeout(() => {
+    window.print();
+    document.body.classList.remove('printing');
+  }, 100);
+}
+
+
+// --- Settings Menu & Flyout Dropup Handlers ---
+function toggleSettingsMenu(e) {
+  if (e) e.stopPropagation();
+  const flyout = document.getElementById('settingsFlyout');
+  const btn = document.getElementById('sidebarSettingsBtn');
+  if (!flyout) return;
+  const isClosed = flyout.style.display === 'none' || !flyout.style.display;
+  flyout.style.display = isClosed ? 'block' : 'none';
+  if (btn) btn.classList.toggle('active', isClosed);
+}
+
+function closeSettingsMenu() {
+  const flyout = document.getElementById('settingsFlyout');
+  const btn = document.getElementById('sidebarSettingsBtn');
+  if (flyout) flyout.style.display = 'none';
+  if (btn) btn.classList.remove('active');
+}
+
+// Global click listener to close settings flyout when clicking outside
+document.addEventListener('click', function(e) {
+  const flyout = document.getElementById('settingsFlyout');
+  const btn = document.getElementById('sidebarSettingsBtn');
+  if (flyout && flyout.style.display !== 'none') {
+    if (!flyout.contains(e.target) && !btn?.contains(e.target)) {
+      closeSettingsMenu();
+    }
+  }
+});
+
+// Escape key listener to close settings flyout
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeSettingsMenu();
+  }
+});

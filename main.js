@@ -93,6 +93,107 @@ function openDb(){
   }
 
   // Clinic Settings Table (Wi-Fi, Clinic Preferences, etc.)
+
+  // Lab Works, Purchases & Stocks Tables
+  db.exec(`CREATE TABLE IF NOT EXISTS lab_cases (
+    id TEXT PRIMARY KEY,
+    opd_number TEXT NOT NULL,
+    lab TEXT NOT NULL,
+    work_type TEXT NOT NULL,
+    tooth TEXT,
+    shade TEXT,
+    sent_date TEXT,
+    expected_date_bs TEXT,
+    status TEXT NOT NULL DEFAULT 'Pending',
+    instructions TEXT,
+    charge REAL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS lab_payments (
+    id TEXT PRIMARY KEY,
+    lab TEXT NOT NULL,
+    month_bs TEXT,
+    date_bs TEXT NOT NULL,
+    method TEXT NOT NULL,
+    amount REAL NOT NULL,
+    created_at TEXT NOT NULL
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS suppliers (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    contact TEXT,
+    phone TEXT NOT NULL,
+    alt_phone TEXT,
+    email TEXT,
+    address TEXT,
+    pan TEXT,
+    credit_days INTEGER DEFAULT 0,
+    opening_balance REAL DEFAULT 0,
+    categories TEXT,
+    delivery_persons TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS purchase_invoices (
+    id TEXT PRIMARY KEY,
+    supplier TEXT NOT NULL,
+    invoice_no TEXT NOT NULL,
+    date_bs TEXT NOT NULL,
+    due_date_bs TEXT,
+    paid REAL DEFAULT 0,
+    payment_method TEXT DEFAULT 'Unpaid / Credit',
+    delivery_name TEXT,
+    delivery_phone TEXT,
+    discount REAL DEFAULT 0,
+    receipt_status TEXT DEFAULT 'Pending',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS purchase_items (
+    id TEXT PRIMARY KEY,
+    invoice_id TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    category TEXT,
+    quantity REAL NOT NULL,
+    unit TEXT,
+    unit_cost REAL NOT NULL,
+    line_total REAL NOT NULL
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS stock_items (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    batch TEXT,
+    location TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    unit TEXT NOT NULL,
+    expiry TEXT NOT NULL,
+    min_quantity REAL DEFAULT 0,
+    active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS stock_movements (
+    id TEXT PRIMARY KEY,
+    item_id TEXT,
+    item_name TEXT NOT NULL,
+    location TEXT NOT NULL,
+    type TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    before_qty REAL NOT NULL,
+    after_qty REAL NOT NULL,
+    note TEXT,
+    unit TEXT,
+    created_at TEXT NOT NULL
+  )`);
+
   db.exec(`CREATE TABLE IF NOT EXISTS clinic_settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -146,10 +247,14 @@ function registerSerialPortHandler(ses) {
         return !text.includes('bluetooth') && !text.includes('bth');
       });
 
-      const candidateList = realPorts.length > 0 ? realPorts : portList;
+      if (realPorts.length === 0) {
+        console.log('[WebSerial] No physical USB serial devices detected (only virtual Bluetooth links present).');
+        callback('');
+        return;
+      }
 
       // 2. Prioritize NiZi POS hardware: CH340/CH341 (VID 1a86 / PID 7523, 5523) and Espressif (VID 303a)
-      const preferred = candidateList.find(p => {
+      const preferred = realPorts.find(p => {
         const vid = String(p.vendorId || '').toLowerCase();
         const pid = String(p.productId || '').toLowerCase();
         const text = `${p.displayName || ''} ${p.portName || ''}`.toLowerCase();
@@ -158,10 +263,7 @@ function registerSerialPortHandler(ses) {
                text.includes('nizi') || text.includes('ch340') || text.includes('ch341') ||
                text.includes('cp210') || text.includes('ftdi') || text.includes('usb-serial') ||
                text.includes('usb serial');
-      }) || candidateList.find(p => {
-        const text = `${p.displayName || ''} ${p.portName || ''}`.toLowerCase();
-        return text.includes('usb') || text.includes('com');
-      }) || candidateList[0];
+      }) || realPorts[0];
 
       console.log('[WebSerial] Auto-selecting port:', preferred.portId, preferred.displayName || preferred.portName);
       callback(preferred.portId);
@@ -363,7 +465,10 @@ function compareSemver(v1, v2) {
 
 function checkAppUpdatesInternal(repoSlug) {
   const currentVersion = app.getVersion();
-  const repo = (repoSlug || 'Sankalpannt/dental-').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+  let repo = (repoSlug || 'paudelsankalpa33-create/infinity-dental').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+  if (repo === 'Sankalpannt/dental-') {
+    repo = 'paudelsankalpa33-create/infinity-dental';
+  }
 
   return new Promise((resolve) => {
     const options = {
@@ -716,7 +821,7 @@ function callNpiGenerateQrMain({ amount, billNumber, remarks, patientContact }) 
       transactionAmount: transactionAmount,
       valueOfConvenienceFeeFixed: '0.00',
       billNumber: billNo,
-      referenceLabel: remarks || 'Dental Treatment',
+      referenceLabel: String(remarks || 'Dental Treatment').trim().slice(0, 25),
       mobileNo: patientContact || null,
       storeLabel: NPI_MAIN_CONFIG.storeLabel,
       terminalLabel: NPI_MAIN_CONFIG.terminalLabel,
@@ -1064,7 +1169,7 @@ app.whenReady().then(async ()=>{
     const testResult = await callNpiGenerateQrMain({
       amount: 1500,
       billNumber: 'TEST-' + Date.now(),
-      remarks: 'NCHL Gateway Verification Test',
+      remarks: 'NCHL Verification Test',
       patientContact: '9800000000'
     });
     console.log('======================================================');

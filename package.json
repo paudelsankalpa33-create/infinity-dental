@@ -18,14 +18,15 @@
   "build": {
     "appId": "np.infinitydental.clinic",
     "productName": "Infinity Dental Clinic",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
     "publish": [
       {
         "provider": "github",
-        "owner": "Sankalpannt",
-        "repo": "dental-"
+        "owner": "paudelsankalpa33-create",
+        "repo": "infinity-dental"
       }
     ],
     "files": [
