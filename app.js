@@ -464,20 +464,121 @@ function renderProfile(){
     </div>
   </div>
  <div class="grid2 profile-main-grid" style="margin-top:18px">
-   <div class="card"><div class="section-title">Add Visit / Procedure</div><div class="muted" style="margin-bottom:10px"><b>Price List:</b> loaded from C:\Infiinity Dental Clinic\price-list.json. Select a treatment, then enter the actual amount charged if needed.</div><div class="procedure-row"><select id="visitProcedure" onchange="updateVisitCost()"><option value="">Select procedure</option>${renderProcedureOptions()}</select><input id="visitCost" type="number" min="0" step="0.01" value="0" title="Actual amount charged"><button class="btn secondary" onclick="addPendingProcedure()">ADD PROCEDURE</button><button class="btn secondary" onclick="addCustomProcedure()">CUSTOM PROCEDURE</button></div><div id="pendingProcedures" class="card" style="margin-top:10px;background:#f8fafb"><div class="muted">No procedures added yet. Add one or more procedures above.</div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div class="section-title">Discount</div><div class="muted" style="margin-bottom:8px">Discount is decided separately for each visit.</div><div class="formgrid"><div class="field"><label>Discount %</label><input id="discountPercent" type="number" min="0" max="100" step="0.01" value="0" oninput="updateDiscountFromPercent()"></div><div class="field"><label>Discount Amount (Rs.)</label><input id="discountAmount" type="number" min="0" step="0.01" value="0" oninput="updateDiscountFromAmount()"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid #dfe7ed"><span class="muted">Final Total After Discount</span><strong id="discountedTotal">Rs. 0</strong></div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div class="section-title">Payment Done</div><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="paymentType" value="total" checked onchange="updatePaymentChoice()"> Total Payment</label><label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="paymentType" value="partial" onchange="updatePaymentChoice()"> Partial Payment</label></div><div class="formgrid"><div class="field"><label>Amount Paid (Rs.)</label><input id="visitPaid" type="number" min="0" placeholder="Total amount" readonly></div><div class="field"><label>Payment Method</label><div class="payment-modes"><button type="button" class="payment-mode" data-mode="Cash" onclick="selectVisitPaymentMode('Cash')">CASH</button><button type="button" class="payment-mode" data-mode="NepalPay QR" onclick="selectVisitPaymentMode('NepalPay QR')">NEPALPAY QR</button><button type="button" class="payment-mode" data-mode="MPOS" onclick="selectVisitPaymentMode('MPOS')">MPOS</button></div><input id="visitPaymentMode" type="hidden" value=""></div></div><div id="paymentHint" class="muted" style="margin-top:8px">Total payment selected — discounted final amount is filled automatically.</div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div class="section-title">Next Appointment</div><div class="formgrid"><div class="field"><label>Appointment Date</label><input id="appointmentAdDate" type="date"><div id="appointmentBsDateDisplay" class="muted">Nepali BS date will appear here</div></div><div class="field"><label>Appointment Time</label><input id="appointmentTime" type="time"></div></div><div class="quick-dates"><button type="button" class="btn secondary quick-date" data-days="3" onclick="setQuickAppointment(3,this)">AFTER 3 DAYS</button><button type="button" class="btn secondary quick-date" data-days="7" onclick="setQuickAppointment(7,this)">AFTER 1 WEEK</button><button type="button" class="btn secondary quick-date" data-days="30" onclick="setQuickAppointment(30,this)">AFTER 1 MONTH</button></div><div class="actions"><button class="btn primary" onclick="saveAppointment()">SAVE APPOINTMENT</button></div></div><div style="margin-top:12px"><button id="addVisitBtn" class="btn primary" onclick="addVisit()" disabled>ADD VISIT</button><span id="visitHint" class="muted" style="margin-left:10px">Add at least one procedure to enable Add Visit.</span></div></div>
+   <div class="card"><div class="section-title">Add Visit / Procedure</div><div class="muted" style="margin-bottom:10px"><b>Price List:</b> loaded from C:\Infiinity Dental Clinic\price-list.json. Select a treatment, then enter the actual amount charged if needed.</div><div class="procedure-row"><select id="visitProcedure" onchange="updateVisitCost()"><option value="">Select procedure</option>${renderProcedureOptions()}</select><input id="visitCost" type="number" min="0" step="0.01" value="0" title="Actual amount charged"><button class="btn secondary" onclick="addPendingProcedure()">ADD PROCEDURE</button><button class="btn secondary" onclick="addCustomProcedure()">CUSTOM PROCEDURE</button></div><div id="pendingProcedures" class="card" style="margin-top:10px;background:#f8fafb"><div class="muted">No procedures added yet. Add one or more procedures above.</div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div class="section-title">Discount</div><div class="muted" style="margin-bottom:8px">Discount is decided separately for each visit.</div><div class="formgrid"><div class="field"><label>Discount %</label><input id="discountPercent" type="number" min="0" max="100" step="0.01" value="0" oninput="updateDiscountFromPercent()"></div><div class="field"><label>Discount Amount (Rs.)</label><input id="discountAmount" type="number" min="0" step="0.01" value="0" oninput="updateDiscountFromAmount()"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid #dfe7ed"><span class="muted">Final Total After Discount</span><strong id="discountedTotal">Rs. 0</strong></div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div class="section-title">Payment Done</div><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="paymentType" value="total" checked onchange="updatePaymentChoice()"> Total Payment</label><label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="paymentType" value="partial" onchange="updatePaymentChoice()"> Partial Payment</label></div><div class="formgrid"><div class="field"><label>Amount Paid (Rs.)</label><input id="visitPaid" type="number" min="0" placeholder="Total amount" readonly></div><div class="field"><label>Payment Method</label><div class="payment-modes"><button type="button" class="payment-mode" data-mode="Cash" onclick="selectVisitPaymentMode('Cash')">CASH</button><button type="button" class="payment-mode" data-mode="NepalPay QR" onclick="selectVisitPaymentMode('NepalPay QR')">NEPALPAY QR</button><button type="button" class="payment-mode" data-mode="MPOS" onclick="selectVisitPaymentMode('MPOS')">MPOS</button></div><input id="visitPaymentMode" type="hidden" value=""></div></div><div id="paymentHint" class="muted" style="margin-top:8px">Total payment selected — discounted final amount is filled automatically.</div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="section-title" style="margin:0">Next Appointment</div><span class="muted" style="font-size:11px">English (AD) &amp; Nepali (BS) Synchronized</span></div><div class="formgrid"><div class="field"><label>English Date (AD) — Click to pick or type</label><input id="appointmentAdDate" type="date" onclick="this.showPicker &amp;&amp; this.showPicker()" onchange="onAppointmentAdChange(this.value)"></div><div class="field"><label>Nepali Date (BS) — Write / Edit</label><input id="appointmentBsDateInput" placeholder="YYYY-MM-DD (e.g. 2083-05-27)" oninput="onAppointmentBsChange(this.value)"></div></div><div id="appointmentBsDateDisplay" class="appt-bs-sync-badge" style="margin-top:8px">📅 Select or write a date above</div><div style="margin-top:10px"><div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px">QUICK DATE PRESETS:</div><div class="quick-dates" style="flex-wrap:wrap"><button type="button" class="btn secondary quick-date" data-days="0" onclick="setQuickAppointment(0,this)">TODAY</button><button type="button" class="btn secondary quick-date" data-days="1" onclick="setQuickAppointment(1,this)">TOMORROW</button><button type="button" class="btn secondary quick-date" data-days="3" onclick="setQuickAppointment(3,this)">AFTER 3 DAYS</button><button type="button" class="btn secondary quick-date" data-days="7" onclick="setQuickAppointment(7,this)">AFTER 1 WEEK</button><button type="button" class="btn secondary quick-date" data-days="14" onclick="setQuickAppointment(14,this)">AFTER 2 WEEKS</button><button type="button" class="btn secondary quick-date" data-days="30" onclick="setQuickAppointment(30,this)">AFTER 1 MONTH</button></div></div><div class="formgrid" style="margin-top:12px;align-items:flex-end"><div class="field"><label>Appointment Time</label><input id="appointmentTime" type="time" onclick="this.showPicker &amp;&amp; this.showPicker()" value="10:00"></div><div class="field"><label class="muted" style="font-size:11px">Common Time Slots:</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('10:00')">10:00 AM</button><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('11:30')">11:30 AM</button><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('14:00')">02:00 PM</button><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('16:00')">04:00 PM</button><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('17:30')">05:30 PM</button></div></div></div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveAppointment()">SAVE APPOINTMENT</button></div></div><div style="margin-top:12px"><button id="addVisitBtn" class="btn primary" onclick="addVisit()" disabled>ADD VISIT</button><span id="visitHint" class="muted" style="margin-left:10px">Add at least one procedure to enable Add Visit.</span></div></div>
  </div>
  <div class="grid2" style="margin-top:18px"><div class="card"><div class="section-title">Visit History</div>${visits.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th></tr></thead><tbody>${visits.map(v=>`<tr><td>${esc(v.date||'—')}</td><td>${esc(v.time||'—')}</td><td>${esc(v.procedures||v.treatment||'—')}<div class="muted">Cost: Rs. ${Number(v.cost||0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone||v.amount||0).toLocaleString()}${v.paymentMethod?`<div class="muted">${esc(v.paymentMethod)}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No visits recorded yet.</div>'}</div><div class="card"><div class="section-title">Payment History</div>${pays.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>${pays.map(v=>`<tr><td>${esc(v.date)}</td><td>${esc(v.billNumber)}</td><td>Rs. ${Number(v.amount||0).toLocaleString()}</td><td>${esc(v.method)}</td><td>${esc(v.status)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No payments recorded yet.</div>'}</div></div>`;
  restoreAppointmentFields(p);renderPendingProcedures();updatePaymentChoice();
 }
-function restoreAppointmentFields(p){const d=document.getElementById('appointmentAdDate'),t=document.getElementById('appointmentTime');if(!d||!t)return;if(p&&p.Appointment){d.value=p.Appointment.adDate||p.Appointment.date||'';t.value=p.Appointment.time||'';updateAppointmentBsDisplay()}else{d.value='';t.value='';updateAppointmentBsDisplay()}document.querySelectorAll('.quick-date').forEach(b=>b.classList.remove('primary'));}
-function updateAppointmentBsDisplay(){const el=document.getElementById('appointmentBsDateDisplay'),d=document.getElementById('appointmentAdDate')?.value;if(!el)return;if(!d){el.textContent='Nepali BS date will appear here';return}el.textContent='BS conversion will be added with the calendar sync module.'}
-function setQuickAppointment(days,btn){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+days);const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const el=document.getElementById('appointmentAdDate');if(el)el.value=iso;document.querySelectorAll('.quick-date').forEach(b=>b.classList.remove('primary'));if(btn)btn.classList.add('primary');updateAppointmentBsDisplay()}
+function restoreAppointmentFields(p){
+  const d=document.getElementById('appointmentAdDate'),t=document.getElementById('appointmentTime');
+  const bsInput=document.getElementById('appointmentBsDateInput');
+  if(!d||!t)return;
+  if(p&&p.Appointment){
+    d.value=p.Appointment.adDate||p.Appointment.date||'';
+    if(bsInput) bsInput.value=p.Appointment.bsDate||(d.value?(apptBsFromAd(d.value)||''):'');
+    t.value=p.Appointment.time||'10:00';
+    updateAppointmentBsDisplay();
+  }else{
+    d.value='';
+    if(bsInput) bsInput.value='';
+    t.value='10:00';
+    updateAppointmentBsDisplay();
+  }
+  document.querySelectorAll('.quick-date').forEach(b=>b.classList.remove('primary'));
+}
+
+function onAppointmentAdChange(adVal){
+  const bsInput=document.getElementById('appointmentBsDateInput');
+  if(adVal){
+    const bs=apptBsFromAd(adVal);
+    if(bs && bsInput) bsInput.value=bs;
+  }
+  updateAppointmentBsDisplay();
+}
+
+function onAppointmentBsChange(bsVal){
+  const adInput=document.getElementById('appointmentAdDate');
+  const clean=(bsVal||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(clean)){
+    const ad=apptAdFromBs(clean);
+    if(ad && adInput) adInput.value=ad;
+  }
+  updateAppointmentBsDisplay();
+}
+
+function updateAppointmentBsDisplay(){
+  const el=document.getElementById('appointmentBsDateDisplay');
+  const d=document.getElementById('appointmentAdDate')?.value;
+  const bsInput=document.getElementById('appointmentBsDateInput');
+  if(!el)return;
+  if(d){
+    const bs=apptBsFromAd(d);
+    if(bs){
+      if(bsInput && !bsInput.value) bsInput.value=bs;
+      const parts=bs.split('-').map(Number);
+      const mName=(typeof APPT_BS_MONTHS_NP!=='undefined'&&APPT_BS_MONTHS_NP[parts[1]-1])||'';
+      const enMName=(typeof APPT_BS_MONTHS!=='undefined'&&APPT_BS_MONTHS[parts[1]-1])||'';
+      el.innerHTML=`📅 <b>Nepali (BS):</b> ${bs} (${mName} ${parts[2]}, ${parts[0]} • ${enMName}) &nbsp;·&nbsp; <b>English (AD):</b> ${d}`;
+      return;
+    }
+  }
+  if(bsInput?.value && /^\d{4}-\d{2}-\d{2}$/.test(bsInput.value.trim())){
+    const ad=apptAdFromBs(bsInput.value.trim());
+    if(ad){
+      el.innerHTML=`📅 <b>Nepali (BS):</b> ${bsInput.value.trim()} &nbsp;·&nbsp; <b>English (AD):</b> ${ad}`;
+      return;
+    }
+  }
+  el.textContent='📅 Pick an English date or type a Nepali BS date above.';
+}
+
+function setQuickAppointment(days,btn){
+  const d=new Date();
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate()+Number(days));
+  const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const el=document.getElementById('appointmentAdDate');
+  const bsInput=document.getElementById('appointmentBsDateInput');
+  if(el) el.value=iso;
+  if(bsInput) bsInput.value=apptBsFromAd(iso)||'';
+  document.querySelectorAll('.quick-date').forEach(b=>b.classList.remove('primary'));
+  if(btn) btn.classList.add('primary');
+  updateAppointmentBsDisplay();
+}
+
+function setQuickTime(val){
+  const t=document.getElementById('appointmentTime');
+  if(t) t.value=val;
+}
+
 function selectVisitPaymentMode(mode){const hidden=document.getElementById('visitPaymentMode');if(hidden)hidden.value=mode;document.querySelectorAll('.payment-mode').forEach(b=>b.classList.toggle('selected',b.dataset.mode===mode));}
 function updateVisitCost(){const sel=document.getElementById('visitProcedure'),opt=sel?.options[sel.selectedIndex],cost=document.getElementById('visitCost');if(!cost)return;if(!opt||!opt.value){cost.value='0';cost.placeholder='Enter amount';return}cost.value=opt.dataset.cost||0;cost.placeholder='Actual amount charged'}
 function updateAppointmentAd(){}
 function initNepaliAppointmentPicker(){}
-function setTodayBsAppointment(){const d=new Date();d.setHours(0,0,0,0);const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const el=document.getElementById('appointmentAdDate');if(el)el.value=iso;updateAppointmentBsDisplay()}
-function saveAppointment(){const p=patients.find(x=>x.id===selectedId);if(!p)return;const ad=document.getElementById('appointmentAdDate')?.value||'',t=document.getElementById('appointmentTime')?.value||'';if(!ad||!t){alert('Please select appointment date and time.');return}p.Appointment={adDate:ad,time:t};save();alert('Appointment saved for '+ad+' at '+t);renderProfile()}
+function setTodayBsAppointment(){setQuickAppointment(0,null)}
+
+function saveAppointment(){
+  const p=patients.find(x=>x.id===selectedId);
+  if(!p)return;
+  let ad=document.getElementById('appointmentAdDate')?.value||'';
+  let bs=(document.getElementById('appointmentBsDateInput')?.value||'').trim();
+  let t=document.getElementById('appointmentTime')?.value||'10:00';
+  if(!ad && bs && /^\d{4}-\d{2}-\d{2}$/.test(bs)){
+    ad=apptAdFromBs(bs)||'';
+  }
+  if(!bs && ad){
+    bs=apptBsFromAd(ad)||'';
+  }
+  if(!ad){
+    alert('Please choose or enter an appointment date.');
+    return;
+  }
+  p.Appointment={adDate:ad,bsDate:bs,time:t,status:'scheduled',date:ad};
+  save();
+  updateAll();
+  alert('Appointment saved for '+(bs?'BS '+bs+' ('+ad+')':ad)+' at '+t);
+  renderProfile();
+}
 function printLatestBill(){const p=patients.find(x=>x.id===selectedId);if(!p||!p.VisitHistory?.length){alert('No saved bill/visit found for this patient yet.');return}printBill(p.VisitHistory[0].billNumber)}
 
 function updateAll(){const now=new Date();const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');const registered=registeredPatients();document.getElementById('statPatients').textContent=registered.length;document.getElementById('statToday').textContent=registered.filter(p=>p.Date===today).length;document.getElementById('statOpd').textContent=pad(nextNumber());document.getElementById('nextOpd').textContent=pad(nextNumber());document.getElementById('statPending').textContent=registered.filter(p=>(p.PaymentStatus||'Pending')==='Pending').length;document.getElementById('statAppointments').textContent=patients.filter(p=>p.Appointment&&p.Appointment.adDate===today).length;const todayAppointments=patients.filter(p=>p.Appointment&&p.Appointment.adDate===today).sort((a,b)=>String(a.Appointment.time||'').localeCompare(String(b.Appointment.time||'')));document.getElementById('todayAppointments').innerHTML=todayAppointments.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>OPD</th><th>Patient</th><th>Contact</th><th>Appointment</th></tr></thead><tbody>${todayAppointments.map(p=>`<tr><td><strong>${esc(p.Appointment.time||'')}</strong></td><td>${p.AppointmentOnly?'Not registered':pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact||'')}</td><td>${esc(p.Appointment.bsDate||p.Appointment.adDate||'')}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg><div>No appointments scheduled for today.</div></div>`;renderPatients();renderRecentPatients()}
@@ -1690,7 +1791,15 @@ function openExternalUrl(url) {
 const APPT_BS_MONTHS=['Baisakh','Jestha','Asar','Shrawan','Bhadra','Ashwin','Kartik','Mangsir','Poush','Magh','Falgun','Chaitra'];
 const APPT_BS_MONTHS_NP=['बैशाख','जेठ','असार','श्रावण','भाद्र','आश्विन','कार्तिक','मंसिर','पौष','माघ','फाल्गुण','चैत्र'];
 const APPT_BS_DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const APPT_BS_LENGTHS={2083:[31,31,32,31,31,31,30,29,30,29,30,30]};
+const APPT_BS_LENGTHS={
+  2080:[31,31,32,31,31,31,30,29,30,29,30,30],
+  2081:[31,31,32,32,31,30,30,30,29,30,29,31],
+  2082:[31,32,31,32,31,30,30,30,29,30,30,30],
+  2083:[31,31,32,31,31,31,30,29,30,29,30,30],
+  2084:[31,31,32,31,31,31,30,30,30,29,30,30],
+  2085:[31,32,31,32,31,31,30,29,30,29,30,30]
+};
+const APPT_BS_START_YEAR=2080;
 const APPT_BS_ANCHOR={y:2083,m:5,d:27,ad:'2026-09-12'};
 let appointmentMode='BS';
 let appointmentSelectedAD='2026-09-12';
@@ -1698,9 +1807,9 @@ let appointmentView={y:2083,m:5};
 function apptPad(n){return String(n).padStart(2,'0')}
 function apptIsoDate(d){return d.getFullYear()+'-'+apptPad(d.getMonth()+1)+'-'+apptPad(d.getDate())}
 function apptParseIso(s){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');if(!m)return null;const d=new Date(+m[1],+m[2]-1,+m[3]);return d.getFullYear()==+m[1]&&d.getMonth()==+m[2]-1&&d.getDate()==+m[3]?d:null}
-function apptBsToIndex(y,m,d){let idx=0;for(let yy=2083;yy<y;yy++){const lens=APPT_BS_LENGTHS[yy];if(!lens)return null;idx+=lens.reduce((x,v)=>x+v,0)}for(let mm=1;mm<m;mm++)idx+=APPT_BS_LENGTHS[y]?.[mm-1]||0;return idx+(d-1)}
+function apptBsToIndex(y,m,d){let idx=0;for(let yy=APPT_BS_START_YEAR;yy<y;yy++){const lens=APPT_BS_LENGTHS[yy];if(!lens)return null;idx+=lens.reduce((x,v)=>x+v,0)}for(let mm=1;mm<m;mm++)idx+=APPT_BS_LENGTHS[y]?.[mm-1]||0;return idx+(d-1)}
 function apptAdFromBs(bs){const parts=String(bs).split('-').map(Number);if(parts.length!==3)return null;const [y,m,d]=parts,lens=APPT_BS_LENGTHS[y];if(!lens||m<1||m>12||d<1||d>lens[m-1])return null;const anchorBs=apptBsToIndex(2083,5,27),target=apptBsToIndex(y,m,d);if(anchorBs==null||target==null)return null;const base=new Date(2026,8,12);base.setDate(base.getDate()+target-anchorBs);return apptIsoDate(base)}
-function apptBsFromAd(ad){const date=apptParseIso(ad);if(!date)return null;const base=new Date(2026,8,12);const diff=Math.round((date-base)/86400000);let target=apptBsToIndex(2083,5,27)+diff,y=2083,m=1;while(true){const lens=APPT_BS_LENGTHS[y];if(!lens)return null;const total=lens.reduce((x,v)=>x+v,0);if(target<total)break;target-=total;y++;}while(target>=APPT_BS_LENGTHS[y][m-1]){target-=APPT_BS_LENGTHS[y][m-1];m++;if(m>12)return null}return y+'-'+apptPad(m)+'-'+apptPad(target+1)}
+function apptBsFromAd(ad){const date=apptParseIso(ad);if(!date)return null;const base=new Date(2026,8,12);const diff=Math.round((date-base)/86400000);let target=apptBsToIndex(2083,5,27)+diff,y=APPT_BS_START_YEAR,m=1;while(true){const lens=APPT_BS_LENGTHS[y];if(!lens)return null;const total=lens.reduce((x,v)=>x+v,0);if(target<total)break;target-=total;y++;}while(target>=APPT_BS_LENGTHS[y][m-1]){target-=APPT_BS_LENGTHS[y][m-1];m++;if(m>12)return null}return y+'-'+apptPad(m)+'-'+apptPad(target+1)}
 function apptBsValid(bs){return !!apptAdFromBs(bs)}
 function appointmentToday(){const d=new Date();appointmentSelectedAD=apptIsoDate(d);appointmentSetViewForAD(appointmentSelectedAD);renderAppointments()}
 function appointmentTomorrow(){const d=new Date();d.setDate(d.getDate()+1);appointmentSelectedAD=apptIsoDate(d);appointmentSetViewForAD(appointmentSelectedAD);renderAppointments()}

@@ -2149,6 +2149,7 @@ body.dark .cards .card {
    DARK THEME (LUXURY MIDNIGHT SLATE)
    ========================================================================== */
 body.dark {
+  color-scheme: dark;
   --pale: #080e18;
   --text: #f1f5f9;
   --muted: #94a3b8;
@@ -2156,6 +2157,48 @@ body.dark {
   --card-bg: #0f172a;
   background: var(--pale);
   color: var(--text);
+}
+
+input[type="date"],
+input[type="time"] {
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.4);
+  opacity: 0.85;
+}
+
+body.dark input[type="date"],
+body.dark input[type="time"] {
+  color-scheme: dark;
+}
+
+body.dark input[type="date"]::-webkit-calendar-picker-indicator,
+body.dark input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.9) brightness(1.2);
+  opacity: 0.95;
+}
+
+.appt-bs-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(20, 184, 166, 0.3);
+  border-radius: 8px;
+  color: #2dd4bf;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+body:not(.dark) .appt-bs-sync-badge {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+  color: #0f766e;
 }
 
 body.dark ::-webkit-scrollbar-thumb {
