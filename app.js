@@ -1374,7 +1374,7 @@ setTimeout(() => {
   autoConnectNiziUsb(true);
   checkAppUpdates(false);
   loadClinicWifiConfig();
-}, 1200);
+}, 100);
 
 // --- GitHub Client Updates ---
 function openUpdateModal() {

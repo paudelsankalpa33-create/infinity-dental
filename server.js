@@ -430,6 +430,16 @@ function initDatabase() {
 
   try {
     db = new DatabaseSync(DB_FILE);
+    try {
+      db.exec(`
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA cache_size = -64000;
+        PRAGMA temp_store = MEMORY;
+      `);
+    } catch (pragmaErr) {
+      console.warn('[SQLite PRAGMA]', pragmaErr.message);
+    }
     db.exec(`CREATE TABLE IF NOT EXISTS app_data (id INTEGER PRIMARY KEY CHECK(id=1), patients_json TEXT NOT NULL, updated_at TEXT NOT NULL)`);
     const row = db.prepare('SELECT patients_json FROM app_data WHERE id=1').get();
     if (!row) {
