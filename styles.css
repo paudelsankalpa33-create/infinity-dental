@@ -1024,8 +1024,8 @@ body.dark .cards .card {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  flex: 1;
-  min-width: 260px;
+  width: 100%;
+  min-width: 0;
 }
 
 .payment-mode {
@@ -1033,11 +1033,16 @@ body.dark .cards .card {
   background: #ffffff;
   color: var(--text);
   border-radius: 9px;
-  padding: 11px 10px;
+  padding: 10px 4px;
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 42px;
+  white-space: nowrap;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: var(--transition-smooth);
   box-shadow: var(--shadow-xs);
 }
@@ -2229,6 +2234,18 @@ body.dark .payment-mode {
   background: #090f19;
   color: #f8fafc;
   border-color: #26354a;
+}
+
+body.dark .payment-mode:hover {
+  background: #132238;
+  border-color: #38bdf8;
+}
+
+body.dark .payment-mode.selected {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
 }
 
 body.dark .field input:focus,

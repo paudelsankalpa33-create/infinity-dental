@@ -26,7 +26,7 @@ Your GitHub repository is now configured in the software:
 - **Owner**: `paudelsankalpa33-create`
 - **Repo**: `infinity-dental`
 
-This is set in `package.json`, `main.js`, and `app.js`. Whenever you publish a new release tag (e.g. `v1.0.7`) on `https://github.com/paudelsankalpa33-create/infinity-dental/releases`, all client PCs running this app will automatically detect it and prompt the user to update.
+This is set in `package.json`, `main.js`, and `app.js`. Whenever you publish a new release tag (e.g. `v1.0.8`) on `https://github.com/paudelsankalpa33-create/infinity-dental/releases`, all client PCs running this app will automatically detect it and prompt the user to update.
 
 ---
 
