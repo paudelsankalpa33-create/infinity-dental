@@ -2357,59 +2357,296 @@ async function readNiziSerialLoop(port) {
   }
 }
 
+// NiZi B33 Local HTTP Bridge Controller (Exact logic from Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html)
+const NIZI_DEFAULT_KEY = 'Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D';
+const NIZI_DEFAULT_URL = 'http://127.0.0.1:9121';
+const NIZI_DEFAULT_PORT = 'COM4';
+
+function getNiziKey() {
+  const el = document.getElementById('niziKeyInput');
+  return (el?.value || localStorage.getItem('nizi_bridge_key') || NIZI_DEFAULT_KEY).trim();
+}
+
+function getNiziPort() {
+  const el = document.getElementById('niziComPortInput');
+  return (el?.value || localStorage.getItem('nizi_bridge_port') || NIZI_DEFAULT_PORT).trim();
+}
+
+function getNiziBaseUrl() {
+  return (localStorage.getItem('nizi_bridge_url') || NIZI_DEFAULT_URL).trim().replace(/\/+$/, '');
+}
+
+function saveNiziSettings() {
+  const key = getNiziKey();
+  const port = getNiziPort();
+  localStorage.setItem('nizi_bridge_key', key);
+  localStorage.setItem('nizi_bridge_port', port);
+}
+
+function toggleNiziMainKeyVisibility() {
+  const input = document.getElementById('niziKeyInput');
+  if (!input) return;
+  const isPass = input.type === 'password';
+  input.type = isPass ? 'text' : 'password';
+  const btn = document.getElementById('niziKeyToggleBtn');
+  if (btn) btn.textContent = isPass ? '🔒' : '👁️';
+}
+
+function niziClean(s) {
+  return String(s || '').replace(/\*\*/g, ' ').replace(/[\r\n]/g, ' ').trim();
+}
+
+function niziLog(msg) {
+  const logEl = document.getElementById('niziB33Log');
+  if (!logEl) return;
+  const t = new Date().toLocaleTimeString();
+  logEl.textContent = `${t}  ${msg}\n` + logEl.textContent.slice(0, 4500);
+}
+
+function niziStatus(msg, isSuccess = null) {
+  const statusEl = document.getElementById('niziB33StatusText');
+  const pillEl = document.getElementById('niziB33StatusPill');
+  const mainPill = document.getElementById('niziHardwareStatusPill');
+  if (statusEl) statusEl.textContent = msg;
+  niziLog(msg);
+
+  if (isSuccess === true) {
+    if (pillEl) {
+      pillEl.className = 'status-pill online';
+      pillEl.textContent = 'Connected';
+    }
+    if (mainPill) {
+      mainPill.className = 'status-pill live';
+      mainPill.textContent = 'Bridge Online';
+    }
+  } else if (isSuccess === false) {
+    if (pillEl) {
+      pillEl.className = 'status-pill offline';
+      pillEl.textContent = 'Bridge Offline';
+    }
+    if (mainPill) {
+      mainPill.className = 'status-pill disconnected';
+      mainPill.textContent = 'Bridge Offline';
+    }
+  }
+}
+
+async function niziApi(path, method = 'GET', body = undefined) {
+  saveNiziSettings();
+  const base = getNiziBaseUrl();
+  const key = getNiziKey();
+  if (!key) throw Error('Enter your real API key first.');
+
+  // 1. Try backend proxy first (/api/nizi-bridge/* or /api/*) for zero CORS issues
+  try {
+    const proxyPath = '/api/nizi-bridge' + path.replace(/^\/api/, '');
+    const proxyUrl = proxyPath + (method === 'GET' ? `?url=${encodeURIComponent(base)}&apiKey=${encodeURIComponent(key)}` : '');
+    const proxyOpts = {
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    };
+    if (body !== undefined) {
+      proxyOpts.body = JSON.stringify({ ...body, bridgeUrl: base, apiKey: key });
+    }
+    const pRes = await fetch(proxyUrl, proxyOpts);
+    if (pRes.ok) {
+      const pData = await pRes.json();
+      if (pData.success !== false) {
+        return pData.data || pData.response || pData;
+      }
+    }
+  } catch (proxyErr) {
+    console.warn('NiZi backend proxy attempt warning:', proxyErr);
+  }
+
+  // 2. Direct browser fetch fallback (matching Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html)
+  const options = {
+    method,
+    headers: { 'X-API-Key': key }
+  };
+  if (body !== undefined) {
+    options.headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(body);
+  }
+  const response = await fetch(base + path, options);
+  const raw = await response.text();
+  let data;
+  try { data = JSON.parse(raw); } catch { data = raw; }
+  if (!response.ok) throw Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+  return data;
+}
+
+async function niziRun(fn) {
+  try {
+    const data = await fn();
+    niziStatus(typeof data === 'string' ? data : JSON.stringify(data, null, 2), true);
+    return data;
+  } catch (e) {
+    niziStatus('ERROR: ' + e.message + '\nIf PowerShell works but this HTML shows Failed to fetch, the service likely blocks browser CORS. The connector developer must allow the page origin, or the Windows app should call the API from its backend.', false);
+    return null;
+  }
+}
+
+function niziRunCheck() {
+  const pillEl = document.getElementById('niziB33StatusPill');
+  if (pillEl) {
+    pillEl.className = 'status-pill checking';
+    pillEl.textContent = 'Checking...';
+  }
+  return niziRun(() => niziApi('/api/status'));
+}
+
+function niziRunConnect() {
+  const port = getNiziPort();
+  return niziRun(() => niziApi('/api/connect', 'POST', { port }));
+}
+
+function niziRunDisconnect() {
+  return niziRun(() => niziApi('/api/disconnect', 'POST', {}));
+}
+
+async function detectNiZiSerialPorts() {
+  const portInput = document.getElementById('niziComPortInput');
+  try {
+    const res = await fetch('/api/soundbox/ports');
+    const data = await res.json();
+    if (data && data.ports && data.ports.length > 0) {
+      const candidate = data.ports.find(p => p.isCandidate) || data.ports[0];
+      if (candidate && portInput) {
+        portInput.value = candidate.path;
+        localStorage.setItem('nizi_bridge_port', candidate.path);
+        niziLog(`Auto-detected port: ${candidate.path} (${candidate.friendlyName || 'Serial'})`);
+        alert(`Detected ${data.ports.length} COM port(s). Selected: ${candidate.path}`);
+        return;
+      }
+    }
+    alert('No active COM ports detected. Defaulting to COM4.');
+  } catch (e) {
+    console.warn('Port detection warning:', e.message);
+  }
+}
+
+function niziCommand(type) {
+  const amountEl = document.getElementById('niziAmountInput');
+  const amount = (amountEl?.value || '150.00').trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(amount)) throw Error('Enter a valid non-negative amount, e.g. 150.00');
+  const a = 'Rs. ' + amount;
+  const msgEl = document.getElementById('niziMessageInput');
+  const m = niziClean(msgEl?.value) || 'Infinity Dental';
+
+  switch(type) {
+    case 'idle': return 'IDLE';
+    case 'text': return `TEXT**Infinity Dental**Welcome**${m}`;
+    case 'qr': {
+      const payloadEl = document.getElementById('niziPayloadInput');
+      const p = (payloadEl?.value || '').trim();
+      if (!p) throw Error('Enter a real QR payload first.');
+      return `QR**${a}**Scan to pay**${p}`;
+    }
+    case 'wait': return `WAIT**${a}**Please wait`;
+    case 'pass': return `PASS**${a}**Payment successful`;
+    case 'fail': return `FAIL**${a}**Payment failed`;
+    case 'info': return `INFO**Infinity Dental**${m}`;
+    case 'warn': return `WARN**Device Not Ready**${m}`;
+    default: throw Error('Unknown command');
+  }
+}
+
+async function niziSend(cmd) {
+  if (!cmd || cmd.includes('\n') || cmd.includes('\r')) throw Error('Command must be a single line.');
+  niziLog('Sending: ' + (cmd.startsWith('QR**') ? 'QR**[amount]**[action]**[payload hidden]' : cmd));
+
+  // Update simulator LCD preview
+  updateNiziDeviceDisplayFromRaw(cmd);
+
+  return niziApi('/api/command', 'POST', { command: cmd });
+}
+
+function niziExecCommand(type) {
+  niziRun(() => niziSend(niziCommand(type)));
+}
+
+function niziSendRaw() {
+  const rawInput = document.getElementById('niziRawInput');
+  const cmd = (rawInput?.value || '').trim();
+  niziRun(() => niziSend(cmd));
+}
+
+// Convert raw protocol string into simulated screen display update
+function updateNiziDeviceDisplayFromRaw(cmdStr) {
+  if (!cmdStr) return;
+  const parts = cmdStr.split('**');
+  const verb = parts[0].toUpperCase();
+
+  if (verb === 'IDLE') {
+    updateNiziDeviceDisplay({ command: 'display_logo' });
+  } else if (verb === 'TEXT') {
+    updateNiziDeviceDisplay({ command: 'text', title: parts[1] || 'Infinity Dental', message: parts[3] || parts[2] || 'Welcome' });
+  } else if (verb === 'QR') {
+    updateNiziDeviceDisplay({ command: 'show_qr', amount: parts[1]?.replace('Rs.', '').trim(), payload: parts[3] || '' });
+  } else if (verb === 'WAIT') {
+    updateNiziDeviceDisplay({ command: 'loading', message: parts[2] || 'Please wait' });
+  } else if (verb === 'PASS') {
+    updateNiziDeviceDisplay({ command: 'success', amount: parts[1]?.replace('Rs.', '').trim() });
+  } else if (verb === 'FAIL') {
+    updateNiziDeviceDisplay({ command: 'failure', message: parts[2] || 'Payment failed' });
+  }
+}
+
+// Core forwarder used across the software (billing, checkout, simulation, wifi)
 async function sendNiziCommand(cmd) {
+  let formattedCmd = 'IDLE';
+
+  if (typeof cmd === 'string') {
+    formattedCmd = cmd.trim();
+  } else if (cmd && typeof cmd === 'object') {
+    const c = cmd.command || '';
+    if (/^(QR|PASS|TEXT|WAIT|FAIL|WARN|INFO|IDLE|RESET|WAKE|VOLUME|BRIGHTNESS)\b/i.test(c)) {
+      formattedCmd = c;
+    } else if (c === 'show_qr' || c === 'qr') {
+      const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
+      formattedCmd = `QR**Rs. ${amtStr}**Scan to pay**${cmd.payload || cmd.qrPayload || ''}`;
+    } else if (c === 'success' || c === 'payment_success') {
+      const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
+      formattedCmd = `PASS**Rs. ${amtStr}**Payment successful`;
+    } else if (c === 'show_wifi') {
+      formattedCmd = `QR**Free Wi-Fi**Scan to pay**${cmd.payload || ''}`;
+    } else if (c === 'wait' || c === 'loading') {
+      const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
+      formattedCmd = `WAIT**Rs. ${amtStr}**Please wait`;
+    } else if (c === 'fail' || c === 'failure') {
+      const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
+      formattedCmd = `FAIL**Rs. ${amtStr}**Payment failed`;
+    } else if (c === 'idle' || c === 'display_logo') {
+      formattedCmd = 'IDLE';
+    } else if (c === 'text' || c === 'welcome') {
+      formattedCmd = `TEXT**Infinity Dental**Welcome**${niziClean(cmd.message || 'Thank you for visiting')}`;
+    } else if (c === 'info') {
+      formattedCmd = `INFO**Infinity Dental**${niziClean(cmd.message || 'Please visit reception')}`;
+    } else if (c === 'warn') {
+      formattedCmd = `WARN**Device Not Ready**${niziClean(cmd.message || 'Please wait')}`;
+    }
+  }
+
+  // 1. Update on-screen simulator preview
   updateNiziDeviceDisplay(cmd);
+
+  // 2. Transmit via direct USB Web Serial if port open in browser
   if (niziSerialWriter) {
     try {
-      // Official NiZi B30/B33 Command Framing (per B30Sdk.py & dynamic_qr_commands.html)
-      let officialStr = '';
-      if (cmd.command === 'show_qr' || cmd.command === 'qr') {
-        const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
-        const msg = cmd.message || 'SCAN TO PAY';
-        officialStr = `QR**Rs. ${amtStr}**${msg}**${cmd.payload || ''}\n`;
-      } else if (cmd.command === 'success' || cmd.command === 'payment_success') {
-        const title = cmd.title || 'SUCCESS!';
-        const msg = cmd.message || (cmd.amount ? `Rs. ${cmd.amount} received` : 'Payment successful');
-        officialStr = `PASS**${title}**${msg}\n`;
-      } else if (cmd.command === 'show_wifi') {
-        officialStr = `QR**FREE WI-FI**${cmd.ssid || 'Scan to Connect'}**${cmd.payload || ''}\n`;
-      } else if (cmd.command === 'idle' || cmd.command === 'display_logo') {
-        officialStr = 'IDLE\n';
-      } else if (cmd.command === 'wake') {
-        officialStr = 'WAKE\n';
-      } else if (cmd.command === 'reset') {
-        officialStr = 'RESET\n';
-      } else if (cmd.command === 'clear') {
-        officialStr = 'CLEAR\n';
-      }
-
-      if (officialStr) {
-        await niziSerialWriter.write(new TextEncoder().encode(officialStr));
-        console.log('[NiZi USB Tx Official Protocol]:', officialStr.trim());
-      }
+      await niziSerialWriter.write(new TextEncoder().encode(formattedCmd + '\n'));
+      console.log('[NiZi USB Tx Official Protocol]:', formattedCmd);
     } catch(e) {
       console.warn('[NiZi USB] Serial write warning:', e.message);
     }
   }
 
-  // Forward directly to local NiZi POS Connector application on port 9121 if running
+  // 3. Transmit via NiZi Bridge (proxy + direct fetch fallback)
   try {
-    fetch('http://127.0.0.1:9121/api/command', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cmd),
-      mode: 'no-cors'
-    }).catch(() => {});
-  } catch(e) {}
-
-  // Forward via localhost backend proxy
-  try {
-    fetch('/api/nizi/command', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cmd)
-    }).catch(() => {});
-  } catch(e) {}
+    await niziSend(formattedCmd);
+  } catch (bridgeErr) {
+    console.warn('[NiZi Bridge] Send warning:', bridgeErr.message);
+  }
 }
 
 function renderQrToElement(container, text, width = 136, height = 136) {

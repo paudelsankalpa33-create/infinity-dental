@@ -1368,31 +1368,207 @@ async function autoDetectAndConnectSoundbox() {
   }
 }
 
-// Forward commands to connected USB serial port & local NiZi Agent if active
-async function forwardToNiZiAgent(commandPayload) {
-  // 1. Transmit directly to connected USB serial soundbox
-  sendSoundboxSerialCommand(commandPayload);
+// NiZi B33 HTTP Bridge Exact Configuration (from Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html)
+const NIZI_BRIDGE_CONFIG = {
+  baseUrl: 'http://127.0.0.1:9121',
+  apiKey: 'Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D',
+  defaultPort: 'COM4'
+};
 
-  // 2. Also forward to local NiZi Agent (127.0.0.1:9121) if running
+// Convert command object or raw string into official NiZi protocol text
+function formatNiZiCommandString(cmd) {
+  if (!cmd) return 'IDLE';
+  if (typeof cmd === 'string') return cmd.trim();
+  if (typeof cmd.raw === 'string' && cmd.raw.trim()) return cmd.raw.trim();
+
+  const c = cmd.command ? String(cmd.command).trim() : '';
+
+  // If already formatted with NiZi protocol prefix
+  if (/^(QR|PASS|TEXT|WAIT|FAIL|WARN|INFO|IDLE|RESET|WAKE|VOLUME|BRIGHTNESS|SCREENTIME)\b/i.test(c)) {
+    return c;
+  }
+
+  if (c === 'show_qr') {
+    return nizi.buildQrCommand(cmd.amount, cmd.payload || cmd.qrPayload || '');
+  }
+
+  if (c === 'success') {
+    return nizi.buildSuccessCommand(cmd.amount);
+  }
+
+  if (c === 'show_wifi') {
+    return nizi.buildWifiCommand(cmd.ssid, cmd.payload || '');
+  }
+
+  if (c === 'wait' || c === 'loading') {
+    return nizi.buildWaitCommand(cmd.amount);
+  }
+
+  if (c === 'fail' || c === 'failure') {
+    return nizi.buildFailCommand(cmd.amount);
+  }
+
+  if (c === 'display_logo' || c === 'idle') {
+    return nizi.buildIdleCommand();
+  }
+
+  if (c === 'welcome' || c === 'text') {
+    return nizi.buildWelcomeTextCommand(cmd.message);
+  }
+
+  if (c === 'info') {
+    return nizi.buildInfoCommand(cmd.message);
+  }
+
+  if (c === 'warn') {
+    return nizi.buildWarnCommand(cmd.message);
+  }
+
+  if (c === 'volume') {
+    return `VOLUME**${cmd.volume || 100}`;
+  }
+
+  if (c === 'brightness') {
+    return `BRIGHTNESS**${cmd.brightness || 100}`;
+  }
+
+  return c || 'IDLE';
+}
+
+// Forward to NiZi Bridge HTTP API on http://127.0.0.1:9121 with X-API-Key header
+async function callNiZiBridgeApi(endpointPath, method = 'GET', body = null, customUrl = null, customKey = null) {
+  const bridgeBase = (customUrl || NIZI_BRIDGE_CONFIG.baseUrl).replace(/\/+$/, '');
+  const apiKey = customKey || NIZI_BRIDGE_CONFIG.apiKey;
+
   return new Promise((resolve) => {
-    const postData = JSON.stringify(commandPayload);
-    const req = http.request('http://127.0.0.1:9121/api/command', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      },
-      timeout: 1500
-    }, (res) => {
-      let b = '';
-      res.on('data', chunk => b += chunk);
-      res.on('end', () => resolve({ ok: true, response: b, serialDirect: soundboxStatus.connected }));
-    });
-    req.on('error', (err) => resolve({ ok: soundboxStatus.connected, error: err.message, serialDirect: soundboxStatus.connected }));
-    req.on('timeout', () => { req.destroy(); resolve({ ok: soundboxStatus.connected, error: 'NiZi agent timed out', serialDirect: soundboxStatus.connected }); });
-    req.write(postData);
-    req.end();
+    try {
+      const u = new URL(bridgeBase + endpointPath);
+      const isHttps = u.protocol === 'https:';
+      const client = isHttps ? https : http;
+
+      const headers = {
+        'X-API-Key': apiKey,
+        'User-Agent': 'InfinityDentalClinic-Backend/1.0',
+        'Accept': 'application/json, text/plain, */*'
+      };
+
+      let postData = null;
+      if (body !== undefined && body !== null) {
+        headers['Content-Type'] = 'application/json';
+        postData = typeof body === 'string' ? body : JSON.stringify(body);
+        headers['Content-Length'] = Buffer.byteLength(postData);
+      }
+
+      const req = client.request({
+        hostname: u.hostname,
+        port: u.port || (isHttps ? 443 : 80),
+        path: u.pathname + (u.search || ''),
+        method: method.toUpperCase(),
+        headers,
+        timeout: 2500
+      }, (res) => {
+        let b = '';
+        res.on('data', chunk => { b += chunk; });
+        res.on('end', () => {
+          let parsed;
+          try { parsed = JSON.parse(b); } catch (_) { parsed = b; }
+          const ok = res.statusCode >= 200 && res.statusCode < 300;
+          resolve({
+            ok,
+            statusCode: res.statusCode,
+            data: parsed,
+            raw: b
+          });
+        });
+      });
+
+      req.on('error', (err) => {
+        resolve({
+          ok: false,
+          statusCode: 0,
+          error: err.message,
+          code: err.code,
+          bridgeOffline: true
+        });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({
+          ok: false,
+          statusCode: 408,
+          error: 'NiZi Bridge HTTP request timed out',
+          bridgeOffline: true
+        });
+      });
+
+      if (postData) req.write(postData);
+      req.end();
+    } catch (urlErr) {
+      resolve({
+        ok: false,
+        statusCode: 400,
+        error: 'Invalid Bridge URL: ' + urlErr.message
+      });
+    }
   });
+}
+
+// Forward commands to connected USB serial port & local NiZi Agent if active
+async function forwardToNiZiAgent(commandPayload, customBridgeUrl, customApiKey) {
+  // 1. Transmit directly to connected USB serial soundbox
+  try {
+    sendSoundboxSerialCommand(commandPayload);
+  } catch (err) {
+    console.warn('[Soundbox Serial Tx Warning]:', err.message);
+  }
+
+  // 2. Format official string command for NiZi HTTP Bridge
+  const cmdStr = formatNiZiCommandString(commandPayload);
+
+  // 3. Post to local NiZi Agent (default http://127.0.0.1:9121/api/command) with exact header X-API-Key
+  const result = await callNiZiBridgeApi('/api/command', 'POST', { command: cmdStr }, customBridgeUrl, customApiKey);
+
+  if (result.ok) {
+    console.log(`[NiZi Bridge POST /api/command] Success: "${cmdStr}"`);
+  } else if (result.bridgeOffline) {
+    console.log(`[NiZi Bridge] Bridge offline on port 9121 for command "${cmdStr}"`);
+  } else {
+    console.warn(`[NiZi Bridge POST /api/command] HTTP ${result.statusCode}:`, result.data || result.error);
+  }
+
+  return {
+    ok: result.ok || soundboxStatus.connected,
+    statusCode: result.statusCode,
+    response: result.data,
+    command: cmdStr,
+    bridgeOffline: result.bridgeOffline,
+    error: result.error,
+    serialDirect: soundboxStatus.connected
+  };
+}
+
+// Auto-connect to NiZi Bridge on startup if available
+async function autoConnectNiZiBridge() {
+  try {
+    const statusRes = await callNiZiBridgeApi('/api/status', 'GET');
+    if (!statusRes.ok) {
+      console.log('[NiZi Bridge] Auto-check: Bridge service not detected on http://127.0.0.1:9121 (Offline)');
+      return;
+    }
+    console.log('[NiZi Bridge] Auto-check: Bridge is running on port 9121. Status:', JSON.stringify(statusRes.data));
+
+    // Check if device is connected; if not, connect to COM4
+    const data = statusRes.data;
+    const isConnected = data && (data.connected === true || (typeof data === 'string' && data.toLowerCase().includes('connected')));
+    if (!isConnected) {
+      console.log(`[NiZi Bridge] Attempting auto-connect to ${NIZI_BRIDGE_CONFIG.defaultPort}...`);
+      const connRes = await callNiZiBridgeApi('/api/connect', 'POST', { port: NIZI_BRIDGE_CONFIG.defaultPort });
+      console.log(`[NiZi Bridge] Auto-connect to ${NIZI_BRIDGE_CONFIG.defaultPort} result:`, connRes.ok ? 'Connected' : connRes.error || connRes.data);
+    }
+  } catch (e) {
+    console.warn('[NiZi Bridge] Auto-connect exception:', e.message);
+  }
 }
 
 // MIME Types Map
@@ -1416,6 +1592,7 @@ const MIME_TYPES = {
 function serveStatic(req, res, pathname) {
   let safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
   if (safePath === '/' || safePath === '\\') safePath = '/index.html';
+  if (safePath === '/soundbox-test' || safePath === '\\soundbox-test') safePath = '/soundbox-test.html';
   const filePath = path.join(ROOT_DIR, safePath);
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
@@ -2157,14 +2334,95 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 10. NiZi POS Command Proxy
-  if (pathname === '/api/nizi/command' && req.method === 'POST') {
+  // 10. NiZi POS Bridge API Proxies (Supports both /api/* and /api/nizi-bridge/* routes)
+  // 10.1 Status Check: GET /api/status, /api/nizi/status, /api/nizi-bridge/status
+  if ((pathname === '/api/status' || pathname === '/api/nizi/status' || pathname === '/api/nizi-bridge/status') && req.method === 'GET') {
+    const bridgeUrl = url.searchParams.get('url') || NIZI_BRIDGE_CONFIG.baseUrl;
+    const apiKey = url.searchParams.get('apiKey') || NIZI_BRIDGE_CONFIG.apiKey;
+    const resBridge = await callNiZiBridgeApi('/api/status', 'GET', null, bridgeUrl, apiKey);
+    res.writeHead(resBridge.statusCode || (resBridge.ok ? 200 : 502), { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: resBridge.ok,
+      statusCode: resBridge.statusCode,
+      data: resBridge.data,
+      bridgeOffline: resBridge.bridgeOffline,
+      error: resBridge.error,
+      serialStatus: soundboxStatus
+    }));
+    return;
+  }
+
+  // 10.2 Connect COM Port: POST /api/connect, /api/nizi/connect, /api/nizi-bridge/connect
+  if ((pathname === '/api/connect' || pathname === '/api/nizi/connect' || pathname === '/api/nizi-bridge/connect') && req.method === 'POST') {
     try {
-      const cmd = await parseJsonBody(req);
-      const result = await forwardToNiZiAgent(cmd);
-      broadcastToClients({ type: 'nizi_command', command: cmd });
+      const body = await parseJsonBody(req);
+      const port = body.port || NIZI_BRIDGE_CONFIG.defaultPort;
+      const bridgeUrl = body.bridgeUrl || NIZI_BRIDGE_CONFIG.baseUrl;
+      const apiKey = body.apiKey || NIZI_BRIDGE_CONFIG.apiKey;
+      const resBridge = await callNiZiBridgeApi('/api/connect', 'POST', { port }, bridgeUrl, apiKey);
+      res.writeHead(resBridge.statusCode || (resBridge.ok ? 200 : 502), { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: resBridge.ok,
+        statusCode: resBridge.statusCode,
+        data: resBridge.data,
+        port,
+        bridgeOffline: resBridge.bridgeOffline,
+        error: resBridge.error
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 10.3 Disconnect COM Port: POST /api/disconnect, /api/nizi/disconnect, /api/nizi-bridge/disconnect
+  if ((pathname === '/api/disconnect' || pathname === '/api/nizi/disconnect' || pathname === '/api/nizi-bridge/disconnect') && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const bridgeUrl = body.bridgeUrl || NIZI_BRIDGE_CONFIG.baseUrl;
+      const apiKey = body.apiKey || NIZI_BRIDGE_CONFIG.apiKey;
+      const resBridge = await callNiZiBridgeApi('/api/disconnect', 'POST', {}, bridgeUrl, apiKey);
+      res.writeHead(resBridge.statusCode || (resBridge.ok ? 200 : 502), { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: resBridge.ok,
+        statusCode: resBridge.statusCode,
+        data: resBridge.data,
+        bridgeOffline: resBridge.bridgeOffline,
+        error: resBridge.error
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 10.4 Send Command: POST /api/command, /api/nizi/command, /api/nizi-bridge/command
+  if ((pathname === '/api/command' || pathname === '/api/nizi/command' || pathname === '/api/nizi-bridge/command') && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const cmdInput = body.command;
+      if (!cmdInput) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Field "command" is required.' }));
+        return;
+      }
+      const bridgeUrl = body.bridgeUrl || NIZI_BRIDGE_CONFIG.baseUrl;
+      const apiKey = body.apiKey || NIZI_BRIDGE_CONFIG.apiKey;
+
+      const result = await forwardToNiZiAgent(cmdInput, bridgeUrl, apiKey);
+      broadcastToClients({ type: 'nizi_command', command: cmdInput, formatted: result.command });
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true, forwarded: result.ok, niziResponse: result }));
+      res.end(JSON.stringify({
+        success: result.ok,
+        commandSent: result.command,
+        statusCode: result.statusCode,
+        response: result.response,
+        bridgeOffline: result.bridgeOffline,
+        error: result.error,
+        serialDirect: result.serialDirect
+      }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: e.message }));
@@ -3117,4 +3375,9 @@ server.listen(PORT, '0.0.0.0', () => {
   setTimeout(() => {
     autoDetectAndConnectSoundbox();
   }, 1200);
+
+  // Auto-connect to NiZi POS Soundbox via HTTP Bridge (port 9121)
+  setTimeout(() => {
+    autoConnectNiZiBridge();
+  }, 1500);
 });

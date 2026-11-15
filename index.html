@@ -240,8 +240,17 @@
 <section id="billing" class="page"><div class="title">Billing</div><div class="muted">Print the latest saved patient bill in A5 black-and-white format.</div><div class="card" style="margin-top:18px"><div class="section-title">Select Patient</div><div class="toolbar"><select id="billingPatient" onchange="selectBillingPatient(this.value)" style="min-width:280px"><option value="">Select patient</option></select><button class="btn secondary" onclick="showPage('patients')">SEARCH PATIENTS</button></div><div id="billingSummary" class="muted" style="margin-top:14px">Select a patient to see their latest bill.</div><div id="billingBills" style="margin-top:14px"></div></div></section>
 <section id="appointments" class="page"><div class="title">Appointments</div><div class="muted">View and manage appointments by date.</div><div class="toolbar" style="align-items:center;flex-wrap:wrap"><button class="btn secondary" onclick="appointmentToday()">Today</button><button class="btn secondary" onclick="appointmentTomorrow()">Tomorrow</button><button class="btn secondary" onclick="toggleAppointmentGoto()">Go to Date</button><div class="appointment-mode"><button id="appointmentModeAD" class="btn secondary" onclick="setAppointmentCalendarMode('AD')">AD</button><button id="appointmentModeBS" class="btn primary" onclick="setAppointmentCalendarMode('BS')">BS</button></div><div id="appointmentGoto" class="appointment-goto" style="display:none"><input id="appointmentGotoInput" placeholder="YYYY-MM-DD" onkeydown="if(event.key==='Enter')goAppointmentTypedDate()"><button class="btn primary" onclick="goAppointmentTypedDate()">Go</button></div></div><div class="appointment-layout"><div class="card"><div class="appointment-calendar-head"><button class="btn secondary" onclick="appointmentPrevMonth()">‹</button><div><div class="section-title" id="appointmentMonthTitle" style="margin:0"></div><div class="muted" id="appointmentMonthSub"></div></div><button class="btn secondary" onclick="appointmentNextMonth()">›</button></div><div id="appointmentCalendar"></div></div><div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div class="section-title" id="appointmentListTitle">Today's Appointments</div><button class="btn primary" onclick="toggleNewAppointmentForm()">+ ADD APPOINTMENT</button></div><div id="newAppointmentForm" class="new-appointment-form" style="display:none"><div class="muted" style="margin-bottom:10px">Book an appointment for a new or existing patient. New patients are not registered and will not receive an OPD number until registration.</div><div class="formgrid"><div class="field"><label>Patient name *</label><input id="newApptName" autocomplete="name" placeholder="Full name"></div><div class="field"><label>Phone number *</label><input id="newApptPhone" inputmode="tel" autocomplete="tel" placeholder="Contact number"></div><div class="field"><label>Appointment date (AD) *</label><input id="newApptDate" type="date"></div><div class="field"><label>Appointment time *</label><input id="newApptTime" type="time"></div></div><div class="actions"><button class="btn primary" onclick="addAppointmentFromSection()">SAVE APPOINTMENT</button><button class="btn secondary" onclick="toggleNewAppointmentForm(false)">CANCEL</button></div></div><div class="muted" id="appointmentListSub" style="margin-bottom:8px"></div><div class="appt-legend"><span class="legend-arrived">Green: Arrived</span><span class="legend-scheduled">Blue: Scheduled</span><span class="legend-no-show">Red: Did not come</span></div><div id="appointmentList"></div></div></div></section>
 <section id="nepalpay" class="page">
-  <div class="title">NepalPay Dynamic QR &amp; NiZi POS Soundbox</div>
-  <div class="muted">Live integration with Nepal Clearing House (NCHL) ConnectIPS network and NiZi POS B33 hardware soundbox.</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div>
+      <div class="title">NepalPay Dynamic QR &amp; NiZi POS Soundbox</div>
+      <div class="muted">Live integration with Nepal Clearing House (NCHL) ConnectIPS network and NiZi POS B33 local API controller.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" onclick="openSoundboxTester()" style="font-size:12px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px">
+        🧪 Standalone Bridge Tester
+      </button>
+    </div>
+  </div>
   
   <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
     <div class="card">
@@ -259,9 +268,9 @@
     <div class="card">
       <div class="muted">NiZi POS B33 Hardware</div>
       <div style="margin-top:8px;display:flex;align-items:center;gap:6px">
-        <span id="niziHardwareStatusPill" class="status-pill simulated">Simulated / Ready</span>
+        <span id="niziHardwareStatusPill" class="status-pill simulated">Bridge Ready</span>
       </div>
-      <div class="muted" id="niziPortLabel" style="font-size:11px;margin-top:4px">USB 115200 baud or Browser Audio</div>
+      <div class="muted" id="niziPortLabel" style="font-size:11px;margin-top:4px">Bridge: 127.0.0.1:9121 · COM4</div>
     </div>
     <div class="card">
       <div class="muted">Digital Certificate</div>
@@ -270,72 +279,162 @@
     </div>
   </div>
 
-  <div class="grid2" style="margin-top:18px;grid-template-columns:360px 1fr;align-items:start">
-    <!-- Left: NiZi POS B33 Device Simulator & USB Link -->
-    <div class="nizi-device-card">
-      <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
-        <div class="section-title" style="margin:0">NiZi POS B33 Device</div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <button id="niziDriverBtn" class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="installSoundboxDriver()" title="Click to install official CH341 USB driver for Windows 10/8/7">📦 Driver</button>
-          <select id="soundboxPortSelect" style="font-size:11px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);cursor:pointer;min-width:115px;max-width:150px" title="Select COM port for NiZi USB Soundbox" onchange="onSoundboxPortSelected(this.value)">
-            <option value="">Detecting Ports...</option>
-          </select>
-          <button id="niziRefreshPortsBtn" class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="loadSoundboxPorts(true)" title="Refresh available COM ports">🔄</button>
-          <button id="niziUsbConnectBtn" class="btn secondary" style="font-size:11px;padding:6px 10px" onclick="connectSelectedSoundboxPort()">🔌 CONNECT USB</button>
+  <div class="grid2" style="margin-top:18px;grid-template-columns:minmax(380px, 460px) 1fr;align-items:start">
+    <!-- LEFT: Exact NiZi B33 Controller from Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html -->
+    <div class="card" id="niziControllerCard" style="background:#0e1726;border:1px solid #1e2e46;box-shadow:0 4px 20px rgba(0,0,0,0.25);border-radius:14px;padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <h3 style="margin:0;font-size:16px;font-weight:700;color:#f1f5f9">Infinity Dental · NiziPOS</h3>
+        <span id="niziB33StatusPill" class="status-pill checking" style="font-size:11px;padding:2px 8px">Not Checked</span>
+      </div>
+      <div class="muted" style="font-size:11.5px;margin-bottom:14px">B33 local API controller · 127.0.0.1:9121</div>
+
+      <div style="margin-bottom:10px">
+        <label for="niziKeyInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">API key (pre-filled for local testing)</label>
+        <div style="display:flex;gap:6px">
+          <input id="niziKeyInput" type="password" value="Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D" autocomplete="off" style="flex:1;padding:8px 10px;font-family:monospace;font-size:11.5px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc">
+          <button type="button" class="btn secondary" style="padding:6px 10px;font-size:12px" onclick="toggleNiziMainKeyVisibility()" id="niziKeyToggleBtn">👁️</button>
         </div>
       </div>
-      <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W Speaker Soundbox</div>
 
-      <div class="nizi-device">
-        <div class="nizi-header">
-          <span>NiZi POS B33</span>
-          <span id="niziScreenClock">--:--</span>
-        </div>
-        <div id="niziScreen" class="nizi-screen">
-          <div class="nizi-logo-badge">
-            <img src="assets/clinic-logo.png" style="width:64px;height:64px;object-fit:contain;display:block" alt="Infinity Dental">
-          </div>
-          <div style="font-size:13px;font-weight:800;letter-spacing:.5px">INFINITY DENTAL</div>
-          <div class="nizi-sub">Welcome to Clinic</div>
-          <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment</div>
-        </div>
-        <div class="nizi-speaker-grille">
-          <div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div>
+      <div style="margin-bottom:12px">
+        <label for="niziComPortInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Soundbox COM Port (for connect)</label>
+        <div style="display:flex;gap:6px">
+          <input id="niziComPortInput" type="text" value="COM4" placeholder="COM4" style="flex:1;padding:8px 10px;font-family:monospace;font-size:12px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc">
+          <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="detectNiZiSerialPorts()" title="Detect Windows COM Ports">🔍 Scan</button>
         </div>
       </div>
-      <div class="nizi-stand"></div>
 
-      <div style="width:100%;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziChime()">🔊 Test Sound</button>
-        <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziSuccessScreen()">✨ Test Success</button>
-        <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="resetNiziScreen()">↺ Reset Screen</button>
-        <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziQr()">📱 Test QR Display</button>
+      <div style="display:flex;gap:6px;margin:12px 0;flex-wrap:wrap">
+        <button id="niziCheckBtn" class="btn primary" style="flex:1;font-size:12px;padding:8px 10px" onclick="niziRunCheck()">Check connection</button>
+        <button id="niziConnectBtn" class="btn secondary" style="flex:1;font-size:12px;padding:8px 10px" onclick="niziRunConnect()">Connect device</button>
+        <button id="niziDisconnectBtn" class="btn secondary" style="flex:1;font-size:12px;padding:8px 10px" onclick="niziRunDisconnect()">Disconnect</button>
       </div>
 
-      <div style="width:100%;margin-top:8px">
-        <button class="btn btn-wifi" id="niziShowWifiBtn" style="width:100%;font-size:12px;padding:10px" onclick="showWifiOnNiziBox()" title="Show Clinic Guest Wi-Fi QR on NiZi POS soundbox screen">
-          📶 SHOW WI-FI QR ON NIZI BOX
-        </button>
+      <div id="niziB33StatusText" role="status" style="padding:10px;background:#090f1a;border:1px solid #1e2e46;border-radius:8px;font-family:monospace;font-size:11.5px;color:#94a3b8;white-space:pre-wrap;max-height:80px;overflow:auto">Not checked · Click Check connection.</div>
+
+      <div style="margin-top:12px">
+        <label for="niziAmountInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Amount (NPR)</label>
+        <input id="niziAmountInput" value="150.00" inputmode="decimal" style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:13px">
       </div>
 
-      <!-- Wi-Fi Card for Admins & Managers -->
-      <div class="card" style="width:100%;margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;box-sizing:border-box">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;color:#0369a1">
-            <span>📶</span> <span>Clinic Guest Wi-Fi</span>
-          </div>
-          <span class="badge" style="background:#0284c7;color:#fff;font-size:9.5px;font-weight:700">Admin / Manager</span>
+      <div style="margin-top:10px">
+        <label for="niziMessageInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Display message / bill number</label>
+        <input id="niziMessageInput" value="Infinity Dental" style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:13px">
+      </div>
+
+      <div style="margin-top:10px">
+        <label for="niziPayloadInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">QR payload (from your payment provider)</label>
+        <textarea id="niziPayloadInput" rows="2" placeholder="Paste actual dynamic QR payload; test strings are NOT payable" style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-family:monospace;font-size:11px"></textarea>
+      </div>
+
+      <!-- 8 Command Grid Buttons matching Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html -->
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:14px 0">
+        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('idle')">Idle / Logo</button>
+        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('text')">Welcome Text</button>
+        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('qr')">Show QR</button>
+        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('wait')">Please Wait</button>
+        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('pass')">Success Display</button>
+        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('fail')">Failure Display</button>
+        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('info')">Information</button>
+        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('warn')">Warning</button>
+      </div>
+
+      <div style="margin-top:10px">
+        <label for="niziSamplesSelect" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Sample commands (select to fill custom command)</label>
+        <select id="niziSamplesSelect" onchange="document.getElementById('niziRawInput').value=this.value" style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:12px">
+          <option value="IDLE">Idle / Logo</option>
+          <option value="TEXT**Infinity Dental**Welcome**Thank you for visiting">Welcome text</option>
+          <option value="INFO**Infinity Dental**Please visit reception">Information</option>
+          <option value="WAIT**Rs. 150.00**Please wait">Waiting</option>
+          <option value="PASS**Rs. 150.00**Payment successful">Success display (test only)</option>
+          <option value="FAIL**Rs. 150.00**Payment failed">Failure display (test only)</option>
+          <option value="WARN**Device Not Ready**Please wait">Warning</option>
+          <option value="QR**Rs. 150.00**Scan to pay**TEST-ONLY-NOT-PAYABLE">QR display test (not payable)</option>
+        </select>
+      </div>
+
+      <div style="margin-top:10px">
+        <label for="niziRawInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Advanced: custom command</label>
+        <div style="display:flex;gap:6px">
+          <input id="niziRawInput" style="flex:1;min-width:180px;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-family:monospace;font-size:12px" value="IDLE">
+          <button class="btn primary" style="padding:8px 14px;font-size:12px" onclick="niziSendRaw()">Send</button>
         </div>
-        <div class="muted" style="font-size:11px;line-height:1.4">
-          Network: <b id="niziWifiSsidLabel" style="color:var(--text)">Infinity Dental Guest</b><br>
-          Allow waiting payers &amp; patients to scan NiZi box to connect to clinic Wi-Fi.
+      </div>
+
+      <div style="margin-top:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <label style="font-size:11.5px;font-weight:600;color:#94a3b8;margin:0">Activity log</label>
+          <button class="btn secondary" style="padding:2px 8px;font-size:10px" onclick="document.getElementById('niziB33Log').textContent='Ready. Logs cleared.'">Clear</button>
         </div>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <button class="btn secondary" style="font-size:11px;padding:6px 8px;flex:1" onclick="openWifiModal()" title="Insert or update Wi-Fi credentials">⚙️ Configure Wi-Fi</button>
-          <button class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="printWifiStandCard()" title="Print reception table stand">🖨️ Print Stand</button>
-        </div>
+        <pre id="niziB33Log" style="font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:120px;overflow:auto;background:#060a12;color:#e1ecfa;padding:8px 10px;border-radius:6px;border:1px solid #1a2538;margin:0">Ready. No device commands sent.</pre>
       </div>
     </div>
+
+    <!-- RIGHT: Simulator Preview, Wi-Fi Push & Dynamic QR Test Terminal -->
+    <div>
+      <div class="nizi-device-card" style="margin-bottom:16px">
+        <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
+          <div class="section-title" style="margin:0">NiZi POS B33 Simulator Preview</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <button id="niziDriverBtn" class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="installSoundboxDriver()" title="Click to install official CH341 USB driver for Windows 10/8/7">📦 Driver</button>
+            <button id="niziBridgeTesterBtn" class="btn primary" style="font-size:11px;padding:6px 9px" onclick="openSoundboxTester()" title="Open standalone NiZi B33 HTTP Bridge (Port 9121) diagnostic tester">🧪 Full Tester</button>
+          </div>
+        </div>
+        <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W Speaker Soundbox</div>
+
+        <div class="nizi-device">
+          <div class="nizi-header">
+            <span>NiZi POS B33</span>
+            <span id="niziScreenClock">--:--</span>
+          </div>
+          <div id="niziScreen" class="nizi-screen">
+            <div class="nizi-logo-badge">
+              <img src="assets/clinic-logo.png" style="width:64px;height:64px;object-fit:contain;display:block" alt="Infinity Dental">
+            </div>
+            <div style="font-size:13px;font-weight:800;letter-spacing:.5px">INFINITY DENTAL</div>
+            <div class="nizi-sub">Welcome to Clinic</div>
+            <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment</div>
+          </div>
+          <div class="nizi-speaker-grille">
+            <div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div>
+          </div>
+        </div>
+        <div class="nizi-stand"></div>
+
+        <div style="width:100%;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziChime()">🔊 Test Sound</button>
+          <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziSuccessScreen()">✨ Test Success</button>
+          <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="resetNiziScreen()">↺ Reset Screen</button>
+          <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziQr()">📱 Test QR Display</button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-wifi" id="niziShowWifiBtn" style="flex:1;font-size:12px;padding:10px" onclick="showWifiOnNiziBox()" title="Show Clinic Guest Wi-Fi QR on NiZi POS soundbox screen">
+            📶 SHOW WI-FI QR ON NIZI BOX
+          </button>
+          <button class="btn primary" style="font-size:12px;padding:10px 14px" onclick="openSoundboxTester()" title="Open standalone NiZi B33 HTTP Bridge Diagnostic Tool">
+            🧪 Bridge Tester
+          </button>
+        </div>
+
+        <!-- Wi-Fi Card for Admins & Managers -->
+        <div class="card" style="width:100%;margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;box-sizing:border-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;color:#0369a1">
+              <span>📶</span> <span>Clinic Guest Wi-Fi</span>
+            </div>
+            <span class="badge" style="background:#0284c7;color:#fff;font-size:9.5px;font-weight:700">Admin / Manager</span>
+          </div>
+          <div class="muted" style="font-size:11px;line-height:1.4">
+            Network: <b id="niziWifiSsidLabel" style="color:var(--text)">Infinity Dental Guest</b><br>
+            Allow waiting payers &amp; patients to scan NiZi box to connect to clinic Wi-Fi.
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button class="btn secondary" style="font-size:11px;padding:6px 8px;flex:1" onclick="openWifiModal()" title="Insert or update Wi-Fi credentials">⚙️ Configure Wi-Fi</button>
+            <button class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="printWifiStandCard()" title="Print reception table stand">🖨️ Print Stand</button>
+          </div>
+        </div>
+      </div>
 
     <!-- Right: Dynamic QR Test Terminal & Logs -->
     <div>

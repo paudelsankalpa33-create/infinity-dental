@@ -1,16 +1,16 @@
 /**
- * Official NiZi POS B30/B33 Hardware Serial Communication Protocol
- * Extracted directly from official Yarsa Tech / NiZi developer files:
+ * Official NiZi POS B30/B33 Hardware Serial & Local HTTP Bridge Communication Protocol
+ * Exact logic synchronized from:
+ *  - D:\dental software\nizi b33\Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html
  *  - D:\dental software\nizi b33\B30Sdk.py
  *  - D:\dental software\nizi b33\dynamic_qr_commands.html
- * 
- * Hardware Architecture:
- *  - USB-to-UART Bridge: WCH CH341 / CH340 (VID 0x1A86, PID 0x7523 / 0x5523)
- *  - Baud Rate: 115200 bps
- *  - Framing: 8 Data Bits, No Parity (None), 1 Stop Bit (8-N-1)
- *  - Flow Control: None, DTR=False, RTS=False
- *  - Command Framing: Plain text UTF-8 ASCII delimited by "**" and terminated by newline "\n"
  */
+
+const NIZI_BRIDGE_CONFIG = {
+  baseUrl: 'http://127.0.0.1:9121',
+  apiKey: 'Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D',
+  defaultPort: 'COM4'
+};
 
 const NIZI_CONFIG = {
   baudRate: 115200,
@@ -27,6 +27,22 @@ const NIZI_CONFIG = {
 };
 
 /**
+ * Utility: Clean string for NiZi command framing (replace delimiter ** and linebreaks)
+ */
+function cleanMessage(s) {
+  return String(s || '').replace(/\*\*/g, ' ').replace(/[\r\n]/g, ' ').trim();
+}
+
+/**
+ * Utility: Ensure valid amount string (e.g. "150.00")
+ */
+function formatAmount(amt) {
+  if (amt == null || amt === '') return '0.00';
+  const num = Number(amt);
+  return isNaN(num) ? '0.00' : num.toFixed(2);
+}
+
+/**
  * Convert string command into a UTF-8 Buffer and format hex representation
  */
 function packetToHex(packetStr) {
@@ -40,104 +56,95 @@ function packetToHex(packetStr) {
 }
 
 /**
- * 1. Dynamic QR Display Command:
- * Format: QR**Rs. <amount>**<message>**<payload>\n
- * Displays 2D QR code on LCD screen with amount and status title.
+ * Exact B33 Command String Builders (Match Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html)
  */
-function buildQrPacket(amount, message = 'SCAN TO PAY', payload = '') {
-  let amtStr = '0.00';
-  if (amount != null && !isNaN(Number(amount))) {
-    amtStr = Number(amount).toFixed(2);
-  }
-  const str = `QR**Rs. ${amtStr}**${message}**${payload}\n`;
-  return packetToHex(str);
+function buildIdleCommand() {
+  return 'IDLE';
+}
+
+function buildWelcomeTextCommand(message = 'Thank you for visiting') {
+  const m = cleanMessage(message) || 'Infinity Dental';
+  return `TEXT**Infinity Dental**Welcome**${m}`;
+}
+
+function buildQrCommand(amount, payload = '') {
+  const a = 'Rs. ' + formatAmount(amount);
+  return `QR**${a}**Scan to pay**${payload}`;
+}
+
+function buildWaitCommand(amount) {
+  const a = 'Rs. ' + formatAmount(amount);
+  return `WAIT**${a}**Please wait`;
+}
+
+function buildSuccessCommand(amount) {
+  const a = 'Rs. ' + formatAmount(amount);
+  return `PASS**${a}**Payment successful`;
+}
+
+function buildFailCommand(amount) {
+  const a = 'Rs. ' + formatAmount(amount);
+  return `FAIL**${a}**Payment failed`;
+}
+
+function buildInfoCommand(message = 'Please visit reception') {
+  const m = cleanMessage(message) || 'Please visit reception';
+  return `INFO**Infinity Dental**${m}`;
+}
+
+function buildWarnCommand(message = 'Please wait') {
+  const m = cleanMessage(message) || 'Please wait';
+  return `WARN**Device Not Ready**${m}`;
+}
+
+function buildWifiCommand(ssid, payload = '') {
+  return `QR**Free Wi-Fi**Scan to pay**${payload}`;
 }
 
 /**
- * 2. Payment Success Announcement (Screen + Voice Chime):
- * Format: PASS**<title>**<message>\n
- * Triggers physical speaker audio voice broadcast ("Rs. 1500 received") and switches screen to green success badge.
- */
-function buildSuccessPacket(title = 'SUCCESS!', message = 'Payment successful') {
-  const str = `PASS**${title}**${message}\n`;
-  return packetToHex(str);
-}
-
-/**
- * 3. Waiting / Loading Screen:
- * Format: WAIT**Rs. <amount>**<message>\n
- */
-function buildWaitPacket(amount, message = 'Please wait...') {
-  let amtStr = '0.00';
-  if (amount != null && !isNaN(Number(amount))) {
-    amtStr = Number(amount).toFixed(2);
-  }
-  const str = `WAIT**Rs. ${amtStr}**${message}\n`;
-  return packetToHex(str);
-}
-
-/**
- * 4. Payment Failure Screen:
- * Format: FAIL**Rs. <amount>**<message>\n
- */
-function buildFailPacket(amount, message = 'Payment Failed') {
-  let amtStr = '0.00';
-  if (amount != null && !isNaN(Number(amount))) {
-    amtStr = Number(amount).toFixed(2);
-  }
-  const str = `FAIL**Rs. ${amtStr}**${message}\n`;
-  return packetToHex(str);
-}
-
-/**
- * 5. Standby / Welcome Screen (Logo Display):
- * Format: IDLE\n
+ * Serial Packet Formatters (append \n for direct COM port UART)
  */
 function buildIdlePacket() {
-  return packetToHex('IDLE\n');
+  return packetToHex(buildIdleCommand() + '\n');
 }
 
-/**
- * 6. Free Wi-Fi QR on Screen:
- * Uses official QR framing: QR**FREE WI-FI**<SSID>**<WIFI_ZXING_PAYLOAD>\n
- */
-function buildWifiQrPacket(ssid, payload) {
-  const str = `QR**FREE WI-FI**${ssid || 'Scan to Connect'}**${payload}\n`;
-  return packetToHex(str);
-}
-
-/**
- * 7. Text Display:
- * Format: TEXT**<title>**<subtitle>**<message>\n
- */
 function buildTextPacket(title, subtitle, message) {
-  const str = `TEXT**${title || ''}**${subtitle || ''}**${message || ''}\n`;
-  return packetToHex(str);
+  const m = cleanMessage(message || subtitle || title);
+  return packetToHex(`TEXT**${cleanMessage(title) || 'Infinity Dental'}**${cleanMessage(subtitle) || 'Welcome'}**${m}\n`);
 }
 
-/**
- * 8. Status & Diagnostics:
- * Format: WARN**<title>**<message>\n
- * Format: INFO**<title>**<message>\n
- */
+function buildQrPacket(amount, message = 'Scan to pay', payload = '') {
+  const a = 'Rs. ' + formatAmount(amount);
+  return packetToHex(`QR**${a}**${cleanMessage(message) || 'Scan to pay'}**${payload}\n`);
+}
+
+function buildSuccessPacket(amount = '0.00', message = 'Payment successful') {
+  const a = (String(amount).startsWith('Rs.') || isNaN(Number(amount))) ? amount : ('Rs. ' + formatAmount(amount));
+  return packetToHex(`PASS**${a}**${cleanMessage(message) || 'Payment successful'}\n`);
+}
+
+function buildWaitPacket(amount = '0.00') {
+  const a = 'Rs. ' + formatAmount(amount);
+  return packetToHex(`WAIT**${a}**Please wait\n`);
+}
+
+function buildFailPacket(amount = '0.00') {
+  const a = 'Rs. ' + formatAmount(amount);
+  return packetToHex(`FAIL**${a}**Payment failed\n`);
+}
+
 function buildWarnPacket(title, message) {
-  return packetToHex(`WARN**${title || ''}**${message || ''}\n`);
+  return packetToHex(`WARN**${cleanMessage(title) || 'Device Not Ready'}**${cleanMessage(message) || 'Please wait'}\n`);
 }
 
 function buildInfoPacket(title, message) {
-  return packetToHex(`INFO**${title || ''}**${message || ''}\n`);
+  return packetToHex(`INFO**${cleanMessage(title) || 'Infinity Dental'}**${cleanMessage(message) || 'Please visit reception'}\n`);
 }
 
-/**
- * 9. Device Hardware Controls:
- * - WAKE: wakes up CPU and display
- * - RESET: sleeps / resets device
- * - CLEAR: clears real-time display and restores static image
- * - FORMAT: formats device memory
- * - VOLUME: sets speaker level (0-100)
- * - BRIGHTNESS: sets LCD brightness (0-100)
- * - SCREENTIME: screen on timer (30-300 seconds)
- */
+function buildWifiQrPacket(ssid, payload) {
+  return packetToHex(`QR**Free Wi-Fi**Scan to pay**${payload}\n`);
+}
+
 function buildWakePacket() {
   return packetToHex('WAKE\n');
 }
@@ -170,17 +177,31 @@ function buildScreenTimePacket(seconds = 300) {
 }
 
 module.exports = {
+  NIZI_BRIDGE_CONFIG,
   NIZI_CONFIG,
+  cleanMessage,
+  formatAmount,
   packetToHex,
+  // String commands (for HTTP bridge POST /api/command)
+  buildIdleCommand,
+  buildWelcomeTextCommand,
+  buildQrCommand,
+  buildWaitCommand,
+  buildSuccessCommand,
+  buildFailCommand,
+  buildInfoCommand,
+  buildWarnCommand,
+  buildWifiCommand,
+  // Serial packets (for direct COM port UART)
+  buildIdlePacket,
+  buildTextPacket,
   buildQrPacket,
   buildSuccessPacket,
   buildWaitPacket,
   buildFailPacket,
-  buildIdlePacket,
-  buildWifiQrPacket,
-  buildTextPacket,
   buildWarnPacket,
   buildInfoPacket,
+  buildWifiQrPacket,
   buildWakePacket,
   buildResetPacket,
   buildClearPacket,
@@ -189,4 +210,3 @@ module.exports = {
   buildBrightnessPacket,
   buildScreenTimePacket
 };
-

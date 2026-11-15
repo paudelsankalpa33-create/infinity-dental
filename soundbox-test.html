@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NiZi POS B33 Bridge & Soundbox Hardware Tester | Infinity Dental Clinic</title>
+  <style>
+    :root {
+      --bg-main: #0a0f1d;
+      --bg-card: #131d2e;
+      --bg-card-hover: #18253a;
+      --border-color: #22344d;
+      --border-focus: #0ea5e9;
+      --primary: #0ea5e9;
+      --primary-hover: #0284c7;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.12);
+      --error: #ef4444;
+      --error-bg: rgba(239, 68, 68, 0.12);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.12);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --font-mono: 'Consolas', 'Courier New', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 24px;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
+    }
+
+    .header-title h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .header-title p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .nav-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+
+    .nav-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--primary);
+    }
+
+    .nav-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .nav-btn.primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .nav-btn.secondary {
+      background: #475569;
+      border-color: #475569;
+      color: #fff;
+    }
+
+    .nav-btn.secondary:hover {
+      background: #334155;
+    }
+
+    /* Grid Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-main);
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"], input[type="password"], textarea, select {
+      width: 100%;
+      background: #0d1522;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--border-focus);
+    }
+
+    .mono-input {
+      font-family: var(--font-mono);
+      font-size: 12px !important;
+    }
+
+    /* Status Pill & Box */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-pill.online {
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-pill.offline {
+      background: var(--error-bg);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-pill.checking {
+      background: var(--warning-bg);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-box {
+      padding: 12px;
+      background: #0d1522;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-top: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #94a3b8;
+    }
+
+    /* Button Grid */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .action-btn {
+      background: #1766c2;
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      min-height: 44px;
+    }
+
+    .action-btn:hover {
+      background: #0284c7;
+      transform: translateY(-1px);
+    }
+
+    .action-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Logs Terminal */
+    .log-panel {
+      background: #090e18;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px;
+      height: 280px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-panel::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .log-panel::-webkit-scrollbar-thumb {
+      background: #22344d;
+      border-radius: 4px;
+    }
+
+    .guide-box {
+      background: rgba(14, 165, 233, 0.05);
+      border: 1px solid rgba(14, 165, 233, 0.2);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 20px;
+    }
+
+    .guide-box h4 {
+      color: #38bdf8;
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .code-tag {
+      background: #0f172a;
+      color: #38bdf8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-brand">
+        <div class="logo-badge">🔊</div>
+        <div class="header-title">
+          <h1>Infinity Dental · NiziPOS B33</h1>
+          <p>Local HTTP Bridge API Controller · 127.0.0.1:9121</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="/" class="nav-btn">⬅️ Back to Dental App</a>
+        <button class="nav-btn" onclick="clearLogs()">🧹 Clear Log</button>
+        <button class="nav-btn primary" onclick="checkConnection()">🔄 Check Connection</button>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid">
+      <!-- Left Card: Connection & Auth -->
+      <div class="card">
+        <div class="card-title">
+          <span>Bridge Connection &amp; Port</span>
+          <span id="bridgeStatusPill" class="status-pill checking">
+            <span class="status-dot"></span>
+            <span id="bridgeStatusText">Not Checked</span>
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label>Bridge Base URL</label>
+          <input type="text" id="bridgeUrl" class="mono-input" value="http://127.0.0.1:9121">
+        </div>
+
+        <div class="form-group">
+          <label>API Key (Pre-configured from Controller)</label>
+          <div class="input-row">
+            <input type="password" id="key" class="mono-input" value="Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D" autocomplete="off">
+            <button class="nav-btn" type="button" onclick="toggleKeyVisibility()" id="toggleKeyBtn">👁️</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Soundbox Hardware COM Port</label>
+          <div class="input-row">
+            <input type="text" id="comPort" class="mono-input" value="COM4" placeholder="e.g. COM4">
+          </div>
+        </div>
+
+        <div class="input-row" style="margin-top: 14px;">
+          <button id="check" class="nav-btn primary" style="flex: 1;" onclick="checkConnection()">Check connection</button>
+          <button id="connect" class="nav-btn secondary" style="flex: 1;" onclick="connectDevice()">Connect device</button>
+          <button id="disconnect" class="nav-btn secondary" style="flex: 1;" onclick="disconnectDevice()">Disconnect</button>
+        </div>
+
+        <div id="status" class="status-box" role="status">Not checked · Click Check connection.</div>
+      </div>
+
+      <!-- Right Card: Parameters & Quick Commands -->
+      <div class="card">
+        <div class="card-title">
+          <span>Command Parameters</span>
+          <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">B33 Protocol</span>
+        </div>
+
+        <div class="form-group">
+          <label for="amount">Amount (NPR)</label>
+          <input id="amount" value="150.00" inputmode="decimal" placeholder="e.g. 150.00">
+        </div>
+
+        <div class="form-group">
+          <label for="message">Display message / bill number</label>
+          <input id="message" value="Infinity Dental" placeholder="e.g. Infinity Dental">
+        </div>
+
+        <div class="form-group">
+          <label for="payload">QR payload (from your payment provider)</label>
+          <textarea id="payload" rows="2" class="mono-input" placeholder="Paste actual dynamic QR payload; test strings are NOT payable">00020101021226580010com.nchl.nqr01162501F6MCTZZ80215204802153035245406150.005802NP5922INFINITY DENTAL CLINIC6009KATHMANDU62190115TEST-BILL-10016304D1A2</textarea>
+        </div>
+
+        <div class="btn-grid">
+          <button class="action-btn" onclick="executeCommand('idle')">📺 Idle / Logo</button>
+          <button class="action-btn" onclick="executeCommand('text')">👋 Welcome Text</button>
+          <button class="action-btn" onclick="executeCommand('qr')">📱 Show QR</button>
+          <button class="action-btn" onclick="executeCommand('wait')">⏳ Please Wait</button>
+          <button class="action-btn" onclick="executeCommand('pass')">✨ Success Display</button>
+          <button class="action-btn" onclick="executeCommand('fail')">🛑 Failure Display</button>
+          <button class="action-btn" onclick="executeCommand('info')">ℹ️ Information</button>
+          <button class="action-btn" onclick="executeCommand('warn')">⚠️ Warning</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced Custom Command & Samples -->
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="card-title">
+        <span>Sample Commands &amp; Raw Command Input</span>
+      </div>
+
+      <div class="form-group">
+        <label for="samples">Sample commands (select to fill custom command)</label>
+        <select id="samples" onchange="onSampleChange()">
+          <option value="IDLE">IDLE · Idle / Logo</option>
+          <option value="TEXT**Infinity Dental**Welcome**Thank you for visiting">Welcome text</option>
+          <option value="INFO**Infinity Dental**Please visit reception">Information</option>
+          <option value="WAIT**Rs. 150.00**Please wait">Waiting</option>
+          <option value="PASS**Rs. 150.00**Payment successful">Success display (test only)</option>
+          <option value="FAIL**Rs. 150.00**Payment failed">Failure display (test only)</option>
+          <option value="WARN**Device Not Ready**Please wait">Warning</option>
+          <option value="QR**Rs. 150.00**Scan to pay**TEST-ONLY-NOT-PAYABLE">QR display test (not payable)</option>
+          <option value="VOLUME**100">VOLUME**100 (Max Volume)</option>
+          <option value="BRIGHTNESS**100">BRIGHTNESS**100 (Max Brightness)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="raw">Advanced: custom command</label>
+        <div class="input-row">
+          <input id="raw" class="mono-input" style="flex:1;" value="IDLE">
+          <button id="sendraw" class="nav-btn primary" onclick="sendRawCommand()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Activity Log -->
+    <div class="card">
+      <div class="card-title">
+        <span>Activity log</span>
+        <button class="nav-btn" style="padding: 4px 10px; font-size: 11px;" onclick="copyLogs()">📋 Copy Log</button>
+      </div>
+      <pre id="log" class="log-panel">Ready. No device commands sent.</pre>
+    </div>
+
+    <!-- Troubleshooting Guide -->
+    <div class="guide-box">
+      <h4>💡 NiZi B33 Troubleshooting &amp; Setup</h4>
+      <p style="margin-bottom: 6px;">This sends display commands to the NiZi POS Soundbox. "Success" does NOT verify a bank payment. Use your payment provider's confirmed transaction status before displaying success in production.</p>
+      <p>If PowerShell or direct fetch works but browser shows Failed to fetch, the backend proxy routes automatically solve CORS by executing HTTP calls from the Node.js process.</p>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const baseInput = $('bridgeUrl');
+    const keyInput = $('key');
+    const portInput = $('comPort');
+    const statusBox = $('status');
+    const logBox = $('log');
+    const bridgeStatusPill = $('bridgeStatusPill');
+    const bridgeStatusText = $('bridgeStatusText');
+
+    // Restore persisted settings
+    if (localStorage.getItem('nizi_bridge_key')) {
+      keyInput.value = localStorage.getItem('nizi_bridge_key');
+    }
+    if (localStorage.getItem('nizi_bridge_port')) {
+      portInput.value = localStorage.getItem('nizi_bridge_port');
+    }
+    if (localStorage.getItem('nizi_bridge_url')) {
+      baseInput.value = localStorage.getItem('nizi_bridge_url');
+    }
+
+    function saveSettings() {
+      localStorage.setItem('nizi_bridge_key', keyInput.value.trim());
+      localStorage.setItem('nizi_bridge_port', portInput.value.trim());
+      localStorage.setItem('nizi_bridge_url', baseInput.value.trim());
+    }
+
+    keyInput.addEventListener('change', saveSettings);
+    portInput.addEventListener('change', saveSettings);
+    baseInput.addEventListener('change', saveSettings);
+
+    function log(msg) {
+      const t = new Date().toLocaleTimeString();
+      logBox.textContent = `${t}  ${msg}\n` + logBox.textContent.slice(0, 4500);
+    }
+
+    function setStatus(msg, isSuccess = null) {
+      statusBox.textContent = msg;
+      log(msg);
+      if (isSuccess === true) {
+        bridgeStatusPill.className = 'status-pill online';
+        bridgeStatusText.innerText = 'Connected';
+      } else if (isSuccess === false) {
+        bridgeStatusPill.className = 'status-pill offline';
+        bridgeStatusText.innerText = 'Offline';
+      }
+    }
+
+    function clearLogs() {
+      logBox.textContent = 'Logs cleared. Ready.';
+    }
+
+    function copyLogs() {
+      navigator.clipboard.writeText(logBox.textContent).then(() => {
+        alert('Logs copied to clipboard!');
+      });
+    }
+
+    function toggleKeyVisibility() {
+      const isPass = keyInput.type === 'password';
+      keyInput.type = isPass ? 'text' : 'password';
+      $('toggleKeyBtn').innerText = isPass ? '🔒' : '👁️';
+    }
+
+    function onSampleChange() {
+      $('raw').value = $('samples').value;
+    }
+
+    async function api(path, method = 'GET', body) {
+      saveSettings();
+      const base = (baseInput.value || 'http://127.0.0.1:9121').trim().replace(/\/+$/, '');
+      const key = keyInput.value.trim();
+      if (!key) throw Error('Enter your real API key first.');
+
+      // 1. Try Backend Proxy (/api/nizi-bridge/*) to eliminate browser CORS
+      try {
+        const proxyPath = '/api/nizi-bridge' + path.replace(/^\/api/, '');
+        const proxyUrl = proxyPath + (method === 'GET' ? `?url=${encodeURIComponent(base)}&apiKey=${encodeURIComponent(key)}` : '');
+        const proxyOpts = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (body !== undefined) {
+          proxyOpts.body = JSON.stringify({ ...body, bridgeUrl: base, apiKey: key });
+        }
+        const pRes = await fetch(proxyUrl, proxyOpts);
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (pData.success !== false) {
+            return pData.data || pData.response || pData;
+          }
+        }
+      } catch (proxyErr) {
+        console.warn('Backend proxy warning:', proxyErr);
+      }
+
+      // 2. Direct browser fetch fallback
+      const options = {
+        method,
+        headers: { 'X-API-Key': key }
+      };
+      if (body !== undefined) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(body);
+      }
+      const response = await fetch(base + path, options);
+      const raw = await response.text();
+      let data;
+      try { data = JSON.parse(raw); } catch { data = raw; }
+      if (!response.ok) throw Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+      return data;
+    }
+
+    async function run(fn) {
+      try {
+        const data = await fn();
+        setStatus(typeof data === 'string' ? data : JSON.stringify(data, null, 2), true);
+        return data;
+      } catch (e) {
+        setStatus('ERROR: ' + e.message + '\nIf PowerShell works but this HTML shows Failed to fetch, the service likely blocks browser CORS. The connector developer must allow the page origin, or the Windows app should call the API from its backend.', false);
+        return null;
+      }
+    }
+
+    function checkConnection() {
+      bridgeStatusPill.className = 'status-pill checking';
+      bridgeStatusText.innerText = 'Checking...';
+      return run(() => api('/api/status'));
+    }
+
+    function connectDevice() {
+      const port = (portInput.value || 'COM4').trim();
+      return run(() => api('/api/connect', 'POST', { port }));
+    }
+
+    function disconnectDevice() {
+      return run(() => api('/api/disconnect', 'POST', {}));
+    }
+
+    function clean(s) {
+      return String(s || '').replace(/\*\*/g, ' ').replace(/[\r\n]/g, ' ').trim();
+    }
+
+    function command(type) {
+      const amount = $('amount').value.trim();
+      if (!/^\d+(\.\d{1,2})?$/.test(amount)) throw Error('Enter a valid non-negative amount, e.g. 150.00');
+      const a = 'Rs. ' + amount;
+      const m = clean($('message').value) || 'Infinity Dental';
+      switch (type) {
+        case 'idle': return 'IDLE';
+        case 'text': return `TEXT**Infinity Dental**Welcome**${m}`;
+        case 'qr': {
+          const p = $('payload').value.trim();
+          if (!p) throw Error('Enter a real QR payload first.');
+          return `QR**${a}**Scan to pay**${p}`;
+        }
+        case 'wait': return `WAIT**${a}**Please wait`;
+        case 'pass': return `PASS**${a}**Payment successful`;
+        case 'fail': return `FAIL**${a}**Payment failed`;
+        case 'info': return `INFO**Infinity Dental**${m}`;
+        case 'warn': return `WARN**Device Not Ready**${m}`;
+        default: throw Error('Unknown command');
+      }
+    }
+
+    async function send(cmd) {
+      if (!cmd || cmd.includes('\n') || cmd.includes('\r')) throw Error('Command must be a single line.');
+      log('Sending: ' + (cmd.startsWith('QR**') ? 'QR**[amount]**[action]**[payload hidden]' : cmd));
+      return api('/api/command', 'POST', { command: cmd });
+    }
+
+    function executeCommand(type) {
+      run(() => send(command(type)));
+    }
+
+    function sendRawCommand() {
+      run(() => send($('raw').value.trim()));
+    }
+
+    // Auto-check on load
+    window.addEventListener('DOMContentLoaded', () => {
+      checkConnection();
+    });
+  </script>
+</body>
+</html>
