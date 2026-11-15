@@ -60,7 +60,7 @@
 
         <div id="loginErrorMsg" class="login-error-msg" style="display:none"></div>
 
-        <button id="loginSubmitBtn" type="submit" class="btn primary login-btn">
+        <button id="loginSubmitBtn" type="submit" class="btn primary login-btn" onclick="submitLoginForm()">
           <span>🔐 SIGN IN TO CLINIC</span>
         </button>
       </form>
@@ -224,7 +224,7 @@
             <button id="settingsUpdateBtn" class="settings-flyout-item"
               onclick="openUpdateModal(); closeSettingsMenu();">
               <span class="settings-item-title">Updates</span>
-              <span id="settingsVersionBadge" class="header-version-pill">v1.0.9</span>
+              <span id="settingsVersionBadge" class="header-version-pill">v1.0.13</span>
             </button>
             <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
               <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
@@ -379,26 +379,34 @@
       </section>
       <section id="register" class="page">
         <div class="title">Register Patient</div>
-        <div class="muted">Date, time and OPD number are automatic.</div>
+        <div class="muted">Date, time and OPD number are automatic. Press Enter in any field to register.</div>
         <div class="card" style="margin-top:18px">
-          <div class="formgrid">
-            <div class="field"><label>Patient name *</label><input id="name" required></div>
-            <div class="field"><label>Contact number *</label><input id="contact" required inputmode="tel"></div>
-            <div class="field"><label>Address</label><input id="address"></div>
-            <div class="field"><label>Age</label><input id="age"></div>
-            <div class="field"><label>Gender *</label><select id="gender" required>
-                <option value="">Select gender</option>
-                <option>Male</option>
-                <option>Female</option>
-                <option>Other</option>
-              </select></div>
-          </div>
-          <div class="card next-opd-card" style="margin-top:15px;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#090f19;border:1px solid #1e2e46;border-radius:10px">
-            <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#94a3b8">Next Assigned OPD Number</span>
-            <b style="font-size:16px;font-weight:800;color:#38bdf8;letter-spacing:0.5px">OPD: <span id="nextOpd">1001</span></b>
-          </div>
-          <div class="actions"><button class="btn primary" onclick="registerPatient()">REGISTER PATIENT</button><button
-              class="btn secondary" onclick="clearForm()">CLEAR</button></div>
+          <form id="registerPatientForm" onsubmit="event.preventDefault();registerPatient();">
+            <div class="formgrid">
+              <div class="field"><label for="name">Patient name *</label><input id="name" required autocomplete="name" placeholder="Full name (e.g. Binod Sharma)"></div>
+              <div class="field"><label for="contact">Contact number *</label><input id="contact" required inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number"></div>
+              <div class="field"><label for="address">Address</label><input id="address" placeholder="e.g. Pokhara-08, Srijana Chowk"></div>
+              <div class="field"><label for="age">Age</label><input id="age" type="number" min="1" max="120" placeholder="e.g. 29"></div>
+              <div class="field"><label for="gender">Gender *</label><select id="gender" required>
+                  <option value="">Select gender</option>
+                  <option>Male</option>
+                  <option>Female</option>
+                  <option>Other</option>
+                </select></div>
+            </div>
+            <div class="card next-opd-card"
+              style="margin-top:15px;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#090f19;border:1px solid #1e2e46;border-radius:10px">
+              <span
+                style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#94a3b8">Next
+                Assigned OPD Number</span>
+              <b style="font-size:16px;font-weight:800;color:#38bdf8;letter-spacing:0.5px">OPD: <span
+                  id="nextOpd">1001</span></b>
+            </div>
+            <div class="actions" style="margin-top:16px">
+              <button id="btnRegisterPatient" type="submit" class="btn primary">REGISTER PATIENT</button>
+              <button type="button" class="btn secondary" onclick="clearForm()">CLEAR</button>
+            </div>
+          </form>
         </div>
       </section>
       <section id="patients" class="page">
@@ -443,294 +451,322 @@
           <div id="billingBills" style="margin-top:14px"></div>
         </div>
       </section>
-<section id="appointments" class="page"><div class="title">Appointments</div><div class="muted">View and manage appointments by date.</div><div class="toolbar" style="align-items:center;flex-wrap:wrap"><button class="btn secondary" onclick="appointmentToday()">Today</button><button class="btn secondary" onclick="appointmentTomorrow()">Tomorrow</button><button class="btn secondary" onclick="toggleAppointmentGoto()">Go to Date</button><div class="appointment-mode"><button id="appointmentModeAD" class="btn secondary" onclick="setAppointmentCalendarMode('AD')">AD</button><button id="appointmentModeBS" class="btn primary" onclick="setAppointmentCalendarMode('BS')">BS</button></div><div id="appointmentGoto" class="appointment-goto" style="display:none"><input id="appointmentGotoInput" placeholder="YYYY-MM-DD" onkeydown="if(event.key==='Enter')goAppointmentTypedDate()"><button class="btn primary" onclick="goAppointmentTypedDate()">Go</button></div></div><div class="appointment-layout"><div class="card"><div class="appointment-calendar-head"><button class="btn secondary" onclick="appointmentPrevMonth()">‹</button><div><div class="section-title" id="appointmentMonthTitle" style="margin:0"></div><div class="muted" id="appointmentMonthSub"></div></div><button class="btn secondary" onclick="appointmentNextMonth()">›</button></div><div id="appointmentCalendar"></div></div><div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div class="section-title" id="appointmentListTitle">Today's Appointments</div><button class="btn primary" onclick="toggleNewAppointmentForm()">+ ADD APPOINTMENT</button></div><div id="newAppointmentForm" class="new-appointment-form" style="display:none"><div class="muted" style="margin-bottom:10px">Book an appointment for a new or existing patient. New patients are not registered and will not receive an OPD number until registration.</div><div class="formgrid"><div class="field"><label>Patient name *</label><input id="newApptName" autocomplete="name" placeholder="Full name"></div><div class="field"><label>Phone number *</label><input id="newApptPhone" inputmode="tel" autocomplete="tel" placeholder="Contact number"></div><div class="field"><label>Appointment date (AD) *</label><input id="newApptDate" type="date"></div><div class="field"><label>Appointment time *</label><input id="newApptTime" type="time"></div></div><div class="actions"><button class="btn primary" onclick="addAppointmentFromSection()">SAVE APPOINTMENT</button><button class="btn secondary" onclick="toggleNewAppointmentForm(false)">CANCEL</button></div></div><div class="muted" id="appointmentListSub" style="margin-bottom:8px"></div><div class="appt-legend"><span class="legend-arrived">Green: Arrived</span><span class="legend-scheduled">Blue: Scheduled</span><span class="legend-no-show">Red: Did not come</span></div><div id="appointmentList"></div></div></div></section>
-<section id="nepalpay" class="page">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <div>
-      <div class="title">NepalPay Dynamic QR &amp; NiZi POS Soundbox</div>
-      <div class="muted">Live integration with Nepal Clearing House (NCHL) ConnectIPS network and NiZi POS B33 local API controller.</div>
+  <section id="appointments" class="page">
+    <div class="title">Appointments</div>
+    <div class="muted">View and manage appointments by date.</div>
+    <div class="toolbar" style="align-items:center;flex-wrap:wrap"><button class="btn secondary"
+        onclick="appointmentToday()">Today</button><button class="btn secondary"
+        onclick="appointmentTomorrow()">Tomorrow</button><button class="btn secondary"
+        onclick="toggleAppointmentGoto()">Go to Date</button>
+      <div class="appointment-mode"><button id="appointmentModeAD" class="btn secondary"
+          onclick="setAppointmentCalendarMode('AD')">AD</button><button id="appointmentModeBS" class="btn primary"
+          onclick="setAppointmentCalendarMode('BS')">BS</button></div>
+      <div id="appointmentGoto" class="appointment-goto" style="display:none"><input id="appointmentGotoInput"
+          placeholder="YYYY-MM-DD" onkeydown="if(event.key==='Enter')goAppointmentTypedDate()"><button
+          class="btn primary" onclick="goAppointmentTypedDate()">Go</button></div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn primary" onclick="openSoundboxTester()" style="font-size:12px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px">
-        🧪 Standalone Bridge Tester
-      </button>
-    </div>
-  </div>
-  
-  <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
-    <div class="card">
-      <div class="muted">NepalPay Status</div>
-      <div style="margin-top:8px;font-size:16px;font-weight:700;color:#15803d;display:flex;align-items:center;gap:6px">
-        <span class="status-pill live">Active</span>
-      </div>
-      <div class="muted" style="font-size:11px;margin-top:4px">Sandbox: NCHL ConnectIPS</div>
-    </div>
-    <div class="card">
-      <div class="muted">Merchant ID</div>
-      <div style="margin-top:8px;font-size:18px;font-weight:700">2501F6MCTZZ</div>
-      <div class="muted" style="font-size:11px;margin-top:4px">Acquirer: 00002501 (Store1)</div>
-    </div>
-    <div class="card">
-      <div class="muted">NiZi POS B33 Hardware</div>
-      <div style="margin-top:8px;display:flex;align-items:center;gap:6px">
-        <span id="niziHardwareStatusPill" class="status-pill simulated">Bridge Ready</span>
-      </div>
-      <div class="muted" id="niziPortLabel" style="font-size:11px;margin-top:4px">Bridge: 127.0.0.1:9121 · COM4</div>
-    </div>
-    <div class="card">
-      <div class="muted">Digital Certificate</div>
-      <div style="margin-top:8px;font-size:15px;font-weight:700;color:#0369a1">NPI.pfx Verified</div>
-      <div class="muted" style="font-size:11px;margin-top:4px">RSA-SHA256 Private Key Loaded</div>
-    </div>
-  </div>
-
-  <div class="grid2" style="margin-top:18px;grid-template-columns:minmax(380px, 460px) 1fr;align-items:start">
-    <!-- LEFT: Exact NiZi B33 Controller from Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html -->
-    <div class="card" id="niziControllerCard" style="background:#0e1726;border:1px solid #1e2e46;box-shadow:0 4px 20px rgba(0,0,0,0.25);border-radius:14px;padding:20px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <h3 style="margin:0;font-size:16px;font-weight:700;color:#f1f5f9">Infinity Dental · NiziPOS</h3>
-        <span id="niziB33StatusPill" class="status-pill checking" style="font-size:11px;padding:2px 8px">Not Checked</span>
-      </div>
-      <div class="muted" style="font-size:11.5px;margin-bottom:14px">B33 local API controller · 127.0.0.1:9121</div>
-
-      <div style="margin-bottom:10px">
-        <label for="niziKeyInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">API key (pre-filled for local testing)</label>
-        <div style="display:flex;gap:6px">
-          <input id="niziKeyInput" type="password" value="Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D" autocomplete="off" style="flex:1;padding:8px 10px;font-family:monospace;font-size:11.5px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc">
-          <button type="button" class="btn secondary" style="padding:6px 10px;font-size:12px" onclick="toggleNiziMainKeyVisibility()" id="niziKeyToggleBtn">👁️</button>
+    <div class="appointment-layout">
+      <div class="card">
+        <div class="appointment-calendar-head"><button class="btn secondary" onclick="appointmentPrevMonth()">‹</button>
+          <div>
+            <div class="section-title" id="appointmentMonthTitle" style="margin:0"></div>
+            <div class="muted" id="appointmentMonthSub"></div>
+          </div><button class="btn secondary" onclick="appointmentNextMonth()">›</button>
         </div>
+        <div id="appointmentCalendar"></div>
       </div>
-
-      <div style="margin-bottom:12px">
-        <label for="niziComPortInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Soundbox COM Port (for connect)</label>
-        <div style="display:flex;gap:6px">
-          <input id="niziComPortInput" type="text" value="COM4" placeholder="COM4" style="flex:1;padding:8px 10px;font-family:monospace;font-size:12px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc">
-          <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="detectNiZiSerialPorts()" title="Detect Windows COM Ports">🔍 Scan</button>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div class="section-title" id="appointmentListTitle">Today's Appointments</div><button class="btn primary"
+            onclick="toggleNewAppointmentForm()">+ ADD APPOINTMENT</button>
         </div>
-      </div>
-
-      <div style="display:flex;gap:6px;margin:12px 0;flex-wrap:wrap">
-        <button id="niziCheckBtn" class="btn primary" style="flex:1;font-size:12px;padding:8px 10px" onclick="niziRunCheck()">Check connection</button>
-        <button id="niziConnectBtn" class="btn secondary" style="flex:1;font-size:12px;padding:8px 10px" onclick="niziRunConnect()">Connect device</button>
-        <button id="niziDisconnectBtn" class="btn secondary" style="flex:1;font-size:12px;padding:8px 10px" onclick="niziRunDisconnect()">Disconnect</button>
-      </div>
-
-      <div id="niziB33StatusText" role="status" style="padding:10px;background:#090f1a;border:1px solid #1e2e46;border-radius:8px;font-family:monospace;font-size:11.5px;color:#94a3b8;white-space:pre-wrap;max-height:80px;overflow:auto">Not checked · Click Check connection.</div>
-
-      <div style="margin-top:12px">
-        <label for="niziAmountInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Amount (NPR)</label>
-        <input id="niziAmountInput" value="150.00" inputmode="decimal" style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:13px">
-      </div>
-
-      <div style="margin-top:10px">
-        <label for="niziMessageInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Display message / bill number</label>
-        <input id="niziMessageInput" value="Infinity Dental" style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:13px">
-      </div>
-
-      <div style="margin-top:10px">
-        <label for="niziPayloadInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">QR payload (from your payment provider)</label>
-        <textarea id="niziPayloadInput" rows="2" placeholder="Paste actual dynamic QR payload; test strings are NOT payable" style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-family:monospace;font-size:11px"></textarea>
-      </div>
-
-      <!-- 8 Command Grid Buttons matching Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html -->
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:14px 0">
-        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('idle')">Idle / Logo</button>
-        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('text')">Welcome Text</button>
-        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('qr')">Show QR</button>
-        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('wait')">Please Wait</button>
-        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('pass')">Success Display</button>
-        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('fail')">Failure Display</button>
-        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('info')">Information</button>
-        <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600" onclick="niziExecCommand('warn')">Warning</button>
-      </div>
-
-      <div style="margin-top:10px">
-        <label for="niziSamplesSelect" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Sample commands (select to fill custom command)</label>
-        <select id="niziSamplesSelect" onchange="document.getElementById('niziRawInput').value=this.value" style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:12px">
-          <option value="IDLE">Idle / Logo</option>
-          <option value="TEXT**Infinity Dental**Welcome**Thank you for visiting">Welcome text</option>
-          <option value="INFO**Infinity Dental**Please visit reception">Information</option>
-          <option value="WAIT**Rs. 150.00**Please wait">Waiting</option>
-          <option value="PASS**Rs. 150.00**Payment successful">Success display (test only)</option>
-          <option value="FAIL**Rs. 150.00**Payment failed">Failure display (test only)</option>
-          <option value="WARN**Device Not Ready**Please wait">Warning</option>
-          <option value="QR**Rs. 150.00**Scan to pay**TEST-ONLY-NOT-PAYABLE">QR display test (not payable)</option>
-        </select>
-      </div>
-
-      <div style="margin-top:10px">
-        <label for="niziRawInput" style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Advanced: custom command</label>
-        <div style="display:flex;gap:6px">
-          <input id="niziRawInput" style="flex:1;min-width:180px;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-family:monospace;font-size:12px" value="IDLE">
-          <button class="btn primary" style="padding:8px 14px;font-size:12px" onclick="niziSendRaw()">Send</button>
+        <div id="newAppointmentForm" class="new-appointment-form" style="display:none">
+          <div class="muted" style="margin-bottom:10px">Book an appointment for a new or existing patient. New patients
+            are not registered and will not receive an OPD number until registration.</div>
+          <div class="formgrid">
+            <div class="field"><label>Patient name *</label><input id="newApptName" autocomplete="name"
+                placeholder="Full name"></div>
+            <div class="field"><label>Phone number *</label><input id="newApptPhone" inputmode="tel" autocomplete="tel"
+                placeholder="Contact number"></div>
+            <div class="field"><label>Appointment date (AD) *</label><input id="newApptDate" type="date"></div>
+            <div class="field"><label>Appointment time *</label><input id="newApptTime" type="time"></div>
+          </div>
+          <div class="actions"><button class="btn primary" onclick="addAppointmentFromSection()">SAVE
+              APPOINTMENT</button><button class="btn secondary"
+              onclick="toggleNewAppointmentForm(false)">CANCEL</button></div>
         </div>
+        <div class="muted" id="appointmentListSub" style="margin-bottom:8px"></div>
+        <div class="appt-legend"><span class="legend-arrived">Green: Arrived</span><span class="legend-scheduled">Blue:
+            Scheduled</span><span class="legend-no-show">Red: Did not come</span></div>
+        <div id="appointmentList"></div>
       </div>
+    </div>
+  </section>
+  <section id="nepalpay" class="page">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="title">NepalPay Dynamic QR &amp; NiZi POS Soundbox</div>
+        <div class="muted">Live integration with Nepal Clearing House (NCHL) ConnectIPS network and NiZi POS B33 local
+          API controller.</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn primary" onclick="openSoundboxTester()"
+          style="font-size:12px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px">
+          🧪 Standalone Bridge Tester
+        </button>
+      </div>
+    </div>
 
-      <div style="margin-top:14px">
+    <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
+      <div class="card">
+        <div class="muted">NepalPay Status</div>
+        <div
+          style="margin-top:8px;font-size:16px;font-weight:700;color:#15803d;display:flex;align-items:center;gap:6px">
+          <span class="status-pill live">Active</span>
+        </div>
+        <div class="muted" style="font-size:11px;margin-top:4px">Sandbox: NCHL ConnectIPS</div>
+      </div>
+      <div class="card">
+        <div class="muted">Merchant ID</div>
+        <div style="margin-top:8px;font-size:18px;font-weight:700">2501F6MCTZZ</div>
+        <div class="muted" style="font-size:11px;margin-top:4px">Acquirer: 00002501 (Store1)</div>
+      </div>
+      <div class="card">
+        <div class="muted">NiZi POS B33 Hardware</div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:6px">
+          <span id="niziHardwareStatusPill" class="status-pill simulated">Bridge Ready</span>
+        </div>
+        <div class="muted" id="niziPortLabel" style="font-size:11px;margin-top:4px">Bridge: 127.0.0.1:9121 · COM4</div>
+      </div>
+      <div class="card">
+        <div class="muted">Digital Certificate</div>
+        <div style="margin-top:8px;font-size:15px;font-weight:700;color:#0369a1">NPI.pfx Verified</div>
+        <div class="muted" style="font-size:11px;margin-top:4px">RSA-SHA256 Private Key Loaded</div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:18px;grid-template-columns:minmax(380px, 460px) 1fr;align-items:start">
+      <!-- LEFT: Exact NiZi B33 Controller from Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html -->
+      <div class="card" id="niziControllerCard"
+        style="background:#0e1726;border:1px solid #1e2e46;box-shadow:0 4px 20px rgba(0,0,0,0.25);border-radius:14px;padding:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <label style="font-size:11.5px;font-weight:600;color:#94a3b8;margin:0">Activity log</label>
-          <button class="btn secondary" style="padding:2px 8px;font-size:10px" onclick="document.getElementById('niziB33Log').textContent='Ready. Logs cleared.'">Clear</button>
+          <h3 style="margin:0;font-size:16px;font-weight:700;color:#f1f5f9">Infinity Dental · NiziPOS</h3>
+          <span id="niziB33StatusPill" class="status-pill checking" style="font-size:11px;padding:2px 8px">Not
+            Checked</span>
         </div>
-        <pre id="niziB33Log" style="font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:120px;overflow:auto;background:#060a12;color:#e1ecfa;padding:8px 10px;border-radius:6px;border:1px solid #1a2538;margin:0">Ready. No device commands sent.</pre>
+        <div class="muted" style="font-size:11.5px;margin-bottom:14px">B33 local API controller · 127.0.0.1:9121</div>
+
+        <div style="margin-bottom:10px">
+          <label for="niziKeyInput"
+            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">API key (pre-filled
+            for local testing)</label>
+          <div style="display:flex;gap:6px">
+            <input id="niziKeyInput" type="password"
+              value="Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D"
+              autocomplete="off"
+              style="flex:1;padding:8px 10px;font-family:monospace;font-size:11.5px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc">
+            <button type="button" class="btn secondary" style="padding:6px 10px;font-size:12px"
+              onclick="toggleNiziMainKeyVisibility()" id="niziKeyToggleBtn">👁️</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label for="niziComPortInput"
+            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Soundbox COM Port
+            (for connect)</label>
+          <div style="display:flex;gap:6px">
+            <input id="niziComPortInput" type="text" value="COM4" placeholder="COM4"
+              style="flex:1;padding:8px 10px;font-family:monospace;font-size:12px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc">
+            <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="detectNiZiSerialPorts()"
+              title="Detect Windows COM Ports">🔍 Scan</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin:12px 0;flex-wrap:wrap">
+          <button id="niziCheckBtn" class="btn primary" style="flex:1;font-size:12px;padding:8px 10px"
+            onclick="niziRunCheck()">Check connection</button>
+          <button id="niziConnectBtn" class="btn secondary" style="flex:1;font-size:12px;padding:8px 10px"
+            onclick="niziRunConnect()">Connect device</button>
+          <button id="niziDisconnectBtn" class="btn secondary" style="flex:1;font-size:12px;padding:8px 10px"
+            onclick="niziRunDisconnect()">Disconnect</button>
+        </div>
+
+        <div id="niziB33StatusText" role="status"
+          style="padding:10px;background:#090f1a;border:1px solid #1e2e46;border-radius:8px;font-family:monospace;font-size:11.5px;color:#94a3b8;white-space:pre-wrap;max-height:80px;overflow:auto">
+          Not checked · Click Check connection.</div>
+
+        <div style="margin-top:12px">
+          <label for="niziAmountInput"
+            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Amount (NPR)</label>
+          <input id="niziAmountInput" value="150.00" inputmode="decimal"
+            style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:13px">
+        </div>
+
+        <div style="margin-top:10px">
+          <label for="niziMessageInput"
+            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Display message /
+            bill number</label>
+          <input id="niziMessageInput" value="Infinity Dental"
+            style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:13px">
+        </div>
+
+        <div style="margin-top:10px">
+          <label for="niziPayloadInput"
+            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">QR payload (from your
+            payment provider)</label>
+          <textarea id="niziPayloadInput" rows="2"
+            placeholder="Paste actual dynamic QR payload; test strings are NOT payable"
+            style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-family:monospace;font-size:11px"></textarea>
+        </div>
+
+        <!-- 8 Command Grid Buttons matching Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html -->
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:14px 0">
+          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
+            onclick="niziExecCommand('idle')">Idle / Logo</button>
+          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
+            onclick="niziExecCommand('text')">Welcome Text</button>
+          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
+            onclick="niziExecCommand('qr')">Show QR</button>
+          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
+            onclick="niziExecCommand('wait')">Please Wait</button>
+          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
+            onclick="niziExecCommand('pass')">Success Display</button>
+          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
+            onclick="niziExecCommand('fail')">Failure Display</button>
+          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
+            onclick="niziExecCommand('info')">Information</button>
+          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
+            onclick="niziExecCommand('warn')">Warning</button>
+        </div>
+
+        <div style="margin-top:10px">
+          <label for="niziSamplesSelect"
+            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Sample commands
+            (select to fill custom command)</label>
+          <select id="niziSamplesSelect" onchange="document.getElementById('niziRawInput').value=this.value"
+            style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:12px">
+            <option value="IDLE">Idle / Logo</option>
+            <option value="TEXT**Infinity Dental**Welcome**Thank you for visiting">Welcome text</option>
+            <option value="INFO**Infinity Dental**Please visit reception">Information</option>
+            <option value="WAIT**Rs. 150.00**Please wait">Waiting</option>
+            <option value="PASS**Rs. 150.00**Payment successful">Success display (test only)</option>
+            <option value="FAIL**Rs. 150.00**Payment failed">Failure display (test only)</option>
+            <option value="WARN**Device Not Ready**Please wait">Warning</option>
+            <option value="QR**Rs. 150.00**Scan to pay**TEST-ONLY-NOT-PAYABLE">QR display test (not payable)</option>
+          </select>
+        </div>
+
+        <div style="margin-top:10px">
+          <label for="niziRawInput"
+            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Advanced: custom
+            command</label>
+          <div style="display:flex;gap:6px">
+            <input id="niziRawInput"
+              style="flex:1;min-width:180px;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-family:monospace;font-size:12px"
+              value="IDLE">
+            <button class="btn primary" style="padding:8px 14px;font-size:12px" onclick="niziSendRaw()">Send</button>
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <label style="font-size:11.5px;font-weight:600;color:#94a3b8;margin:0">Activity log</label>
+            <button class="btn secondary" style="padding:2px 8px;font-size:10px"
+              onclick="document.getElementById('niziB33Log').textContent='Ready. Logs cleared.'">Clear</button>
+          </div>
+          <pre id="niziB33Log"
+            style="font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:120px;overflow:auto;background:#060a12;color:#e1ecfa;padding:8px 10px;border-radius:6px;border:1px solid #1a2538;margin:0">Ready. No device commands sent.</pre>
+        </div>
       </div>
-    </div>
 
-    <!-- RIGHT: Simulator Preview, Wi-Fi Push & Dynamic QR Test Terminal -->
-    <div>
-      <div class="nizi-device-card" style="margin-bottom:16px">
-        <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
-          <div class="section-title" style="margin:0">NiZi POS B33 Simulator Preview</div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <button id="niziDriverBtn" class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="installSoundboxDriver()" title="Click to install official CH341 USB driver for Windows 10/8/7">📦 Driver</button>
-            <button id="niziBridgeTesterBtn" class="btn primary" style="font-size:11px;padding:6px 9px" onclick="openSoundboxTester()" title="Open standalone NiZi B33 HTTP Bridge (Port 9121) diagnostic tester">🧪 Full Tester</button>
+      <!-- RIGHT: Simulator Preview, Wi-Fi Push & Dynamic QR Test Terminal -->
+      <div>
+        <div class="nizi-device-card" style="margin-bottom:16px">
+          <div
+            style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
+            <div class="section-title" style="margin:0">NiZi POS B33 Simulator Preview</div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button id="niziDriverBtn" class="btn secondary" style="font-size:11px;padding:6px 8px"
+                onclick="installSoundboxDriver()"
+                title="Click to install official CH341 USB driver for Windows 10/8/7">📦 Driver</button>
+              <button id="niziBridgeTesterBtn" class="btn primary" style="font-size:11px;padding:6px 9px"
+                onclick="openSoundboxTester()"
+                title="Open standalone NiZi B33 HTTP Bridge (Port 9121) diagnostic tester">🧪 Full Tester</button>
+            </div>
+          </div>
+          <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W Speaker
+            Soundbox</div>
+
+          <div class="nizi-device">
+            <div class="nizi-header">
+              <span>NiZi POS B33</span>
+              <span id="niziScreenClock">--:--</span>
+            </div>
+            <div id="niziScreen" class="nizi-screen">
+              <div class="nizi-logo-badge">
+                <img src="assets/clinic-logo.png" style="width:64px;height:64px;object-fit:contain;display:block"
+                  alt="Infinity Dental">
+              </div>
+              <div style="font-size:13px;font-weight:800;letter-spacing:.5px">INFINITY DENTAL</div>
+              <div class="nizi-sub">Welcome to Clinic</div>
+              <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment</div>
+            </div>
+            <div class="nizi-speaker-grille">
+              <div class="nizi-speaker-dot"></div>
+              <div class="nizi-speaker-dot"></div>
+              <div class="nizi-speaker-dot"></div>
+              <div class="nizi-speaker-dot"></div>
+              <div class="nizi-speaker-dot"></div>
+            </div>
+          </div>
+          <div class="nizi-stand"></div>
+
+          <div style="width:100%;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziChime()">🔊 Test
+              Sound</button>
+            <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziSuccessScreen()">✨
+              Test Success</button>
+            <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="resetNiziScreen()">↺ Reset
+              Screen</button>
+            <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziQr()">📱 Test QR
+              Display</button>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-wifi" id="niziShowWifiBtn" style="flex:1;font-size:12px;padding:10px"
+              onclick="showWifiOnNiziBox()" title="Show Clinic Guest Wi-Fi QR on NiZi POS soundbox screen">
+              📶 SHOW WI-FI QR ON NIZI BOX
+            </button>
+            <button class="btn primary" style="font-size:12px;padding:10px 14px" onclick="openSoundboxTester()"
+              title="Open standalone NiZi B33 HTTP Bridge Diagnostic Tool">
+              🧪 Bridge Tester
+            </button>
+          </div>
+
+          <!-- Wi-Fi Card for Admins & Managers -->
+          <div class="card"
+            style="width:100%;margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;box-sizing:border-box">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;color:#0369a1">
+                <span>📶</span> <span>Clinic Guest Wi-Fi</span>
+              </div>
+              <span class="badge" style="background:#0284c7;color:#fff;font-size:9.5px;font-weight:700">Admin /
+                Manager</span>
+            </div>
+            <div class="muted" style="font-size:11px;line-height:1.4">
+              Network: <b id="niziWifiSsidLabel" style="color:var(--text)">Infinity Dental Guest</b><br>
+              Allow waiting payers &amp; patients to scan NiZi box to connect to clinic Wi-Fi.
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <button class="btn secondary" style="font-size:11px;padding:6px 8px;flex:1" onclick="openWifiModal()"
+                title="Insert or update Wi-Fi credentials">⚙️ Configure Wi-Fi</button>
+              <button class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="printWifiStandCard()"
+                title="Print reception table stand">🖨️ Print Stand</button>
+            </div>
           </div>
         </div>
-        <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W Speaker Soundbox</div>
 
-        <div class="nizi-device">
-          <div class="nizi-header">
-            <span>NiZi POS B33</span>
-            <span id="niziScreenClock">--:--</span>
-          </div>
-          <div id="niziScreen" class="nizi-screen">
-            <div class="nizi-logo-badge">
-              <img src="assets/clinic-logo.png" style="width:64px;height:64px;object-fit:contain;display:block" alt="Infinity Dental">
-            </div>
-            <div style="font-size:13px;font-weight:800;letter-spacing:.5px">INFINITY DENTAL</div>
-            <div class="nizi-sub">Welcome to Clinic</div>
-            <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment</div>
-          </div>
-          <div class="nizi-speaker-grille">
-            <div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div><div class="nizi-speaker-dot"></div>
-          </div>
-        </div>
-        <div class="nizi-stand"></div>
-
-        <div style="width:100%;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziChime()">🔊 Test Sound</button>
-          <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziSuccessScreen()">✨ Test Success</button>
-          <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="resetNiziScreen()">↺ Reset Screen</button>
-          <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziQr()">📱 Test QR Display</button>
-        </div>
-
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn btn-wifi" id="niziShowWifiBtn" style="flex:1;font-size:12px;padding:10px" onclick="showWifiOnNiziBox()" title="Show Clinic Guest Wi-Fi QR on NiZi POS soundbox screen">
-            📶 SHOW WI-FI QR ON NIZI BOX
-          </button>
-          <button class="btn primary" style="font-size:12px;padding:10px 14px" onclick="openSoundboxTester()" title="Open standalone NiZi B33 HTTP Bridge Diagnostic Tool">
-            🧪 Bridge Tester
-          </button>
-        </div>
-
-        <!-- Wi-Fi Card for Admins & Managers -->
-        <div class="card" style="width:100%;margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;box-sizing:border-box">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;color:#0369a1">
-              <span>📶</span> <span>Clinic Guest Wi-Fi</span>
-            </div>
-            <span class="badge" style="background:#0284c7;color:#fff;font-size:9.5px;font-weight:700">Admin / Manager</span>
-          </div>
-          <div class="muted" style="font-size:11px;line-height:1.4">
-            Network: <b id="niziWifiSsidLabel" style="color:var(--text)">Infinity Dental Guest</b><br>
-            Allow waiting payers &amp; patients to scan NiZi box to connect to clinic Wi-Fi.
-          </div>
-          <div style="display:flex;gap:6px;margin-top:8px">
-            <button class="btn secondary" style="font-size:11px;padding:6px 8px;flex:1" onclick="openWifiModal()" title="Insert or update Wi-Fi credentials">⚙️ Configure Wi-Fi</button>
-            <button class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="printWifiStandCard()" title="Print reception table stand">🖨️ Print Stand</button>
-          </div>
-        </div>
-      </div>
-
-        <div class="grid2" style="margin-top:18px;grid-template-columns:360px 1fr;align-items:start">
-          <!-- Left: NiZi POS B33 Device Simulator & USB Link -->
-          <div class="nizi-device-card">
-            <div
-              style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
-              <div class="section-title" style="margin:0">NiZi POS B33 Device</div>
-              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                <button id="niziDriverBtn" class="btn secondary" style="font-size:11px;padding:6px 8px"
-                  onclick="installSoundboxDriver()"
-                  title="Click to install official CH341 USB driver for Windows 10/8/7">📦 Driver</button>
-                <select id="soundboxPortSelect"
-                  style="font-size:11px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);cursor:pointer;min-width:115px;max-width:150px"
-                  title="Select COM port for NiZi USB Soundbox" onchange="onSoundboxPortSelected(this.value)">
-                  <option value="">Detecting Ports...</option>
-                </select>
-                <button id="niziRefreshPortsBtn" class="btn secondary" style="font-size:11px;padding:6px 8px"
-                  onclick="loadSoundboxPorts(true)" title="Refresh available COM ports">🔄</button>
-                <button id="niziUsbConnectBtn" class="btn secondary" style="font-size:11px;padding:6px 10px"
-                  onclick="connectSelectedSoundboxPort()">🔌 CONNECT USB</button>
-              </div>
-            </div>
-            <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W
-              Speaker Soundbox</div>
-
-            <div class="nizi-device">
-              <div class="nizi-header">
-                <span>NiZi POS B33</span>
-                <span id="niziScreenClock">--:--</span>
-              </div>
-              <div id="niziScreen" class="nizi-screen">
-                <div class="nizi-logo-badge">
-                  <img src="assets/clinic-logo.png" style="width:64px;height:64px;object-fit:contain;display:block"
-                    alt="Infinity Dental">
-                </div>
-                <div style="font-size:13px;font-weight:800;letter-spacing:.5px">INFINITY DENTAL</div>
-                <div class="nizi-sub">Welcome to Clinic</div>
-                <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment
-                </div>
-              </div>
-              <div class="nizi-speaker-grille">
-                <div class="nizi-speaker-dot"></div>
-                <div class="nizi-speaker-dot"></div>
-                <div class="nizi-speaker-dot"></div>
-                <div class="nizi-speaker-dot"></div>
-                <div class="nizi-speaker-dot"></div>
-              </div>
-            </div>
-            <div class="nizi-stand"></div>
-
-            <div style="width:100%;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziChime()">🔊 Test
-                Sound</button>
-              <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziSuccessScreen()">✨
-                Test Success</button>
-              <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="resetNiziScreen()">↺ Reset
-                Screen</button>
-              <button class="btn secondary" style="font-size:11px;padding:8px 4px" onclick="testNiziQr()">📱 Test QR
-                Display</button>
-            </div>
-
-            <div style="width:100%;margin-top:8px">
-              <button class="btn btn-wifi" id="niziShowWifiBtn" style="width:100%;font-size:12px;padding:10px"
-                onclick="showWifiOnNiziBox()" title="Show Clinic Guest Wi-Fi QR on NiZi POS soundbox screen">
-                📶 SHOW WI-FI QR ON NIZI BOX
-              </button>
-            </div>
-
-            <!-- Wi-Fi Card for Admins & Managers -->
-            <div class="card"
-              style="width:100%;margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;box-sizing:border-box">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;color:#0369a1">
-                  <span>📶</span> <span>Clinic Guest Wi-Fi</span>
-                </div>
-                <span class="badge" style="background:#0284c7;color:#fff;font-size:9.5px;font-weight:700">Admin /
-                  Manager</span>
-              </div>
-              <div class="muted" style="font-size:11px;line-height:1.4">
-                Network: <b id="niziWifiSsidLabel" style="color:var(--text)">Infinity Dental Guest</b><br>
-                Allow waiting payers &amp; patients to scan NiZi box to connect to clinic Wi-Fi.
-              </div>
-              <div style="display:flex;gap:6px;margin-top:8px">
-                <button class="btn secondary" style="font-size:11px;padding:6px 8px;flex:1" onclick="openWifiModal()"
-                  title="Insert or update Wi-Fi credentials">⚙️ Configure Wi-Fi</button>
-                <button class="btn secondary" style="font-size:11px;padding:6px 8px" onclick="printWifiStandCard()"
-                  title="Print reception table stand">🖨️ Print Stand</button>
-              </div>
-            </div>
-          </div>
-
+        <div style="margin-top:20px">
           <!-- Right: Dynamic QR Test Terminal & Logs -->
           <div>
             <div class="card">
@@ -828,877 +864,872 @@
             </div>
           </div>
         </div>
-      </section>
+  </section>
 
-      <!-- Staff & Accounts Management Page (Super Admin Only) -->
-      <section id="staff" class="page">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
-          <div>
-            <div class="title">Staff Accounts &amp; Access Management</div>
-            <div class="muted">Super Admin portal: create and manage Manager login IDs (starting with 'm') and
-              passwords.</div>
+  <!-- Staff & Accounts Management Page (Super Admin Only) -->
+  <section id="staff" class="page">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="title">Staff Accounts &amp; Access Management</div>
+        <div class="muted">Super Admin portal: create and manage Manager login IDs (starting with 'm') and
+          passwords.</div>
+      </div>
+      <div class="badge" style="background:#e0f2fe;color:#0369a1;font-size:12px;padding:6px 12px">
+        🛡️ Super Admin Control Center
+      </div>
+    </div>
+
+    <div class="cards" style="margin-top:16px;grid-template-columns:repeat(3,1fr)">
+      <div class="card">
+        <div class="muted">Total Accounts</div>
+        <div class="stat" id="statStaffTotal">2</div>
+      </div>
+      <div class="card">
+        <div class="muted">Manager Accounts (ID: m...)</div>
+        <div class="stat" id="statStaffManagers" style="color:#0284c7">1</div>
+      </div>
+      <div class="card">
+        <div class="muted">Super Admin Accounts</div>
+        <div class="stat" id="statStaffAdmins" style="color:#15803d">1</div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:18px;align-items:start">
+      <!-- Card 1: Create Manager Account -->
+      <div class="card">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px">
+          <span>👤</span>
+          <span>Create Manager Login</span>
+        </div>
+        <div class="muted" style="margin-bottom:14px">
+          Manager IDs must start with the letter <b>'m'</b> (example: <code>m123456</code>, <code>m101</code>). The
+          manager will log in using this ID and password.
+        </div>
+
+        <div class="field" style="margin-bottom:12px">
+          <label>Manager User ID * <span style="font-size:11px;color:#0284c7;font-weight:600">(Must start with
+              'm')</span></label>
+          <div style="display:flex;gap:6px">
+            <input id="newManagerUsername" placeholder="e.g. m123456" oninput="validateManagerIdInput()" style="flex:1">
+            <button class="btn secondary" type="button" onclick="generateRandomManagerId()"
+              title="Auto-generate ID starting with 'm'">🎲 Generate ID</button>
           </div>
-          <div class="badge" style="background:#e0f2fe;color:#0369a1;font-size:12px;padding:6px 12px">
-            🛡️ Super Admin Control Center
+          <div id="managerIdValidationHint" style="font-size:11px;margin-top:3px;color:#64748b">Example: m123456
+            (User ID starts with 'm')</div>
+        </div>
+
+        <div class="field" style="margin-bottom:12px">
+          <label>Manager Full Name / Staff Name *</label>
+          <input id="newManagerName" placeholder="e.g. Ramesh Shrestha (Front Desk)">
+        </div>
+
+        <div class="field" style="margin-bottom:14px">
+          <label>Login Password *</label>
+          <div style="display:flex;gap:6px">
+            <input id="newManagerPassword" type="password" placeholder="Enter password (min 4 chars)" style="flex:1">
+            <button class="btn secondary" type="button" onclick="togglePasswordVisibility('newManagerPassword')"
+              title="Show/Hide">👁️</button>
+            <button class="btn secondary" type="button" onclick="generateRandomPassword('newManagerPassword')"
+              title="Suggest Password">🎲 Suggest</button>
           </div>
         </div>
 
-        <div class="cards" style="margin-top:16px;grid-template-columns:repeat(3,1fr)">
-          <div class="card">
-            <div class="muted">Total Accounts</div>
-            <div class="stat" id="statStaffTotal">2</div>
-          </div>
-          <div class="card">
-            <div class="muted">Manager Accounts (ID: m...)</div>
-            <div class="stat" id="statStaffManagers" style="color:#0284c7">1</div>
-          </div>
-          <div class="card">
-            <div class="muted">Super Admin Accounts</div>
-            <div class="stat" id="statStaffAdmins" style="color:#15803d">1</div>
+        <div id="createManagerAlert"
+          style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
+
+        <button class="btn primary" style="width:100%" onclick="submitCreateManager()">+ CREATE MANAGER
+          ACCOUNT</button>
+      </div>
+
+      <!-- Card 2: Super Admin Credentials -->
+      <div class="card">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px">
+          <span>🛡️</span>
+          <span>Super Admin Credentials</span>
+        </div>
+        <div class="muted" style="margin-bottom:14px">
+          Super Admin login ID has no symbolic prefix requirement (standard username). Update your username and
+          master password below.
+        </div>
+
+        <div class="field" style="margin-bottom:12px">
+          <label>Super Admin Username * <span style="font-size:11px;color:#64748b;font-weight:600">(No symbolic
+              prefix required)</span></label>
+          <input id="adminUsernameInput" value="admin" placeholder="e.g. admin">
+        </div>
+
+        <div class="field" style="margin-bottom:12px">
+          <label>New Password (leave blank to keep current)</label>
+          <div style="display:flex;gap:6px">
+            <input id="adminPasswordInput" type="password" placeholder="Enter new password" style="flex:1">
+            <button class="btn secondary" type="button" onclick="togglePasswordVisibility('adminPasswordInput')"
+              title="Show/Hide">👁️</button>
           </div>
         </div>
 
-        <div class="grid2" style="margin-top:18px;align-items:start">
-          <!-- Card 1: Create Manager Account -->
-          <div class="card">
-            <div class="section-title" style="display:flex;align-items:center;gap:8px">
-              <span>👤</span>
-              <span>Create Manager Login</span>
-            </div>
-            <div class="muted" style="margin-bottom:14px">
-              Manager IDs must start with the letter <b>'m'</b> (example: <code>m123456</code>, <code>m101</code>). The
-              manager will log in using this ID and password.
-            </div>
-
-            <div class="field" style="margin-bottom:12px">
-              <label>Manager User ID * <span style="font-size:11px;color:#0284c7;font-weight:600">(Must start with
-                  'm')</span></label>
-              <div style="display:flex;gap:6px">
-                <input id="newManagerUsername" placeholder="e.g. m123456" oninput="validateManagerIdInput()"
-                  style="flex:1">
-                <button class="btn secondary" type="button" onclick="generateRandomManagerId()"
-                  title="Auto-generate ID starting with 'm'">🎲 Generate ID</button>
-              </div>
-              <div id="managerIdValidationHint" style="font-size:11px;margin-top:3px;color:#64748b">Example: m123456
-                (User ID starts with 'm')</div>
-            </div>
-
-            <div class="field" style="margin-bottom:12px">
-              <label>Manager Full Name / Staff Name *</label>
-              <input id="newManagerName" placeholder="e.g. Ramesh Shrestha (Front Desk)">
-            </div>
-
-            <div class="field" style="margin-bottom:14px">
-              <label>Login Password *</label>
-              <div style="display:flex;gap:6px">
-                <input id="newManagerPassword" type="password" placeholder="Enter password (min 4 chars)"
-                  style="flex:1">
-                <button class="btn secondary" type="button" onclick="togglePasswordVisibility('newManagerPassword')"
-                  title="Show/Hide">👁️</button>
-                <button class="btn secondary" type="button" onclick="generateRandomPassword('newManagerPassword')"
-                  title="Suggest Password">🎲 Suggest</button>
-              </div>
-            </div>
-
-            <div id="createManagerAlert"
-              style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
-
-            <button class="btn primary" style="width:100%" onclick="submitCreateManager()">+ CREATE MANAGER
-              ACCOUNT</button>
-          </div>
-
-          <!-- Card 2: Super Admin Credentials -->
-          <div class="card">
-            <div class="section-title" style="display:flex;align-items:center;gap:8px">
-              <span>🛡️</span>
-              <span>Super Admin Credentials</span>
-            </div>
-            <div class="muted" style="margin-bottom:14px">
-              Super Admin login ID has no symbolic prefix requirement (standard username). Update your username and
-              master password below.
-            </div>
-
-            <div class="field" style="margin-bottom:12px">
-              <label>Super Admin Username * <span style="font-size:11px;color:#64748b;font-weight:600">(No symbolic
-                  prefix required)</span></label>
-              <input id="adminUsernameInput" value="admin" placeholder="e.g. admin">
-            </div>
-
-            <div class="field" style="margin-bottom:12px">
-              <label>New Password (leave blank to keep current)</label>
-              <div style="display:flex;gap:6px">
-                <input id="adminPasswordInput" type="password" placeholder="Enter new password" style="flex:1">
-                <button class="btn secondary" type="button" onclick="togglePasswordVisibility('adminPasswordInput')"
-                  title="Show/Hide">👁️</button>
-              </div>
-            </div>
-
-            <div class="field" style="margin-bottom:14px">
-              <label>Confirm New Password</label>
-              <input id="adminPasswordConfirmInput" type="password" placeholder="Re-enter new password">
-            </div>
-
-            <div id="updateAdminAlert"
-              style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
-
-            <button class="btn secondary" style="width:100%;font-weight:700" onclick="submitUpdateAdminCredentials()">💾
-              UPDATE SUPER ADMIN CREDENTIALS</button>
-          </div>
+        <div class="field" style="margin-bottom:14px">
+          <label>Confirm New Password</label>
+          <input id="adminPasswordConfirmInput" type="password" placeholder="Re-enter new password">
         </div>
 
-        <!-- Card 3: Staff & Manager Accounts Table -->
-        <div class="card" style="margin-top:18px">
-          <div
-            style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div>
-              <div class="section-title" style="margin:0">Active Staff &amp; Manager Accounts</div>
-              <div class="muted" style="font-size:12px">List of authorized clinic users with role and login ID.</div>
-            </div>
-            <button class="btn secondary" style="font-size:12px;padding:6px 12px" onclick="loadStaffAccounts()">🔄
-              Refresh List</button>
-          </div>
+        <div id="updateAdminAlert"
+          style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
 
-          <div class="tablewrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Role</th>
-                  <th>Login ID / Username</th>
-                  <th>Staff Name</th>
-                  <th>Status</th>
-                  <th>Created Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="staffTableRows">
-                <tr>
-                  <td colspan="6" class="empty">Loading staff accounts...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <button class="btn secondary" style="width:100%;font-weight:700" onclick="submitUpdateAdminCredentials()">💾
+          UPDATE SUPER ADMIN CREDENTIALS</button>
+      </div>
+    </div>
+
+    <!-- Card 3: Staff & Manager Accounts Table -->
+    <div class="card" style="margin-top:18px">
+      <div
+        style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="section-title" style="margin:0">Active Staff &amp; Manager Accounts</div>
+          <div class="muted" style="font-size:12px">List of authorized clinic users with role and login ID.</div>
         </div>
-      </section>
+        <button class="btn secondary" style="font-size:12px;padding:6px 12px" onclick="loadStaffAccounts()">🔄
+          Refresh List</button>
+      </div>
 
-      <!-- =========================================================================
+      <div class="tablewrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Login ID / Username</th>
+              <th>Staff Name</th>
+              <th>Status</th>
+              <th>Created Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="staffTableRows">
+            <tr>
+              <td colspan="6" class="empty">Loading staff accounts...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
      LAB WORKS MODULE
      ========================================================================= -->
-      <section id="labworks" class="page">
-        <div class="head"
-          style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
-          <div>
-            <div class="title">Lab Works</div>
-            <div class="muted">Lab assignments, delivery progress and laboratory accounts</div>
-          </div>
-          <div class="actions">
-            <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
-            <button class="btn primary" onclick="labTab('new')">＋ Assign Lab Work</button>
-          </div>
-        </div>
-        <div class="tabs">
-          <button class="tab active" onclick="labTab('overview')" id="lt-overview">Overview</button>
-          <button class="tab" onclick="labTab('records')" id="lt-records">Lab Work Records</button>
-          <button class="tab" onclick="labTab('new')" id="lt-new">New Assignment</button>
-          <button class="tab" onclick="labTab('accounts')" id="lt-accounts">Lab Accounts (Admin)</button>
-          <button class="tab" onclick="labTab('history')" id="lt-history">Previous Months (Admin)</button>
-          <button class="tab" onclick="labTab('delete')" id="lt-delete">Delete Records (Admin)</button>
-        </div>
-        <div id="lab-overview">
-          <div class="cards c5" id="lo-cards"></div>
-          <div class="cols">
-            <div class="panel">
-              <div class="ph">Recent Lab Works</div>
-              <div class="pb">
-                <div style="overflow:auto">
-                  <table class="table" data-name="Recent Lab Works">
-                    <thead>
-                      <tr>
-                        <th>OPD No.</th>
-                        <th>Patient / Work</th>
-                        <th>Lab</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody id="lo-body"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            <div class="panel">
-              <div class="ph">Workflow</div>
-              <div class="pb">
-                <b>Pending</b> → <b>Ongoing</b> → <b>To Be Received</b> → <b>Received</b> → <b>To Be Fitted</b> →
-                <b>Fitted / Completed</b>
-                <p class="foot">Every lab case is linked to the patient's OPD number and patient record in the clinic
-                  database. Charges, payments and monthly balances are admin-only.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="lab-records" class="hide">
-          <div class="panel">
-            <div class="ph">Lab Work Records</div>
-            <div class="pb">
-              <input id="lr-q" oninput="renderLab()" placeholder="Search OPD number, patient, lab or work type"
-                style="padding:9px;width:100%;margin-bottom:12px;border:1px solid var(--border);border-radius:8px">
-              <div style="overflow:auto">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>OPD No.</th>
-                      <th>Patient</th>
-                      <th>Age / Sex</th>
-                      <th>Phone</th>
-                      <th>Work</th>
-                      <th>Lab</th>
-                      <th>Sent (AD)</th>
-                      <th>Expected (BS)</th>
-                      <th>Status</th>
-                      <th class="noexp">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="lr-body"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="lab-new" class="hide">
-          <div class="panel">
-            <div class="ph">New Lab Assignment</div>
-            <div class="pb">
-              <div class="formgrid">
-                <div class="field"><label>Patient OPD Number *</label><input id="ln-opd" list="opdl"
-                    placeholder="e.g. OPD-1001" oninput="fetchPat()"></div>
-                <div class="field"><label>Laboratory *</label><select id="ln-lab">
-                    <option value="">Select lab</option>
-                    <option>Smile Lab</option>
-                    <option>Dental Craft</option>
-                    <option>Precision Dental Lab</option>
-                  </select></div>
-                <div class="field"><label>Work Type *</label><input id="ln-work" placeholder="Crown / RPD / Denture">
-                </div>
-                <div class="field"><label>Tooth Number</label><input id="ln-tooth" placeholder="e.g. 16"></div>
-                <div class="field"><label>Shade</label><input id="ln-shade" placeholder="e.g. A2"></div>
-                <div class="field"><label>Sent to Lab (AD)</label><input id="ln-sent" type="date"></div>
-                <div class="field"><label>Expected Delivery (BS)</label><input id="ln-exp" placeholder="YYYY-MM-DD">
-                </div>
-                <div class="field"><label>Estimated Lab Charge (Rs.)</label><input id="ln-charge" type="number" min="0"
-                    placeholder="0.00"></div>
-              </div>
-              <datalist id="opdl"></datalist>
-              <div id="ln-pat" class="patbox">Enter an OPD number to load patient details.</div>
-              <div class="field" style="margin-top:10px">
-                <label>Lab Instructions / Clinical Notes</label>
-                <input id="ln-ins" placeholder="Lab instructions, margin details, notes"
-                  style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px">
-              </div>
-              <div class="actions" style="margin-top:14px">
-                <button class="btn secondary" onclick="saveLab(0)">Save Draft</button>
-                <button class="btn primary" onclick="saveLab(1)">Save Assignment &amp; Dispatch</button>
-              </div>
-              <p id="ln-msg" class="foot"></p>
-            </div>
-          </div>
-        </div>
-        <div id="lab-accounts" class="hide">
-          <div class="muted" style="margin-bottom:10px">Month: <b id="ac-mname"></b> (current month)</div>
-          <div class="cards" id="ac-cards"></div>
-          <div class="panel">
-            <div class="ph">Lab Account Summary · Admin Only</div>
-            <div class="pb">
-              <div style="overflow:auto">
-                <table class="table" id="ac-tbl">
-                  <thead>
-                    <tr>
-                      <th>Laboratory</th>
-                      <th>Due from previous month</th>
-                      <th>Charge of this month</th>
-                      <th>Paid</th>
-                      <th>Outstanding</th>
-                    </tr>
-                  </thead>
-                  <tbody id="ac-body"></tbody>
-                </table>
-              </div>
-              <p class="foot">Outstanding = Due from previous month + Charge of this month − Paid. Click a lab row to
-                see cases and details.</p>
-            </div>
-          </div>
-          <div id="ac-detail"></div>
-        </div>
-        <div id="lab-history" class="hide">
-          <div class="panel">
-            <div class="ph">Month-wise Summary · Admin Only</div>
-            <div class="pb">
-              <div style="overflow:auto">
-                <table class="table" data-name="Month-wise Lab Summary">
-                  <thead>
-                    <tr>
-                      <th>Month (BS)</th>
-                      <th>Due from previous month</th>
-                      <th>Charge of this month</th>
-                      <th>Paid</th>
-                      <th>Outstanding</th>
-                    </tr>
-                  </thead>
-                  <tbody id="hs-months"></tbody>
-                </table>
-              </div>
-              <p class="foot">Previous months only. Click a month to inspect its full account breakdown.</p>
-            </div>
-          </div>
-          <div id="hs-view" class="hide">
-            <div class="muted" style="margin-bottom:10px">Viewing: <b id="hs-mname"></b></div>
-            <div class="cards" id="hs-cards"></div>
-            <div class="panel">
-              <div class="ph">Lab Account Summary · <span id="hs-pt"></span></div>
-              <div class="pb">
-                <div style="overflow:auto">
-                  <table class="table" id="hs-tbl">
-                    <thead>
-                      <tr>
-                        <th>Laboratory</th>
-                        <th>Due from previous month</th>
-                        <th>Charge of this month</th>
-                        <th>Paid</th>
-                        <th>Outstanding</th>
-                      </tr>
-                    </thead>
-                    <tbody id="hs-body"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            <div id="hs-detail"></div>
-          </div>
-        </div>
-        <div id="lab-delete" class="hide">
-          <div class="panel">
-            <div class="ph">Delete Lab Records · Admin Only</div>
-            <div class="pb">
-              <p class="foot" style="margin:0 0 10px">Deleting removes the lab case permanently. Admin PIN required.</p>
-              <div style="overflow:auto">
-                <table class="table" data-nox="1">
-                  <thead>
-                    <tr>
-                      <th>OPD No.</th>
-                      <th>Patient</th>
-                      <th>Work</th>
-                      <th>Lab</th>
-                      <th>Sent (AD)</th>
-                      <th>Status</th>
-                      <th class="noexp">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dr-lab"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- =========================================================================
-     PURCHASES & INVENTORY MODULE
-     ========================================================================= -->
-      <section id="purchases" class="page">
-        <div class="head"
-          style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
-          <div>
-            <div class="title">Purchases &amp; Inventory</div>
-            <div class="muted">Clinic purchases, suppliers and stock management</div>
-          </div>
-          <div class="actions">
-            <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
-            <button class="btn primary" onclick="buyTab('new')">＋ New Purchase</button>
-          </div>
-        </div>
-        <div class="tabs">
-          <button class="tab active" id="bt-overview" onclick="buyTab('overview')">Overview</button>
-          <button class="tab" id="bt-new" onclick="buyTab('new')">New Purchase</button>
-          <button class="tab" id="bt-suppliers" onclick="buyTab('suppliers')">Supplier Management</button>
-          <button class="tab" id="bt-records" onclick="buyTab('records')">Purchase Records</button>
-          <button class="tab" id="bt-delete" onclick="buyTab('delete')">Delete Records (Admin)</button>
-        </div>
-        <div id="buy-overview">
-          <div class="cards" id="bo-cards"></div>
-          <div class="cols">
-            <div class="panel">
-              <div class="ph">Recent Purchases</div>
-              <div class="pb">
-                <div style="overflow:auto">
-                  <table class="table" data-name="Recent Purchases">
-                    <thead>
-                      <tr>
-                        <th>Supplier / Invoice</th>
-                        <th>Date (BS)</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody id="bo-body"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            <div class="panel">
-              <div class="ph">Quick Actions</div>
-              <div class="pb quick">
-                <button type="button" onclick="buyTab('new')">＋ New Purchase<small>Enter supplier
-                    invoice</small></button>
-                <button type="button" onclick="showPage('stocks')">▣ Receive Goods<small>Confirm stock
-                    received</small></button>
-                <button type="button" onclick="showPage('stocks');stTab('moves')">⇄ Stock Movement<small>Issue / update
-                    counts</small></button>
-                <button type="button" onclick="buyTab('suppliers');supForm(1)">♙ Add Supplier<small>Supplier
-                    details</small></button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="buy-new" class="hide">
-          <div class="panel">
-            <div class="ph">New Purchase Invoice</div>
-            <div class="pb">
-              <div class="formgrid">
-                <div class="field"><label>Supplier *</label><select id="pn-sup" onchange="supChange()"></select></div>
-                <div class="field"><label>Invoice Number *</label><input id="pn-inv" placeholder="Supplier invoice no.">
-                </div>
-                <div class="field"><label>Purchase Date (BS) *</label><input id="pn-date" placeholder="YYYY-MM-DD">
-                </div>
-                <div class="field"><label>Due Date (BS)</label><input id="pn-due" placeholder="YYYY-MM-DD"></div>
-                <div class="field"><label>Amount Paid (Rs.)</label><input id="pn-paid" type="number" min="0"
-                    placeholder="0.00" oninput="calcInv()"></div>
-                <div class="field"><label>Payment Method</label><select id="pn-pm">
-                    <option>Unpaid / Credit</option>
-                    <option>Cash</option>
-                    <option>Bank Transfer</option>
-                    <option>ConnectIPS</option>
-                  </select></div>
-              </div>
-              <p class="muted" style="margin-top:14px">Delivery person</p>
-              <div class="formgrid" style="grid-template-columns:1fr 1fr">
-                <div class="field"><label>Name (pick a saved one or type a new one)</label><input id="pn-dn"
-                    list="pn-dl" oninput="dnFill()" placeholder="Who delivered the goods"></div>
-                <div class="field"><label>Phone</label><input id="pn-dp" placeholder="98XXXXXXXX"></div>
-              </div>
-              <datalist id="pn-dl"></datalist>
-              <datalist id="itemsl"></datalist>
-              <p class="muted" style="margin-top:16px">Invoice items · add as many items as the invoice contains</p>
-              <div style="overflow:auto">
-                <table class="items table">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Category</th>
-                      <th>Quantity</th>
-                      <th>Unit</th>
-                      <th>Unit Cost (Rs.)</th>
-                      <th>Line Total</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="pn-items"></tbody>
-                </table>
-              </div>
-              <div class="actions" style="margin-top:8px"><button class="btn secondary" onclick="addItem(1)">＋ Add
-                  Item</button></div>
-              <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
-                <div class="card">
-                  <div class="muted">Subtotal</div>
-                  <div id="pn-sub" class="stat num" style="font-size:20px">Rs. 0</div>
-                </div>
-                <div class="card">
-                  <div class="muted">Discount (Rs.)</div><input id="pn-disc" type="number" min="0" value="0"
-                    oninput="calcInv()"
-                    style="margin-top:4px;padding:6px;width:100%;border:1px solid var(--border);border-radius:6px">
-                </div>
-                <div class="card">
-                  <div class="muted">Invoice Total</div>
-                  <div id="pn-tot" class="stat num" style="font-size:20px;color:var(--primary)">Rs. 0</div>
-                </div>
-                <div class="card">
-                  <div class="muted">Balance Due</div>
-                  <div id="pn-bal" class="stat num" style="font-size:20px;color:#b42318">Rs. 0</div>
-                </div>
-              </div>
-              <p class="foot">Invoice entry does not increase stock. Stock is added only after goods are physically
-                received and confirmed.</p>
-              <div class="actions" style="margin-top:12px">
-                <button class="btn secondary" onclick="clearInv()">Clear Form</button>
-                <button class="btn primary" onclick="savePur()">Save Purchase</button>
-              </div>
-              <p id="pn-msg" class="foot"></p>
-            </div>
-          </div>
-        </div>
-        <div id="buy-suppliers" class="hide">
-          <div class="cards" id="bs-cards"></div>
-          <div id="sup-form" class="panel hide">
-            <div class="ph">Add Supplier</div>
-            <div class="pb">
-              <div class="formgrid">
-                <div class="field"><label>Supplier Name *</label><input id="sf-name"></div>
-                <div class="field"><label>Contact Person</label><input id="sf-contact"></div>
-                <div class="field"><label>Phone *</label><input id="sf-phone" placeholder="98XXXXXXXX"></div>
-                <div class="field"><label>Alternate Phone</label><input id="sf-alt"></div>
-                <div class="field"><label>Email</label><input id="sf-email" type="email"></div>
-                <div class="field"><label>Address</label><input id="sf-addr"></div>
-                <div class="field"><label>PAN / VAT No.</label><input id="sf-pan"></div>
-                <div class="field"><label>Credit Terms (days)</label><input id="sf-credit" type="number" min="0"></div>
-                <div class="field"><label>Opening Balance (Rs.) · admin</label><input id="sf-open" type="number"
-                    min="0"></div>
-              </div>
-              <p class="muted" style="margin-top:12px">Categories supplied</p>
-              <div class="chk" id="sf-cats"></div>
-              <p class="muted" style="margin-top:12px">Delivery person (optional · more can be added while entering
-                invoices)</p>
-              <div class="formgrid" style="grid-template-columns:1fr 1fr">
-                <div class="field"><label>Name</label><input id="sf-dn"></div>
-                <div class="field"><label>Phone</label><input id="sf-dp"></div>
-              </div>
-              <div class="actions" style="margin-top:14px">
-                <button class="btn primary" onclick="saveSup()">Save Supplier</button>
-                <button class="btn secondary" onclick="supForm(0)">Close</button>
-              </div>
-              <p id="sf-msg" class="foot"></p>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="ph">
-              <span>Supplier Management</span>
-              <button class="btn primary mini" onclick="supForm(1)">＋ Add Supplier</button>
-            </div>
-            <div class="pb">
-              <input id="bs-q" oninput="renderSup()" placeholder="Search supplier name / phone / PAN"
-                style="width:100%;padding:9px;margin-bottom:12px;border:1px solid var(--border);border-radius:8px">
-              <div style="overflow:auto">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Supplier</th>
-                      <th>Contact</th>
-                      <th>Phone</th>
-                      <th>PAN / VAT</th>
-                      <th>Categories</th>
-                      <th>Delivery persons</th>
-                      <th>Outstanding</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="bs-body"></tbody>
-                </table>
-              </div>
-              <p class="foot">Supplier balances and payment controls are admin-only.</p>
-            </div>
-          </div>
-        </div>
-        <div id="buy-records" class="hide">
-          <div class="panel">
-            <div class="ph">Purchase Records</div>
-            <div class="pb">
-              <div class="filters" style="grid-template-columns:2fr 1fr 1fr 1fr">
-                <input id="pr-q" placeholder="Search invoice / supplier / item / delivery person" oninput="renderPur()">
-                <input id="pr-from" placeholder="From date (BS)" oninput="renderPur()">
-                <input id="pr-to" placeholder="To date (BS)" oninput="renderPur()">
-                <select id="pr-st" onchange="renderPur()">
-                  <option>All receipt statuses</option>
-                  <option>Pending</option>
-                  <option>Partial</option>
-                  <option>Received</option>
-                </select>
-              </div>
-              <div style="overflow:auto">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Invoice</th>
-                      <th>Supplier</th>
-                      <th>Date (BS)</th>
-                      <th>Items</th>
-                      <th>Total</th>
-                      <th>Paid</th>
-                      <th>Balance</th>
-                      <th>Delivery person</th>
-                      <th>Receipt</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pr-body"></tbody>
-                </table>
-              </div>
-              <p class="foot">Click an invoice to see all its items.</p>
-            </div>
-          </div>
-          <div id="pr-detail"></div>
-        </div>
-        <div id="buy-delete" class="hide">
-          <div class="panel">
-            <div class="ph">Suppliers · Deactivate or Delete</div>
-            <div class="pb">
-              <p class="foot" style="margin:0 0 10px">A supplier that has invoices cannot be deleted. Delete those
-                invoices first, or deactivate the supplier instead. Admin PIN required.</p>
-              <div style="overflow:auto">
-                <table class="table" data-nox="1">
-                  <thead>
-                    <tr>
-                      <th>Supplier</th>
-                      <th>Phone</th>
-                      <th>Invoices</th>
-                      <th>Status</th>
-                      <th class="noexp">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dr-sup"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="ph">Purchase Invoices · Delete</div>
-            <div class="pb">
-              <div style="overflow:auto">
-                <table class="table" data-nox="1">
-                  <thead>
-                    <tr>
-                      <th>Invoice</th>
-                      <th>Supplier</th>
-                      <th>Date (BS)</th>
-                      <th>Items</th>
-                      <th>Total</th>
-                      <th class="noexp">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dr-pur"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- =========================================================================
-     STOCKS & INVENTORY MODULE
-     ========================================================================= -->
-      <section id="stocks" class="page">
-        <div class="head"
-          style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
-          <div>
-            <div class="title">Stocks &amp; Inventory</div>
-            <div class="muted">Stock count, daily usage and movement history</div>
-          </div>
-          <div class="actions">
-            <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
-            <button class="btn primary" onclick="stTab('update')">✎ Update Count</button>
-          </div>
-        </div>
-        <div class="tabs">
-          <button class="tab active" id="st-list" onclick="stTab('list')">Stock List</button>
-          <button class="tab" id="st-update" onclick="stTab('update')">Update Count</button>
-          <button class="tab" id="st-moves" onclick="stTab('moves')">Movements</button>
-          <button class="tab" id="st-loc" onclick="stTab('loc')">Locations</button>
-          <button class="tab" id="st-delete" onclick="stTab('delete')">Delete Records (Admin)</button>
-        </div>
-        <div id="stock-list">
-          <div class="cards">
-            <div class="card">
-              <div class="muted">Stock Items</div>
-              <div class="stat num" id="c-items">0</div>
-            </div>
-            <div class="card">
-              <div class="muted">Low / Out of Stock</div>
-              <div class="stat num" id="c-low">0</div>
-            </div>
-            <div class="card">
-              <div class="muted">Expiring ≤ 90 Days</div>
-              <div class="stat num" id="c-exp">0</div>
-            </div>
-            <div class="card">
-              <div class="muted">Locations</div>
-              <div class="stat num">4</div>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="ph">Current Stock</div>
-            <div class="pb">
-              <div class="filters">
-                <input id="f-q" placeholder="Search item / batch" oninput="renderStock()">
-                <select id="f-loc" onchange="renderStock()">
-                  <option>All Locations</option>
-                  <option>Main Store</option>
-                  <option>Surgery Room</option>
-                  <option>Sterilization Room</option>
-                  <option>OPD Cabinet</option>
-                </select>
-                <select id="f-st" onchange="renderStock()">
-                  <option>All Status</option>
-                  <option>Low Stock</option>
-                  <option>Out of Stock</option>
-                  <option>Expiring Soon</option>
-                  <option>Expired</option>
-                </select>
-              </div>
-              <div style="overflow:auto">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Batch</th>
-                      <th>Location</th>
-                      <th>Available</th>
-                      <th>Expiry</th>
-                      <th>Status</th>
-                      <th class="noexp">Quick use</th>
-                    </tr>
-                  </thead>
-                  <tbody id="stock-body"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="stock-update" class="hide">
-          <div class="cols">
-            <div>
-              <div class="panel">
-                <div class="ph">Update Stock Count</div>
-                <div class="pb">
-                  <div class="field" style="margin-bottom:10px"><label>Item</label><select id="u-item"
-                      onchange="showCur()"></select></div>
-                  <div class="field" style="margin-bottom:10px"><label>Current count</label>
-                    <div class="stat num" id="u-cur" style="margin:0;font-size:24px">—</div>
-                  </div>
-                  <div class="formgrid" style="grid-template-columns:1fr 1fr">
-                    <div class="field"><label>Action</label><select id="u-type" onchange="showCur()">
-                        <option value="use">Used / Issued (−)</option>
-                        <option value="waste">Damaged / Wasted (−)</option>
-                        <option value="add">Received / Added (+)</option>
-                        <option value="set">Physical count (set exact)</option>
-                        <option value="remove">Item used up – remove from list</option>
-                      </select></div>
-                    <div class="field"><label id="u-ql">Quantity</label><input id="u-qty" type="number" min="0"
-                        value="1"></div>
-                  </div>
-                  <div class="field" style="margin:10px 0"><label>Note (patient / reason, optional)</label><input
-                      id="u-note" placeholder="e.g. Used for Patient 1001, tooth 16"></div>
-                  <p class="foot" id="u-prev"></p>
-                  <div class="actions"><button class="btn primary" onclick="applyUpdate()">Update Count</button></div>
-                  <p id="u-msg" class="foot" style="color:#21804b"></p>
-                </div>
-              </div>
-              <div class="panel" style="margin-top:16px">
-                <div class="ph">Update from Phone · Scan QR</div>
-                <div class="pb">
-                  <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
-                    <div id="qr"
-                      style="width:170px;height:170px;flex:none;background:#fff;padding:8px;border:1px solid var(--border);border-radius:10px">
-                    </div>
-                    <div style="flex:1;min-width:210px">
-                      <p style="margin:0 0 8px">Scan with a phone on clinic Wi-Fi to open mobile stock updater. Updates
-                        update the shared database immediately in real time.</p>
-                      <div class="field"><label>Address of this app on the clinic Wi-Fi</label><input id="qr-addr"
-                          placeholder="http://192.168.1.10:3000" oninput="drawQR()"></div>
-                      <p class="foot" id="qr-warn"></p>
-                      <div class="actions" style="margin-top:8px">
-                        <button class="btn secondary mini" onclick="refreshPhoneNetworkQr()">🔄 Auto-Detect LAN
-                          IP</button>
-                        <button class="btn secondary mini"
-                          onclick="window.open((document.getElementById('qr-addr').value||location.origin)+'/?phone=stock','_blank')">Preview
-                          phone form</button>
-                      </div>
-                    </div>
-                  </div>
-                  <p class="foot" id="qr-url" style="word-break:break-all;margin-top:10px"></p>
-                </div>
-              </div>
-            </div>
-            <div class="panel">
-              <div class="ph">Recent Updates</div>
-              <div class="pb">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Item</th>
-                      <th>Change</th>
-                      <th>Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody id="recent-body"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="stock-moves" class="hide">
-          <div class="panel">
-            <div class="ph">
-              <span>Stock Movements</span>
-              <button class="btn secondary mini" onclick="resetStock()">Reset sample data</button>
-            </div>
-            <div class="pb" style="overflow:auto">
-              <table class="table">
+  <section id="labworks" class="page">
+    <div class="head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+      <div>
+        <div class="title">Lab Works</div>
+        <div class="muted">Lab assignments, delivery progress and laboratory accounts</div>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
+        <button class="btn primary" onclick="labTab('new')">＋ Assign Lab Work</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="labTab('overview')" id="lt-overview">Overview</button>
+      <button class="tab" onclick="labTab('records')" id="lt-records">Lab Work Records</button>
+      <button class="tab" onclick="labTab('new')" id="lt-new">New Assignment</button>
+      <button class="tab" onclick="labTab('accounts')" id="lt-accounts">Lab Accounts (Admin)</button>
+      <button class="tab" onclick="labTab('history')" id="lt-history">Previous Months (Admin)</button>
+      <button class="tab" onclick="labTab('delete')" id="lt-delete">Delete Records (Admin)</button>
+    </div>
+    <div id="lab-overview">
+      <div class="cards c5" id="lo-cards"></div>
+      <div class="cols">
+        <div class="panel">
+          <div class="ph">Recent Lab Works</div>
+          <div class="pb">
+            <div style="overflow:auto">
+              <table class="table" data-name="Recent Lab Works">
                 <thead>
                   <tr>
-                    <th>Date / Time</th>
-                    <th>Item</th>
-                    <th>Location</th>
-                    <th>Type</th>
-                    <th>Qty</th>
-                    <th>Before → After</th>
-                    <th>Note</th>
+                    <th>OPD No.</th>
+                    <th>Patient / Work</th>
+                    <th>Lab</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
-                <tbody id="moves-body"></tbody>
+                <tbody id="lo-body"></tbody>
               </table>
             </div>
           </div>
         </div>
-        <div id="stock-loc" class="hide">
-          <div class="panel">
-            <div class="ph">Storage Locations</div>
-            <div class="pb">
-              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-                <span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:13px;padding:6px 14px">Main
-                  Store</span>
-                <span class="badge" style="background:#dcfce7;color:#15803d;font-size:13px;padding:6px 14px">Surgery
-                  Room</span>
-                <span class="badge"
-                  style="background:#fef3c7;color:#b45309;font-size:13px;padding:6px 14px">Sterilization Room</span>
-                <span class="badge" style="background:#f3e8ff;color:#7e22ce;font-size:13px;padding:6px 14px">OPD
-                  Cabinet</span>
-              </div>
-              <p class="foot">Expiry alert triggers 90 days before expiry date. All counts and movements are saved in
-                the shared SQLite database.</p>
+        <div class="panel">
+          <div class="ph">Workflow</div>
+          <div class="pb">
+            <b>Pending</b> → <b>Ongoing</b> → <b>To Be Received</b> → <b>Received</b> → <b>To Be Fitted</b> →
+            <b>Fitted / Completed</b>
+            <p class="foot">Every lab case is linked to the patient's OPD number and patient record in the clinic
+              database. Charges, payments and monthly balances are admin-only.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="lab-records" class="hide">
+      <div class="panel">
+        <div class="ph">Lab Work Records</div>
+        <div class="pb">
+          <input id="lr-q" oninput="renderLab()" placeholder="Search OPD number, patient, lab or work type"
+            style="padding:9px;width:100%;margin-bottom:12px;border:1px solid var(--border);border-radius:8px">
+          <div style="overflow:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>OPD No.</th>
+                  <th>Patient</th>
+                  <th>Age / Sex</th>
+                  <th>Phone</th>
+                  <th>Work</th>
+                  <th>Lab</th>
+                  <th>Sent (AD)</th>
+                  <th>Expected (BS)</th>
+                  <th>Status</th>
+                  <th class="noexp">Action</th>
+                </tr>
+              </thead>
+              <tbody id="lr-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="lab-new" class="hide">
+      <div class="panel">
+        <div class="ph">New Lab Assignment</div>
+        <div class="pb">
+          <div class="formgrid">
+            <div class="field"><label>Patient OPD Number *</label><input id="ln-opd" list="opdl"
+                placeholder="e.g. OPD-1001" oninput="fetchPat()"></div>
+            <div class="field"><label>Laboratory *</label><select id="ln-lab">
+                <option value="">Select lab</option>
+                <option>Smile Lab</option>
+                <option>Dental Craft</option>
+                <option>Precision Dental Lab</option>
+              </select></div>
+            <div class="field"><label>Work Type *</label><input id="ln-work" placeholder="Crown / RPD / Denture">
+            </div>
+            <div class="field"><label>Tooth Number</label><input id="ln-tooth" placeholder="e.g. 16"></div>
+            <div class="field"><label>Shade</label><input id="ln-shade" placeholder="e.g. A2"></div>
+            <div class="field"><label>Sent to Lab (AD)</label><input id="ln-sent" type="date"></div>
+            <div class="field"><label>Expected Delivery (BS)</label><input id="ln-exp" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="field"><label>Estimated Lab Charge (Rs.)</label><input id="ln-charge" type="number" min="0"
+                placeholder="0.00"></div>
+          </div>
+          <datalist id="opdl"></datalist>
+          <div id="ln-pat" class="patbox">Enter an OPD number to load patient details.</div>
+          <div class="field" style="margin-top:10px">
+            <label>Lab Instructions / Clinical Notes</label>
+            <input id="ln-ins" placeholder="Lab instructions, margin details, notes"
+              style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px">
+          </div>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn secondary" onclick="saveLab(0)">Save Draft</button>
+            <button class="btn primary" onclick="saveLab(1)">Save Assignment &amp; Dispatch</button>
+          </div>
+          <p id="ln-msg" class="foot"></p>
+        </div>
+      </div>
+    </div>
+    <div id="lab-accounts" class="hide">
+      <div class="muted" style="margin-bottom:10px">Month: <b id="ac-mname"></b> (current month)</div>
+      <div class="cards" id="ac-cards"></div>
+      <div class="panel">
+        <div class="ph">Lab Account Summary · Admin Only</div>
+        <div class="pb">
+          <div style="overflow:auto">
+            <table class="table" id="ac-tbl">
+              <thead>
+                <tr>
+                  <th>Laboratory</th>
+                  <th>Due from previous month</th>
+                  <th>Charge of this month</th>
+                  <th>Paid</th>
+                  <th>Outstanding</th>
+                </tr>
+              </thead>
+              <tbody id="ac-body"></tbody>
+            </table>
+          </div>
+          <p class="foot">Outstanding = Due from previous month + Charge of this month − Paid. Click a lab row to
+            see cases and details.</p>
+        </div>
+      </div>
+      <div id="ac-detail"></div>
+    </div>
+    <div id="lab-history" class="hide">
+      <div class="panel">
+        <div class="ph">Month-wise Summary · Admin Only</div>
+        <div class="pb">
+          <div style="overflow:auto">
+            <table class="table" data-name="Month-wise Lab Summary">
+              <thead>
+                <tr>
+                  <th>Month (BS)</th>
+                  <th>Due from previous month</th>
+                  <th>Charge of this month</th>
+                  <th>Paid</th>
+                  <th>Outstanding</th>
+                </tr>
+              </thead>
+              <tbody id="hs-months"></tbody>
+            </table>
+          </div>
+          <p class="foot">Previous months only. Click a month to inspect its full account breakdown.</p>
+        </div>
+      </div>
+      <div id="hs-view" class="hide">
+        <div class="muted" style="margin-bottom:10px">Viewing: <b id="hs-mname"></b></div>
+        <div class="cards" id="hs-cards"></div>
+        <div class="panel">
+          <div class="ph">Lab Account Summary · <span id="hs-pt"></span></div>
+          <div class="pb">
+            <div style="overflow:auto">
+              <table class="table" id="hs-tbl">
+                <thead>
+                  <tr>
+                    <th>Laboratory</th>
+                    <th>Due from previous month</th>
+                    <th>Charge of this month</th>
+                    <th>Paid</th>
+                    <th>Outstanding</th>
+                  </tr>
+                </thead>
+                <tbody id="hs-body"></tbody>
+              </table>
             </div>
           </div>
         </div>
-        <div id="stock-delete" class="hide">
-          <div class="panel">
-            <div class="ph">Delete Stock Items · Admin Only</div>
-            <div class="pb">
-              <p class="foot" style="margin:0 0 10px">Movement history is kept permanently as an audit record. Admin PIN
-                required.</p>
-              <div style="overflow:auto">
-                <table class="table" data-nox="1">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Batch</th>
-                      <th>Location</th>
-                      <th>Available</th>
-                      <th>Expiry</th>
-                      <th class="noexp">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dr-stock"></tbody>
-                </table>
-              </div>
-            </div>
+        <div id="hs-detail"></div>
+      </div>
+    </div>
+    <div id="lab-delete" class="hide">
+      <div class="panel">
+        <div class="ph">Delete Lab Records · Admin Only</div>
+        <div class="pb">
+          <p class="foot" style="margin:0 0 10px">Deleting removes the lab case permanently. Admin PIN required.</p>
+          <div style="overflow:auto">
+            <table class="table" data-nox="1">
+              <thead>
+                <tr>
+                  <th>OPD No.</th>
+                  <th>Patient</th>
+                  <th>Work</th>
+                  <th>Lab</th>
+                  <th>Sent (AD)</th>
+                  <th>Status</th>
+                  <th class="noexp">Action</th>
+                </tr>
+              </thead>
+              <tbody id="dr-lab"></tbody>
+            </table>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
+  </section>
 
-    </main>
+  <!-- =========================================================================
+     PURCHASES & INVENTORY MODULE
+     ========================================================================= -->
+  <section id="purchases" class="page">
+    <div class="head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+      <div>
+        <div class="title">Purchases &amp; Inventory</div>
+        <div class="muted">Clinic purchases, suppliers and stock management</div>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
+        <button class="btn primary" onclick="buyTab('new')">＋ New Purchase</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="bt-overview" onclick="buyTab('overview')">Overview</button>
+      <button class="tab" id="bt-new" onclick="buyTab('new')">New Purchase</button>
+      <button class="tab" id="bt-suppliers" onclick="buyTab('suppliers')">Supplier Management</button>
+      <button class="tab" id="bt-records" onclick="buyTab('records')">Purchase Records</button>
+      <button class="tab" id="bt-delete" onclick="buyTab('delete')">Delete Records (Admin)</button>
+    </div>
+    <div id="buy-overview">
+      <div class="cards" id="bo-cards"></div>
+      <div class="cols">
+        <div class="panel">
+          <div class="ph">Recent Purchases</div>
+          <div class="pb">
+            <div style="overflow:auto">
+              <table class="table" data-name="Recent Purchases">
+                <thead>
+                  <tr>
+                    <th>Supplier / Invoice</th>
+                    <th>Date (BS)</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="bo-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph">Quick Actions</div>
+          <div class="pb quick">
+            <button type="button" onclick="buyTab('new')">＋ New Purchase<small>Enter supplier
+                invoice</small></button>
+            <button type="button" onclick="showPage('stocks')">▣ Receive Goods<small>Confirm stock
+                received</small></button>
+            <button type="button" onclick="showPage('stocks');stTab('moves')">⇄ Stock Movement<small>Issue / update
+                counts</small></button>
+            <button type="button" onclick="buyTab('suppliers');supForm(1)">♙ Add Supplier<small>Supplier
+                details</small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="buy-new" class="hide">
+      <div class="panel">
+        <div class="ph">New Purchase Invoice</div>
+        <div class="pb">
+          <div class="formgrid">
+            <div class="field"><label>Supplier *</label><select id="pn-sup" onchange="supChange()"></select></div>
+            <div class="field"><label>Invoice Number *</label><input id="pn-inv" placeholder="Supplier invoice no.">
+            </div>
+            <div class="field"><label>Purchase Date (BS) *</label><input id="pn-date" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="field"><label>Due Date (BS)</label><input id="pn-due" placeholder="YYYY-MM-DD"></div>
+            <div class="field"><label>Amount Paid (Rs.)</label><input id="pn-paid" type="number" min="0"
+                placeholder="0.00" oninput="calcInv()"></div>
+            <div class="field"><label>Payment Method</label><select id="pn-pm">
+                <option>Unpaid / Credit</option>
+                <option>Cash</option>
+                <option>Bank Transfer</option>
+                <option>ConnectIPS</option>
+              </select></div>
+          </div>
+          <p class="muted" style="margin-top:14px">Delivery person</p>
+          <div class="formgrid" style="grid-template-columns:1fr 1fr">
+            <div class="field"><label>Name (pick a saved one or type a new one)</label><input id="pn-dn" list="pn-dl"
+                oninput="dnFill()" placeholder="Who delivered the goods"></div>
+            <div class="field"><label>Phone</label><input id="pn-dp" placeholder="98XXXXXXXX"></div>
+          </div>
+          <datalist id="pn-dl"></datalist>
+          <datalist id="itemsl"></datalist>
+          <p class="muted" style="margin-top:16px">Invoice items · add as many items as the invoice contains</p>
+          <div style="overflow:auto">
+            <table class="items table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Unit Cost (Rs.)</th>
+                  <th>Line Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="pn-items"></tbody>
+            </table>
+          </div>
+          <div class="actions" style="margin-top:8px"><button class="btn secondary" onclick="addItem(1)">＋ Add
+              Item</button></div>
+          <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
+            <div class="card">
+              <div class="muted">Subtotal</div>
+              <div id="pn-sub" class="stat num" style="font-size:20px">Rs. 0</div>
+            </div>
+            <div class="card">
+              <div class="muted">Discount (Rs.)</div><input id="pn-disc" type="number" min="0" value="0"
+                oninput="calcInv()"
+                style="margin-top:4px;padding:6px;width:100%;border:1px solid var(--border);border-radius:6px">
+            </div>
+            <div class="card">
+              <div class="muted">Invoice Total</div>
+              <div id="pn-tot" class="stat num" style="font-size:20px;color:var(--primary)">Rs. 0</div>
+            </div>
+            <div class="card">
+              <div class="muted">Balance Due</div>
+              <div id="pn-bal" class="stat num" style="font-size:20px;color:#b42318">Rs. 0</div>
+            </div>
+          </div>
+          <p class="foot">Invoice entry does not increase stock. Stock is added only after goods are physically
+            received and confirmed.</p>
+          <div class="actions" style="margin-top:12px">
+            <button class="btn secondary" onclick="clearInv()">Clear Form</button>
+            <button class="btn primary" onclick="savePur()">Save Purchase</button>
+          </div>
+          <p id="pn-msg" class="foot"></p>
+        </div>
+      </div>
+    </div>
+    <div id="buy-suppliers" class="hide">
+      <div class="cards" id="bs-cards"></div>
+      <div id="sup-form" class="panel hide">
+        <div class="ph">Add Supplier</div>
+        <div class="pb">
+          <div class="formgrid">
+            <div class="field"><label>Supplier Name *</label><input id="sf-name"></div>
+            <div class="field"><label>Contact Person</label><input id="sf-contact"></div>
+            <div class="field"><label>Phone *</label><input id="sf-phone" placeholder="98XXXXXXXX"></div>
+            <div class="field"><label>Alternate Phone</label><input id="sf-alt"></div>
+            <div class="field"><label>Email</label><input id="sf-email" type="email"></div>
+            <div class="field"><label>Address</label><input id="sf-addr"></div>
+            <div class="field"><label>PAN / VAT No.</label><input id="sf-pan"></div>
+            <div class="field"><label>Credit Terms (days)</label><input id="sf-credit" type="number" min="0"></div>
+            <div class="field"><label>Opening Balance (Rs.) · admin</label><input id="sf-open" type="number" min="0">
+            </div>
+          </div>
+          <p class="muted" style="margin-top:12px">Categories supplied</p>
+          <div class="chk" id="sf-cats"></div>
+          <p class="muted" style="margin-top:12px">Delivery person (optional · more can be added while entering
+            invoices)</p>
+          <div class="formgrid" style="grid-template-columns:1fr 1fr">
+            <div class="field"><label>Name</label><input id="sf-dn"></div>
+            <div class="field"><label>Phone</label><input id="sf-dp"></div>
+          </div>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn primary" onclick="saveSup()">Save Supplier</button>
+            <button class="btn secondary" onclick="supForm(0)">Close</button>
+          </div>
+          <p id="sf-msg" class="foot"></p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <span>Supplier Management</span>
+          <button class="btn primary mini" onclick="supForm(1)">＋ Add Supplier</button>
+        </div>
+        <div class="pb">
+          <input id="bs-q" oninput="renderSup()" placeholder="Search supplier name / phone / PAN"
+            style="width:100%;padding:9px;margin-bottom:12px;border:1px solid var(--border);border-radius:8px">
+          <div style="overflow:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Supplier</th>
+                  <th>Contact</th>
+                  <th>Phone</th>
+                  <th>PAN / VAT</th>
+                  <th>Categories</th>
+                  <th>Delivery persons</th>
+                  <th>Outstanding</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="bs-body"></tbody>
+            </table>
+          </div>
+          <p class="foot">Supplier balances and payment controls are admin-only.</p>
+        </div>
+      </div>
+    </div>
+    <div id="buy-records" class="hide">
+      <div class="panel">
+        <div class="ph">Purchase Records</div>
+        <div class="pb">
+          <div class="filters" style="grid-template-columns:2fr 1fr 1fr 1fr">
+            <input id="pr-q" placeholder="Search invoice / supplier / item / delivery person" oninput="renderPur()">
+            <input id="pr-from" placeholder="From date (BS)" oninput="renderPur()">
+            <input id="pr-to" placeholder="To date (BS)" oninput="renderPur()">
+            <select id="pr-st" onchange="renderPur()">
+              <option>All receipt statuses</option>
+              <option>Pending</option>
+              <option>Partial</option>
+              <option>Received</option>
+            </select>
+          </div>
+          <div style="overflow:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Supplier</th>
+                  <th>Date (BS)</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Paid</th>
+                  <th>Balance</th>
+                  <th>Delivery person</th>
+                  <th>Receipt</th>
+                </tr>
+              </thead>
+              <tbody id="pr-body"></tbody>
+            </table>
+          </div>
+          <p class="foot">Click an invoice to see all its items.</p>
+        </div>
+      </div>
+      <div id="pr-detail"></div>
+    </div>
+    <div id="buy-delete" class="hide">
+      <div class="panel">
+        <div class="ph">Suppliers · Deactivate or Delete</div>
+        <div class="pb">
+          <p class="foot" style="margin:0 0 10px">A supplier that has invoices cannot be deleted. Delete those
+            invoices first, or deactivate the supplier instead. Admin PIN required.</p>
+          <div style="overflow:auto">
+            <table class="table" data-nox="1">
+              <thead>
+                <tr>
+                  <th>Supplier</th>
+                  <th>Phone</th>
+                  <th>Invoices</th>
+                  <th>Status</th>
+                  <th class="noexp">Action</th>
+                </tr>
+              </thead>
+              <tbody id="dr-sup"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">Purchase Invoices · Delete</div>
+        <div class="pb">
+          <div style="overflow:auto">
+            <table class="table" data-nox="1">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Supplier</th>
+                  <th>Date (BS)</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th class="noexp">Action</th>
+                </tr>
+              </thead>
+              <tbody id="dr-pur"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+     STOCKS & INVENTORY MODULE
+     ========================================================================= -->
+  <section id="stocks" class="page">
+    <div class="head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+      <div>
+        <div class="title">Stocks &amp; Inventory</div>
+        <div class="muted">Stock count, daily usage and movement history</div>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
+        <button class="btn primary" onclick="stTab('update')">✎ Update Count</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="st-list" onclick="stTab('list')">Stock List</button>
+      <button class="tab" id="st-update" onclick="stTab('update')">Update Count</button>
+      <button class="tab" id="st-moves" onclick="stTab('moves')">Movements</button>
+      <button class="tab" id="st-loc" onclick="stTab('loc')">Locations</button>
+      <button class="tab" id="st-delete" onclick="stTab('delete')">Delete Records (Admin)</button>
+    </div>
+    <div id="stock-list">
+      <div class="cards">
+        <div class="card">
+          <div class="muted">Stock Items</div>
+          <div class="stat num" id="c-items">0</div>
+        </div>
+        <div class="card">
+          <div class="muted">Low / Out of Stock</div>
+          <div class="stat num" id="c-low">0</div>
+        </div>
+        <div class="card">
+          <div class="muted">Expiring ≤ 90 Days</div>
+          <div class="stat num" id="c-exp">0</div>
+        </div>
+        <div class="card">
+          <div class="muted">Locations</div>
+          <div class="stat num">4</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">Current Stock</div>
+        <div class="pb">
+          <div class="filters">
+            <input id="f-q" placeholder="Search item / batch" oninput="renderStock()">
+            <select id="f-loc" onchange="renderStock()">
+              <option>All Locations</option>
+              <option>Main Store</option>
+              <option>Surgery Room</option>
+              <option>Sterilization Room</option>
+              <option>OPD Cabinet</option>
+            </select>
+            <select id="f-st" onchange="renderStock()">
+              <option>All Status</option>
+              <option>Low Stock</option>
+              <option>Out of Stock</option>
+              <option>Expiring Soon</option>
+              <option>Expired</option>
+            </select>
+          </div>
+          <div style="overflow:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Batch</th>
+                  <th>Location</th>
+                  <th>Available</th>
+                  <th>Expiry</th>
+                  <th>Status</th>
+                  <th class="noexp">Quick use</th>
+                </tr>
+              </thead>
+              <tbody id="stock-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="stock-update" class="hide">
+      <div class="cols">
+        <div>
+          <div class="panel">
+            <div class="ph">Update Stock Count</div>
+            <div class="pb">
+              <div class="field" style="margin-bottom:10px"><label>Item</label><select id="u-item"
+                  onchange="showCur()"></select></div>
+              <div class="field" style="margin-bottom:10px"><label>Current count</label>
+                <div class="stat num" id="u-cur" style="margin:0;font-size:24px">—</div>
+              </div>
+              <div class="formgrid" style="grid-template-columns:1fr 1fr">
+                <div class="field"><label>Action</label><select id="u-type" onchange="showCur()">
+                    <option value="use">Used / Issued (−)</option>
+                    <option value="waste">Damaged / Wasted (−)</option>
+                    <option value="add">Received / Added (+)</option>
+                    <option value="set">Physical count (set exact)</option>
+                    <option value="remove">Item used up – remove from list</option>
+                  </select></div>
+                <div class="field"><label id="u-ql">Quantity</label><input id="u-qty" type="number" min="0" value="1">
+                </div>
+              </div>
+              <div class="field" style="margin:10px 0"><label>Note (patient / reason, optional)</label><input
+                  id="u-note" placeholder="e.g. Used for Patient 1001, tooth 16"></div>
+              <p class="foot" id="u-prev"></p>
+              <div class="actions"><button class="btn primary" onclick="applyUpdate()">Update Count</button></div>
+              <p id="u-msg" class="foot" style="color:#21804b"></p>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:16px">
+            <div class="ph">Update from Phone · Scan QR</div>
+            <div class="pb">
+              <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+                <div id="qr"
+                  style="width:170px;height:170px;flex:none;background:#fff;padding:8px;border:1px solid var(--border);border-radius:10px">
+                </div>
+                <div style="flex:1;min-width:210px">
+                  <p style="margin:0 0 8px">Scan with a phone on clinic Wi-Fi to open mobile stock updater. Updates
+                    update the shared database immediately in real time.</p>
+                  <div class="field"><label>Address of this app on the clinic Wi-Fi</label><input id="qr-addr"
+                      placeholder="http://192.168.1.10:3000" oninput="drawQR()"></div>
+                  <p class="foot" id="qr-warn"></p>
+                  <div class="actions" style="margin-top:8px">
+                    <button class="btn secondary mini" onclick="refreshPhoneNetworkQr()">🔄 Auto-Detect LAN
+                      IP</button>
+                    <button class="btn secondary mini"
+                      onclick="window.open((document.getElementById('qr-addr').value||location.origin)+'/?phone=stock','_blank')">Preview
+                      phone form</button>
+                  </div>
+                </div>
+              </div>
+              <p class="foot" id="qr-url" style="word-break:break-all;margin-top:10px"></p>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph">Recent Updates</div>
+          <div class="pb">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Item</th>
+                  <th>Change</th>
+                  <th>Balance</th>
+                </tr>
+              </thead>
+              <tbody id="recent-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="stock-moves" class="hide">
+      <div class="panel">
+        <div class="ph">
+          <span>Stock Movements</span>
+          <button class="btn secondary mini" onclick="resetStock()">Reset sample data</button>
+        </div>
+        <div class="pb" style="overflow:auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date / Time</th>
+                <th>Item</th>
+                <th>Location</th>
+                <th>Type</th>
+                <th>Qty</th>
+                <th>Before → After</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody id="moves-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="stock-loc" class="hide">
+      <div class="panel">
+        <div class="ph">Storage Locations</div>
+        <div class="pb">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+            <span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:13px;padding:6px 14px">Main
+              Store</span>
+            <span class="badge" style="background:#dcfce7;color:#15803d;font-size:13px;padding:6px 14px">Surgery
+              Room</span>
+            <span class="badge" style="background:#fef3c7;color:#b45309;font-size:13px;padding:6px 14px">Sterilization
+              Room</span>
+            <span class="badge" style="background:#f3e8ff;color:#7e22ce;font-size:13px;padding:6px 14px">OPD
+              Cabinet</span>
+          </div>
+          <p class="foot">Expiry alert triggers 90 days before expiry date. All counts and movements are saved in
+            the shared SQLite database.</p>
+        </div>
+      </div>
+    </div>
+    <div id="stock-delete" class="hide">
+      <div class="panel">
+        <div class="ph">Delete Stock Items · Admin Only</div>
+        <div class="pb">
+          <p class="foot" style="margin:0 0 10px">Movement history is kept permanently as an audit record. Admin PIN
+            required.</p>
+          <div style="overflow:auto">
+            <table class="table" data-nox="1">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Batch</th>
+                  <th>Location</th>
+                  <th>Available</th>
+                  <th>Expiry</th>
+                  <th class="noexp">Action</th>
+                </tr>
+              </thead>
+              <tbody id="dr-stock"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  </main>
   </div>
 
   <!-- NepalPay Dynamic QR Modal -->
@@ -1814,7 +1845,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span class="muted" style="font-size:12px">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.9</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.13</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span class="muted" style="font-size:12px">Update Server:</span>

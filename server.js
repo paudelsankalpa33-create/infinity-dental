@@ -194,7 +194,7 @@ function callNchlGenerateQr({ amount, billNumber, remarks, patientContact }) {
               if (parsed?.responseMessage) {
                 errorMsg = parsed.responseMessage;
               }
-            } catch (_) {}
+            } catch (_) { }
           }
 
           return resolve({
@@ -333,7 +333,7 @@ function callNchlCheckTxnStatus({ validationTraceId, billNumber }) {
         try {
           const json = JSON.parse(b);
           if (res.statusCode === 200 && Array.isArray(json.responseBody)) {
-            const match = json.responseBody.find(r => 
+            const match = json.responseBody.find(r =>
               (r.validationTraceId === validationTraceId || !r.validationTraceId) &&
               (r.debitStatus === '000' || r.creditStatus === '000' || r.creditStatus === 'DEFER')
             );
@@ -354,7 +354,7 @@ function callNchlCheckTxnStatus({ validationTraceId, billNumber }) {
               });
             }
           }
-        } catch (_) {}
+        } catch (_) { }
         resolve({ isPaid: false, status: 'PENDING' });
       });
     });
@@ -625,8 +625,8 @@ function initDatabase() {
     if (supCount === 0) {
       const now = new Date().toISOString();
       const seedSup = [
-        { id: '1', name: 'Dental Mart', contact: 'Ramesh', phone: '9841234567', cats: JSON.stringify(['Dental materials']), del: JSON.stringify([{n:'Bikash',p:'9841987654'}]), credit: 30, open: 0 },
-        { id: '2', name: 'Med Supplies', contact: 'Sunita', phone: '9851234568', cats: JSON.stringify(['Medicines', 'Consumables']), del: JSON.stringify([{n:'Prakash',p:'9851987655'}]), credit: 15, open: 0 },
+        { id: '1', name: 'Dental Mart', contact: 'Ramesh', phone: '9841234567', cats: JSON.stringify(['Dental materials']), del: JSON.stringify([{ n: 'Bikash', p: '9841987654' }]), credit: 30, open: 0 },
+        { id: '2', name: 'Med Supplies', contact: 'Sunita', phone: '9851234568', cats: JSON.stringify(['Medicines', 'Consumables']), del: JSON.stringify([{ n: 'Prakash', p: '9851987655' }]), credit: 15, open: 0 },
         { id: '3', name: 'Ortho Traders', contact: '', phone: '9861234569', cats: JSON.stringify(['Orthodontic materials']), del: JSON.stringify([]), credit: 0, open: 0 }
       ];
       const insertSup = db.prepare(`INSERT INTO suppliers (id, name, contact, phone, alt_phone, email, address, pan, credit_days, opening_balance, categories, delivery_persons, active, created_at, updated_at) VALUES (?, ?, ?, ?, '', '', '', '', ?, ?, ?, ?, 1, ?, ?)`);
@@ -717,7 +717,7 @@ function getClinicWifiConfig() {
     if (row && row.value) {
       return JSON.parse(row.value);
     }
-  } catch (_) {}
+  } catch (_) { }
   return {
     ssid: 'Infinity Dental Guest',
     password: '',
@@ -781,30 +781,30 @@ function generateNepalPayQrPayload({ amount, billNumber, remarks, terminalLabel,
   // Tag 29: Official NepalQR Guid & Merchant Details
   const nchlGuid = 'NCHL' + NPI_CONFIG.acquirerId + NPI_CONFIG.merchantId;
   const tag29Val = tlv('00', nchlGuid) +
-                   tlv('01', NPI_CONFIG.merchantId) +
-                   tlv('02', storeLabel || NPI_CONFIG.storeLabel || 'Store1') +
-                   tlv('03', terminalLabel || NPI_CONFIG.terminalLabel || 'Terminal1');
+    tlv('01', NPI_CONFIG.merchantId) +
+    tlv('02', storeLabel || NPI_CONFIG.storeLabel || 'Store1') +
+    tlv('03', terminalLabel || NPI_CONFIG.terminalLabel || 'Terminal1');
 
   // Tag 62: Additional Data Template
   const tag62Val = tlv('01', billNumber || ('B-' + Date.now())) +
-                   tlv('05', remarks || 'DentalBill') +
-                   tlv('07', terminalLabel || NPI_CONFIG.terminalLabel) +
-                   tlv('08', storeLabel || NPI_CONFIG.storeLabel);
+    tlv('05', remarks || 'DentalBill') +
+    tlv('07', terminalLabel || NPI_CONFIG.terminalLabel) +
+    tlv('08', storeLabel || NPI_CONFIG.storeLabel);
 
   const formattedAmount = Number(amount || 0).toFixed(2);
 
   let raw = tlv('00', '01') + // Format indicator
-            tlv('01', '12') + // 12 = Dynamic QR (contains specific amount)
-            tlv('26', tag26Val) +
-            tlv('29', tag29Val) +
-            tlv('52', String(NPI_CONFIG.merchantCategoryCode)) + // MCC 5541
-            tlv('53', '524') + // Nepalese Rupee (NPR currency code 524)
-            tlv('54', formattedAmount) + // Transaction amount
-            tlv('58', 'NP') + // Country: Nepal
-            tlv('59', NPI_CONFIG.merchantName) + // Merchant name: Infinity Dental
-            tlv('60', 'Kathmandu') + // Merchant City
-            tlv('62', tag62Val) +
-            '6304'; // CRC placeholder
+    tlv('01', '12') + // 12 = Dynamic QR (contains specific amount)
+    tlv('26', tag26Val) +
+    tlv('29', tag29Val) +
+    tlv('52', String(NPI_CONFIG.merchantCategoryCode)) + // MCC 5541
+    tlv('53', '524') + // Nepalese Rupee (NPR currency code 524)
+    tlv('54', formattedAmount) + // Transaction amount
+    tlv('58', 'NP') + // Country: Nepal
+    tlv('59', NPI_CONFIG.merchantName) + // Merchant name: Infinity Dental
+    tlv('60', 'Kathmandu') + // Merchant City
+    tlv('62', tag62Val) +
+    '6304'; // CRC placeholder
 
   const checksum = crc16Ccitt(raw);
   return raw + checksum;
@@ -841,7 +841,7 @@ function broadcastToClients(data) {
   const jsonStr = JSON.stringify(data);
   for (const client of localWsClients) {
     if (client.readyState === WebSocket.OPEN) {
-      try { client.send(jsonStr); } catch (_) {}
+      try { client.send(jsonStr); } catch (_) { }
     }
   }
 }
@@ -986,7 +986,7 @@ function subscribeToMerchantTopics() {
   if (nchlWsHeartbeatTimer) clearInterval(nchlWsHeartbeatTimer);
   nchlWsHeartbeatTimer = setInterval(() => {
     if (nchlWsClient && nchlWsClient.readyState === WebSocket.OPEN) {
-      try { nchlWsClient.send('\n'); } catch (_) {}
+      try { nchlWsClient.send('\n'); } catch (_) { }
     }
   }, 10000);
 }
@@ -1070,7 +1070,7 @@ function handleNchlWsTransactionRecord(record) {
       payload: `Payment of ${amount} rupees received successfully`,
       txnId: txnId
     };
-    forwardToNiZiAgent(niziSuccessCmd).catch(() => {});
+    forwardToNiZiAgent(niziSuccessCmd).catch(() => { });
 
     // Broadcast to localhost:3000 frontend (SSE & WebSocket)
     broadcastToClients({
@@ -1200,7 +1200,7 @@ async function openSoundboxPort(portName, isAuto = false) {
     }
     try {
       await new Promise(res => activeSoundboxPort.close(res));
-    } catch (_) {}
+    } catch (_) { }
     activeSoundboxPort = null;
   }
 
@@ -2066,7 +2066,7 @@ const server = http.createServer(async (req, res) => {
         billNumber: safeBillNo,
         title: 'Infinity Dental'
       };
-      forwardToNiZiAgent(niziCommand).catch(() => {});
+      forwardToNiZiAgent(niziCommand).catch(() => { });
       broadcastToClients({
         type: 'qr_generated',
         traceId: safeTraceId,
@@ -2104,7 +2104,7 @@ const server = http.createServer(async (req, res) => {
 
   // 7. Check Payment Status (Polls in-memory & queries live NCHL gateway)
   if ((pathname.startsWith('/api/nepalpay/status/') && req.method === 'GET') ||
-      ((pathname === '/api/nepalpay/check-status' || pathname === '/api/nepalpay/getTxnStatus' || pathname === '/qr/getTxnStatus') && (req.method === 'POST' || req.method === 'GET'))) {
+    ((pathname === '/api/nepalpay/check-status' || pathname === '/api/nepalpay/getTxnStatus' || pathname === '/qr/getTxnStatus') && (req.method === 'POST' || req.method === 'GET'))) {
     try {
       let rawId = '';
       let queryBillNumber = '';
@@ -2124,7 +2124,7 @@ const server = http.createServer(async (req, res) => {
           if (body.validationTraceId) queryTraceId = body.validationTraceId;
           if (body.billNumber) queryBillNumber = body.billNumber;
           if (!rawId) rawId = queryTraceId || queryBillNumber;
-        } catch (_) {}
+        } catch (_) { }
       }
 
       // Identify the exact validationTraceId for this QR session
@@ -2171,7 +2171,7 @@ const server = http.createServer(async (req, res) => {
 
       if (nchlStatus && nchlStatus.isPaid) {
         console.log(`[Status Poll] 🎉 NCHL PAYMENT CONFIRMED SUCCESSFUL! Txn: ${nchlStatus.txnId}, Payer: ${nchlStatus.payerName}`);
-        
+
         const finalTxnId = nchlStatus.txnId;
         const paidAmount = nchlStatus.amount || txn?.amount || 0;
         const paidBillNo = nchlStatus.billNumber || txn?.billNumber || queryBillNumber;
@@ -2203,7 +2203,7 @@ const server = http.createServer(async (req, res) => {
           payload: `Payment of ${paidAmount} rupees received successfully`,
           txnId: finalTxnId
         };
-        forwardToNiZiAgent(niziSuccessCmd).catch(() => {});
+        forwardToNiZiAgent(niziSuccessCmd).catch(() => { });
 
         // Broadcast to clients (SSE & WebSocket)
         broadcastToClients({
@@ -2291,7 +2291,7 @@ const server = http.createServer(async (req, res) => {
         payload: `Payment of ${paidAmount} rupees received successfully`,
         txnId: finalTxnId
       };
-      forwardToNiZiAgent(niziSuccessCmd).catch(() => {});
+      forwardToNiZiAgent(niziSuccessCmd).catch(() => { });
 
       // Broadcast to connected web clients (SSE & WebSocket)
       broadcastToClients({
@@ -2639,7 +2639,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const row = db.prepare("SELECT value FROM clinic_settings WHERE key='admin_delete_pin'").get();
         if (row && row.value) storedPin = row.value.trim();
-      } catch (_) {}
+      } catch (_) { }
 
       // Accepts either dedicated admin PIN or superadmin password 'admin123'
       if (cleanPin === storedPin || cleanPin === 'admin123') {

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -185,7 +186,10 @@
       gap: 8px;
     }
 
-    input[type="text"], input[type="password"], textarea, select {
+    input[type="text"],
+    input[type="password"],
+    textarea,
+    select {
       width: 100%;
       background: #0d1522;
       border: 1px solid var(--border-color);
@@ -197,7 +201,9 @@
       transition: border-color 0.2s;
     }
 
-    input:focus, textarea:focus, select:focus {
+    input:focus,
+    textarea:focus,
+    select:focus {
       border-color: var(--border-focus);
     }
 
@@ -342,6 +348,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <!-- Header -->
@@ -380,7 +387,9 @@
         <div class="form-group">
           <label>API Key (Pre-configured from Controller)</label>
           <div class="input-row">
-            <input type="password" id="key" class="mono-input" value="Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D" autocomplete="off">
+            <input type="password" id="key" class="mono-input"
+              value="Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D"
+              autocomplete="off">
             <button class="nav-btn" type="button" onclick="toggleKeyVisibility()" id="toggleKeyBtn">👁️</button>
           </div>
         </div>
@@ -393,9 +402,12 @@
         </div>
 
         <div class="input-row" style="margin-top: 14px;">
-          <button id="check" class="nav-btn primary" style="flex: 1;" onclick="checkConnection()">Check connection</button>
-          <button id="connect" class="nav-btn secondary" style="flex: 1;" onclick="connectDevice()">Connect device</button>
-          <button id="disconnect" class="nav-btn secondary" style="flex: 1;" onclick="disconnectDevice()">Disconnect</button>
+          <button id="check" class="nav-btn primary" style="flex: 1;" onclick="checkConnection()">Check
+            connection</button>
+          <button id="connect" class="nav-btn secondary" style="flex: 1;" onclick="connectDevice()">Connect
+            device</button>
+          <button id="disconnect" class="nav-btn secondary" style="flex: 1;"
+            onclick="disconnectDevice()">Disconnect</button>
         </div>
 
         <div id="status" class="status-box" role="status">Not checked · Click Check connection.</div>
@@ -420,7 +432,8 @@
 
         <div class="form-group">
           <label for="payload">QR payload (from your payment provider)</label>
-          <textarea id="payload" rows="2" class="mono-input" placeholder="Paste actual dynamic QR payload; test strings are NOT payable">00020101021226580010com.nchl.nqr01162501F6MCTZZ80215204802153035245406150.005802NP5922INFINITY DENTAL CLINIC6009KATHMANDU62190115TEST-BILL-10016304D1A2</textarea>
+          <textarea id="payload" rows="2" class="mono-input"
+            placeholder="Paste actual dynamic QR payload; test strings are NOT payable">00020101021226580010com.nchl.nqr01162501F6MCTZZ80215204802153035245406150.005802NP5922INFINITY DENTAL CLINIC6009KATHMANDU62190115TEST-BILL-10016304D1A2</textarea>
         </div>
 
         <div class="btn-grid">
@@ -479,8 +492,11 @@
     <!-- Troubleshooting Guide -->
     <div class="guide-box">
       <h4>💡 NiZi B33 Troubleshooting &amp; Setup</h4>
-      <p style="margin-bottom: 6px;">This sends display commands to the NiZi POS Soundbox. "Success" does NOT verify a bank payment. Use your payment provider's confirmed transaction status before displaying success in production.</p>
-      <p>If PowerShell or direct fetch works but browser shows Failed to fetch, the backend proxy routes automatically solve CORS by executing HTTP calls from the Node.js process.</p>
+      <p style="margin-bottom: 6px;">This sends display commands to the NiZi POS Soundbox. "Success" does NOT verify a
+        bank payment. Use your payment provider's confirmed transaction status before displaying success in production.
+      </p>
+      <p>If PowerShell or direct fetch works but browser shows Failed to fetch, the backend proxy routes automatically
+        solve CORS by executing HTTP calls from the Node.js process.</p>
     </div>
   </div>
 
@@ -670,4 +686,5 @@
     });
   </script>
 </body>
+
 </html>

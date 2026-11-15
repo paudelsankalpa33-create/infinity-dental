@@ -1,9 +1,43 @@
-const KEY='infinity_dental_patients_v1';
-const DB_NAME='InfinityDentalClinicStorage';
-const DB_STORE='settings';
-let patients=JSON.parse(localStorage.getItem(KEY)||'[]'); let selectedId=null;
-let dataDirectoryHandle=null;
-let dataFolderName='Browser Storage';
+// Global fetch rewrite for Electron file: protocol
+if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+  const _origFetch = window.fetch;
+  window.fetch = function (input, init) {
+    if (typeof input === 'string' && input.startsWith('/api')) {
+      input = 'http://localhost:3000' + input;
+    }
+    return _origFetch.call(this, input, init);
+  };
+}
+
+// Global High-Performance Floating Toast Notification System
+function showToast(message, type = 'info') {
+  let toastContainer = document.getElementById('appToastContainer');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'appToastContainer';
+    toastContainer.className = 'app-toast-container';
+    document.body.appendChild(toastContainer);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = `app-toast toast-${type}`;
+  toast.innerHTML = `<span class="toast-icon">${type === 'success' ? '✓' : type === 'warn' ? '⚠️' : 'ℹ️'}</span><span class="toast-text">${esc(message)}</span>`;
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => toast.classList.add('toast-show'), 10);
+  setTimeout(() => {
+    toast.classList.remove('toast-show');
+    toast.classList.add('toast-hide');
+    setTimeout(() => toast.remove(), 260);
+  }, 3500);
+}
+
+const KEY = 'infinity_dental_patients_v1';
+const DB_NAME = 'InfinityDentalClinicStorage';
+const DB_STORE = 'settings';
+let patients = JSON.parse(localStorage.getItem(KEY) || '[]'); let selectedId = null;
+let dataDirectoryHandle = null;
+let dataFolderName = 'Browser Storage';
 
 // --- Hoisted: NepalPay Client Config & NiZi POS Serial State ---
 const NPI_CLIENT_CONFIG = {
@@ -36,87 +70,142 @@ if (typeof fetch === 'function') {
       reader.onload = () => { clinicLogoDataUrl = reader.result; };
       reader.readAsDataURL(blob);
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
-function save(){
-  localStorage.setItem(KEY,JSON.stringify(patients));
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(patients));
   updateAll();
-  if(window.dentalDB?.save) {
-    window.dentalDB.save(patients).catch(err=>console.warn('SQLite save failed:',err));
+  if (window.dentalDB?.save) {
+    window.dentalDB.save(patients).catch(err => console.warn('SQLite save failed:', err));
   } else {
     fetch('/api/patients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patients)
-    }).catch(err=>console.warn('Localhost SQLite API save error:',err.message));
+    }).catch(err => console.warn('Localhost SQLite API save error:', err.message));
   }
-  if(dataDirectoryHandle) savePatientsToFolder().catch(err=>console.warn('Folder save failed:',err));
+  if (dataDirectoryHandle) savePatientsToFolder().catch(err => console.warn('Folder save failed:', err));
 }
 
-function openSettingsDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(DB_STORE))r.result.createObjectStore(DB_STORE)};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
-async function storeDirectoryHandle(handle){try{const db=await openSettingsDB();await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(handle,'dataDirectory');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close()}catch(e){console.warn('Could not remember data folder',e)}}
-async function getStoredDirectoryHandle(){try{const db=await openSettingsDB();const h=await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readonly');const q=tx.objectStore(DB_STORE).get('dataDirectory');q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)});db.close();return h}catch(e){return null}}
-async function ensureFolderPermission(handle){if(!handle)return false;try{let p=await handle.queryPermission({mode:'readwrite'});if(p!=='granted')p=await handle.requestPermission({mode:'readwrite'});return p==='granted'}catch(e){return false}}
-async function savePatientsToFolder(){
-  if(!dataDirectoryHandle)return;
-  const ok=await ensureFolderPermission(dataDirectoryHandle); if(!ok)return;
-  const file=await dataDirectoryHandle.getFileHandle('patients.json',{create:true});
-  const writable=await file.createWritable();
-  await writable.write(JSON.stringify(patients,null,2)); await writable.close();
-  const backups=await dataDirectoryHandle.getDirectoryHandle('Backups',{create:true});
-  const backup=await backups.getFileHandle('patients_latest.json',{create:true});
-  const bw=await backup.createWritable(); await bw.write(JSON.stringify(patients,null,2)); await bw.close();
+function openSettingsDB() { return new Promise((resolve, reject) => { const r = indexedDB.open(DB_NAME, 1); r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(DB_STORE)) r.result.createObjectStore(DB_STORE) }; r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error) }) }
+async function storeDirectoryHandle(handle) { try { const db = await openSettingsDB(); await new Promise((res, rej) => { const tx = db.transaction(DB_STORE, 'readwrite'); tx.objectStore(DB_STORE).put(handle, 'dataDirectory'); tx.oncomplete = res; tx.onerror = () => rej(tx.error) }); db.close() } catch (e) { console.warn('Could not remember data folder', e) } }
+async function getStoredDirectoryHandle() { try { const db = await openSettingsDB(); const h = await new Promise((res, rej) => { const tx = db.transaction(DB_STORE, 'readonly'); const q = tx.objectStore(DB_STORE).get('dataDirectory'); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error) }); db.close(); return h } catch (e) { return null } }
+async function ensureFolderPermission(handle) { if (!handle) return false; try { let p = await handle.queryPermission({ mode: 'readwrite' }); if (p !== 'granted') p = await handle.requestPermission({ mode: 'readwrite' }); return p === 'granted' } catch (e) { return false } }
+async function savePatientsToFolder() {
+  if (!dataDirectoryHandle) return;
+  const ok = await ensureFolderPermission(dataDirectoryHandle); if (!ok) return;
+  const file = await dataDirectoryHandle.getFileHandle('patients.json', { create: true });
+  const writable = await file.createWritable();
+  await writable.write(JSON.stringify(patients, null, 2)); await writable.close();
+  const backups = await dataDirectoryHandle.getDirectoryHandle('Backups', { create: true });
+  const backup = await backups.getFileHandle('patients_latest.json', { create: true });
+  const bw = await backup.createWritable(); await bw.write(JSON.stringify(patients, null, 2)); await bw.close();
 }
-async function loadPatientsFromFolder(handle){
-  const ok=await ensureFolderPermission(handle); if(!ok)throw new Error('Folder permission was not granted.');
-  try{const file=await handle.getFileHandle('patients.json');const f=await file.getFile();const text=await f.text();const data=JSON.parse(text);if(Array.isArray(data))patients=data;}
-  catch(e){await savePatientsToFolder();}
-  localStorage.setItem(KEY,JSON.stringify(patients));
+async function loadPatientsFromFolder(handle) {
+  const ok = await ensureFolderPermission(handle); if (!ok) throw new Error('Folder permission was not granted.');
+  try { const file = await handle.getFileHandle('patients.json'); const f = await file.getFile(); const text = await f.text(); const data = JSON.parse(text); if (Array.isArray(data)) patients = data; }
+  catch (e) { await savePatientsToFolder(); }
+  localStorage.setItem(KEY, JSON.stringify(patients));
 }
-async function selectDataFolder(){
-  if(!window.showDirectoryPicker){alert('Folder selection requires Google Chrome or Microsoft Edge. Please use one of these browsers.');return}
-  try{
-    const handle=await window.showDirectoryPicker({mode:'readwrite'});
-    const ok=await ensureFolderPermission(handle); if(!ok){alert('Permission to use this folder was not granted.');return}
-    dataDirectoryHandle=handle; dataFolderName=handle.name||'Selected Folder';
+async function selectDataFolder() {
+  if (!window.showDirectoryPicker) { alert('Folder selection requires Google Chrome or Microsoft Edge. Please use one of these browsers.'); return }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    const ok = await ensureFolderPermission(handle); if (!ok) { alert('Permission to use this folder was not granted.'); return }
+    dataDirectoryHandle = handle; dataFolderName = handle.name || 'Selected Folder';
     await storeDirectoryHandle(handle);
     await loadPatientsFromFolder(handle);
     updateDataFolderStatus(); updateAll(); renderProfile();
-    alert('Patient database is now connected to: '+dataFolderName+'\n\nA patients.json file and Backups folder will be kept there.');
-  }catch(e){if(e?.name!=='AbortError')alert('Could not connect the folder.\n'+e.message)}
+    alert('Patient database is now connected to: ' + dataFolderName + '\n\nA patients.json file and Backups folder will be kept there.');
+  } catch (e) { if (e?.name !== 'AbortError') alert('Could not connect the folder.\n' + e.message) }
 }
-async function reconnectStoredDataFolder(){
-  const h=await getStoredDirectoryHandle(); if(!h)return;
-  dataDirectoryHandle=h; dataFolderName=h.name||'Selected Folder';
-  if(await ensureFolderPermission(h)){try{await loadPatientsFromFolder(h)}catch(e){console.warn(e)}}
+async function reconnectStoredDataFolder() {
+  const h = await getStoredDirectoryHandle(); if (!h) return;
+  dataDirectoryHandle = h; dataFolderName = h.name || 'Selected Folder';
+  if (await ensureFolderPermission(h)) { try { await loadPatientsFromFolder(h) } catch (e) { console.warn(e) } }
   updateDataFolderStatus(); updateAll(); renderProfile();
 }
-function updateDataFolderStatus(){const el=document.getElementById('dataFolderStatus');if(el)el.textContent=dataDirectoryHandle?'Database folder: '+dataFolderName:'Database: Browser storage (select a local folder)'}
+function updateDataFolderStatus() { const el = document.getElementById('dataFolderStatus'); if (el) el.textContent = dataDirectoryHandle ? 'Database folder: ' + dataFolderName : 'Database: Browser storage (select a local folder)' }
 
-function nextNumber(){return Math.max(1000,patients.filter(p=>!p.AppointmentOnly).reduce((m,p)=>Math.max(m,Number(p.OPDNumber)||0),0))+1}
-function registeredPatients(){return patients.filter(p=>!p.AppointmentOnly)}
-function pad(n){return String(n).padStart(4,'0')}
-function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function registerPatient(){const name=document.getElementById('name').value.trim();const contact=document.getElementById('contact').value.trim();const gender=document.getElementById('gender').value;if(!name){alert('Please enter the patient name.');document.getElementById('name').focus();return}if(!contact){alert('Please enter the contact number.');document.getElementById('contact').focus();return}if(!gender){alert('Please select gender.');document.getElementById('gender').focus();return}const now=new Date();const p={id:crypto.randomUUID(),OPDNumber:nextNumber(),Name:name,Address:document.getElementById('address').value.trim(),Age:document.getElementById('age').value.trim(),Gender:gender,Contact:contact,Date:now.toISOString().slice(0,10),Time:now.toTimeString().slice(0,8),Treatments:[],Subtotal:0,DiscountPercent:0,DiscountAmount:0,FinalAmount:0,PaymentStatus:'Pending',PaymentMethod:'',BillNumber:'',Documents:[],VisitHistory:[],PaymentHistory:[]};patients.push(p);save();clearForm();selectedId=p.id;showPage('profile');renderProfile();localStorage.removeItem('infinity_dental_registration_draft_v1');alert('Patient registered successfully. OPD Number: '+pad(p.OPDNumber))}
-function clearForm(){['name','contact','address','age'].forEach(id=>document.getElementById(id).value='');document.getElementById('gender').value=''}
-function saveRegistrationDraft(){}
-function loadRegistrationDraft(){}
-function savePageInputs(){}
-function saveVisitInputs(){}
-function loadVisitDraft(){}
-function renderPatients(){const q=(document.getElementById('search')?.value||'').trim().toLowerCase();const list=registeredPatients().filter(p=>!q||[p.OPDNumber,p.Name,p.Contact].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>b.OPDNumber-a.OPDNumber);document.getElementById('patientRows').innerHTML=list.length?list.map(p=>`<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact)}</td><td>${esc(p.Date)}</td><td>${esc(p.PaymentStatus||'Pending')}</td></tr>`).join(''):`<tr><td colspan="5" class="empty">No patients found.</td></tr>`}
-function openProfile(id){selectedId=id;const recent=JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1')||'[]').filter(x=>x!==id);recent.unshift(id);localStorage.setItem('infinity_dental_recent_patients_v1',JSON.stringify(recent.slice(0,8)));showPage('profile');renderProfile()}
-let PROCEDURES=[];
-function priceText(x){
-  if(x.price!=null)return 'Rs. '+Number(x.price).toLocaleString()+(x.unit?' '+x.unit:'');
-  if(x.min!=null&&x.max!=null)return 'Rs. '+Number(x.min).toLocaleString()+' – '+Number(x.max).toLocaleString();
+function nextNumber() { return Math.max(1000, patients.filter(p => !p.AppointmentOnly).reduce((m, p) => Math.max(m, Number(p.OPDNumber) || 0), 0)) + 1 }
+function registeredPatients() { return patients.filter(p => !p.AppointmentOnly) }
+function pad(n) { return String(n).padStart(4, '0') }
+function esc(s) { return String(s ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])) }
+function registerPatient() {
+  const nameEl = document.getElementById('name');
+  const contactEl = document.getElementById('contact');
+  const genderEl = document.getElementById('gender');
+  const addressEl = document.getElementById('address');
+  const ageEl = document.getElementById('age');
+
+  const name = (nameEl?.value || '').trim();
+  const contact = (contactEl?.value || '').trim();
+  const gender = genderEl?.value || '';
+
+  if (!name) { showToast('Please enter the patient name.', 'warn'); nameEl?.focus(); return; }
+  if (!contact) { showToast('Please enter the contact number.', 'warn'); contactEl?.focus(); return; }
+  if (!gender) { showToast('Please select gender.', 'warn'); genderEl?.focus(); return; }
+
+  const now = new Date();
+  const opd = nextNumber();
+  const p = {
+    id: crypto.randomUUID(),
+    OPDNumber: opd,
+    Name: name,
+    Address: (addressEl?.value || '').trim(),
+    Age: (ageEl?.value || '').trim(),
+    Gender: gender,
+    Contact: contact,
+    Date: now.toISOString().slice(0, 10),
+    Time: now.toTimeString().slice(0, 8),
+    Treatments: [],
+    Subtotal: 0,
+    DiscountPercent: 0,
+    DiscountAmount: 0,
+    FinalAmount: 0,
+    PaymentStatus: 'Pending',
+    PaymentMethod: '',
+    BillNumber: '',
+    Documents: [],
+    VisitHistory: [],
+    PaymentHistory: []
+  };
+
+  patients.push(p);
+  save();
+  clearForm();
+  selectedId = p.id;
+  showPage('profile');
+  renderProfile();
+  try { localStorage.removeItem('infinity_dental_registration_draft_v1'); } catch (_) { }
+  showToast('✓ Patient registered successfully! OPD Number: ' + pad(opd), 'success');
+}
+function clearForm() {
+  ['name', 'contact', 'address', 'age'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const g = document.getElementById('gender');
+  if (g) g.value = '';
+}
+function saveRegistrationDraft() { }
+function loadRegistrationDraft() { }
+function savePageInputs() { }
+function saveVisitInputs() { }
+function loadVisitDraft() { }
+function renderPatients() { const q = (document.getElementById('search')?.value || '').trim().toLowerCase(); const list = registeredPatients().filter(p => !q || [p.OPDNumber, p.Name, p.Contact].some(v => String(v || '').toLowerCase().includes(q))).sort((a, b) => b.OPDNumber - a.OPDNumber); document.getElementById('patientRows').innerHTML = list.length ? list.map(p => `<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact)}</td><td>${esc(p.Date)}</td><td>${esc(p.PaymentStatus || 'Pending')}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">No patients found.</td></tr>` }
+function openProfile(id) { selectedId = id; const recent = JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1') || '[]').filter(x => x !== id); recent.unshift(id); localStorage.setItem('infinity_dental_recent_patients_v1', JSON.stringify(recent.slice(0, 8))); showPage('profile'); renderProfile() }
+let PROCEDURES = [];
+function priceText(x) {
+  if (x.price != null) return 'Rs. ' + Number(x.price).toLocaleString() + (x.unit ? ' ' + x.unit : '');
+  if (x.min != null && x.max != null) return 'Rs. ' + Number(x.min).toLocaleString() + ' – ' + Number(x.max).toLocaleString();
   return 'Enter price';
 }
-function procedureDefault(x){return Number(x.price!=null?x.price:(x.min!=null?x.min:0))}
-async function loadPriceList(){
-  if(window.dentalDB?.loadPrices){
-    try{const data=await window.dentalDB.loadPrices();if(Array.isArray(data))PROCEDURES=data;}catch(e){console.warn('Price list load failed:',e)}
+function procedureDefault(x) { return Number(x.price != null ? x.price : (x.min != null ? x.min : 0)) }
+async function loadPriceList() {
+  if (window.dentalDB?.loadPrices) {
+    try { const data = await window.dentalDB.loadPrices(); if (Array.isArray(data)) PROCEDURES = data; } catch (e) { console.warn('Price list load failed:', e) }
   } else {
     try {
       const res = await fetch('/api/prices');
@@ -124,78 +213,304 @@ async function loadPriceList(){
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) PROCEDURES = json.data;
       }
-    } catch(e) {
+    } catch (e) {
       console.warn('Price API load error:', e);
     }
   }
-  if(!PROCEDURES.length)PROCEDURES=[{name:'OPD Card',price:100}];
+  if (!PROCEDURES.length) PROCEDURES = [{ name: 'OPD Card', price: 100 }];
 }
-function renderProcedureOptions(){return PROCEDURES.map((x,i)=>`<option value="${i}" data-cost="${procedureDefault(x)}" data-min="${x.min??''}" data-max="${x.max??''}">${esc(x.name)} — ${esc(priceText(x))}</option>`).join('')}
-function addCustomProcedure(){const name=prompt('Enter custom procedure name:');if(!name||!name.trim())return;const raw=prompt('Enter custom price (Rs.):');if(raw===null)return;const cost=Number(raw);if(!Number.isFinite(cost)||cost<=0){alert('Please enter a valid price.');return}pendingProcedures.push({procedure:name.trim(),cost});renderPendingProcedures()}
-function ensurePatientArrays(p){p.VisitHistory=p.VisitHistory||[];p.PaymentHistory=p.PaymentHistory||[];p.Documents=p.Documents||[];p.Treatments=p.Treatments||[]}
-let pendingProcedures=[];
-function addPendingProcedure(){const sel=document.getElementById('visitProcedure');const opt=sel.options[sel.selectedIndex];if(!opt||!opt.value){alert('Please select a procedure first.');return}const item=PROCEDURES[Number(opt.value)];const cost=Number(document.getElementById('visitCost')?.value)||0;if(!item||cost<=0){alert('Please enter a valid treatment amount.');return}pendingProcedures.push({procedure:item.name,cost});renderPendingProcedures();sel.value='';document.getElementById('visitCost').value='0'}
-function removePendingProcedure(i){pendingProcedures.splice(i,1);renderPendingProcedures()}
-function renderPendingProcedures(){const box=document.getElementById('pendingProcedures'),btn=document.getElementById('addVisitBtn'),hint=document.getElementById('visitHint');if(!box)return;const total=pendingProcedures.reduce((a,x)=>a+x.cost,0);box.innerHTML=pendingProcedures.length?`<table class="mini-table"><thead><tr><th>Procedure</th><th>Cost</th><th></th></tr></thead><tbody>${pendingProcedures.map((x,i)=>`<tr><td>${esc(x.procedure)}</td><td>Rs. ${x.cost.toLocaleString()}</td><td><button class="btn danger" onclick="removePendingProcedure(${i})">REMOVE</button></td></tr>`).join('')}</tbody><tfoot><tr><th>Total</th><th>Rs. ${total.toLocaleString()}</th><th></th></tr></tfoot></table>`:'<div class="muted">No procedures added yet. Add one or more procedures above.</div>';if(btn)btn.disabled=!pendingProcedures.length;if(hint)hint.textContent=pendingProcedures.length?'Ready to add visit.':'Add at least one procedure to enable Add Visit.';updatePaymentChoice();}
-function getVisitSubtotal(){return pendingProcedures.reduce((a,x)=>a+Number(x.cost||0),0)}
-function updateDiscountFromPercent(){const subtotal=getVisitSubtotal();const pct=Math.max(0,Math.min(100,Number(document.getElementById('discountPercent')?.value)||0));const amt=subtotal*pct/100;const a=document.getElementById('discountAmount');if(a)a.value=amt.toFixed(2);updatePaymentChoice()}
-function updateDiscountFromAmount(){const subtotal=getVisitSubtotal();const amt=Math.max(0,Math.min(subtotal,Number(document.getElementById('discountAmount')?.value)||0));const pct=subtotal?amt/subtotal*100:0;const p=document.getElementById('discountPercent');if(p)p.value=pct.toFixed(2);updatePaymentChoice()}
-function updatePaymentChoice(){const subtotal=getVisitSubtotal();const discount=Math.max(0,Math.min(subtotal,Number(document.getElementById('discountAmount')?.value)||0));const total=Math.max(0,subtotal-discount);const choice=document.querySelector('input[name=paymentType]:checked')?.value||'total';const paidEl=document.getElementById('visitPaid');const hint=document.getElementById('paymentHint');const totalEl=document.getElementById('discountedTotal');if(totalEl)totalEl.textContent='Rs. '+total.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2});if(!paidEl)return;if(choice==='total'){paidEl.value=total.toFixed(2);paidEl.readOnly=true;paidEl.placeholder='Total amount';if(hint)hint.textContent='Total payment selected — discounted final amount is filled automatically.';}else{paidEl.readOnly=false;paidEl.placeholder='Enter partial amount';if(hint)hint.textContent='Partial payment selected — enter the amount paid manually (up to Rs. '+total.toLocaleString()+').';}}
-function addVisit(){
- const p=patients.find(x=>x.id===selectedId);if(!p)return;ensurePatientArrays(p);
- if(!pendingProcedures.length){alert('Please add at least one procedure before adding a visit.');return}
- const subtotal=getVisitSubtotal(),discountAmount=Math.max(0,Math.min(subtotal,Number(document.getElementById('discountAmount')?.value)||0)),discountPercent=subtotal?discountAmount/subtotal*100:0,total=Math.max(0,subtotal-discountAmount),choice=document.querySelector('input[name=paymentType]:checked')?.value||'total';
- if(choice==='total')document.getElementById('visitPaid').value=total.toFixed(2);
- const paid=Number(document.getElementById('visitPaid').value)||0;
- if(paid<0||paid>total){alert('Payment amount cannot be more than the final total of Rs. '+total.toLocaleString()+'.');return}
- const mode=document.getElementById('visitPaymentMode').value;
- if(!mode){alert('Please select a payment mode: Cash, NepalPay QR or MPOS.');return}
- const now=new Date(),date=now.toISOString().slice(0,10),time=now.toTimeString().slice(0,8);
- const visitNo=(p.VisitHistory.length||0)+1;
- const billNo='B-'+date.replaceAll('-','')+'-'+pad(p.OPDNumber)+'-'+String(visitNo).padStart(3,'0');
- const procNames=pendingProcedures.map(x=>x.procedure).join(', ');
+function renderProcedureOptions() {
+  return PROCEDURES.map((x, i) => `<option value="${i}" data-cost="${procedureDefault(x)}" data-min="${x.min ?? ''}" data-max="${x.max ?? ''}">${esc(x.name)} — ${esc(priceText(x))}</option>`).join('');
+}
 
- function completeSaveVisit(payMethod, payDone, txnId){
-   const visit={id:crypto.randomUUID(),date,time,procedures:procNames,paymentDone:payDone,amount:payDone,paymentMethod:payMethod,txnId:txnId||'',subtotal,discountPercent:Number(discountPercent.toFixed(2)),discountAmount:Number(discountAmount.toFixed(2)),cost:total,billNumber:billNo,procedureItems:pendingProcedures.map(x=>({procedure:x.procedure,cost:x.cost}))};
-   p.VisitHistory.unshift(visit);
-   pendingProcedures.forEach(x=>p.Treatments.push({procedure:x.procedure,cost:x.cost,date,time,billNumber:billNo}));
-   p.PaymentHistory.unshift({date,time,billNumber:billNo,amount:payDone,method:payMethod,txnId:txnId||'',status:payDone>=total?'Paid':payDone>0?'Partial':'Pending'});
-   p.PaymentStatus=payDone>=total?'Paid':payDone>0?'Partial':'Pending';p.PaymentMethod=payMethod;
-   p.Subtotal=(Number(p.Subtotal)||0)+subtotal;p.FinalAmount=(Number(p.FinalAmount)||0)+total;
-   pendingProcedures=[];save();renderProfile();
-   if(confirm('Visit saved. Bill No. '+billNo+'\n\nWould you like to print this bill now?')) printBill(billNo);
- }
+function applyQuickProcedure(name, cost) {
+  const costEl = document.getElementById('visitCost');
+  if (costEl) costEl.value = cost;
+  const sel = document.getElementById('visitProcedure');
+  if (sel) {
+    let matched = false;
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].text.toLowerCase().includes(name.toLowerCase())) {
+        sel.selectedIndex = i;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) sel.value = '';
+  }
+  updateVisitCost();
+  showToast(`Selected: ${name} (Rs. ${cost})`, 'info');
+}
 
- if((mode==='NepalPay QR'||mode==='Scan') && paid>0){
-   openNepalPayModal({
-     amount: paid,
-     billNumber: billNo,
-     patientName: p.Name,
-     patientContact: p.Contact,
-     opdNumber: p.OPDNumber,
-     remarks: procNames.slice(0, 30),
-     onSuccess: (eventData)=>{
-       completeSaveVisit('NepalPay QR', paid, eventData.txnId);
-     }
-   });
- } else {
-   completeSaveVisit(mode, paid);
- }
+function onVisitCostInput(val) {
+  updatePaymentChoice();
 }
-function findBillForPatient(billNo){
- const p=patients.find(x=>x.id===selectedId);if(!p)return null;ensurePatientArrays(p);
- const v=p.VisitHistory.find(x=>x.billNumber===billNo)||p.VisitHistory[0];if(!v)return null;
- return {p,v};
+
+function onVisitPaidInput(val) {
+  const raw = Number(val) || 0;
+  const costEl = document.getElementById('visitCost');
+  const currentCost = Number(costEl?.value) || 0;
+  if (costEl && currentCost === 0 && pendingProcedures.length === 0 && raw > 0) {
+    costEl.value = raw;
+  }
+  updatePaymentChoice();
 }
-function code39Svg(value){
- const patterns={"0":"nnnwwnwnn","1":"wnnwnnnnw","2":"nnwwnnnnw","3":"wnwwnnnnn","4":"nnnwwnnnw","5":"wnnwwnnnn","6":"nnwwwnnnn","7":"nnnwnnwnw","8":"wnnwnnwnn","9":"nnwwnnwnn","A":"wnnnnwnnw","B":"nnwnnwnnw","C":"wnwnnwnnn","D":"nnnnwwnnw","E":"wnnnwwnnn","F":"nnwnwwnnn","G":"nnnnnwwnw","H":"wnnnnwwnn","I":"nnwnnwwnn","J":"nnnnwwwnn","K":"wnnnnnnww","L":"nnwnnnnww","M":"wnwnnnnwn","N":"nnnnwnnww","O":"wnnnwnnwn","P":"nnwnwnnwn","Q":"nnnnnnwww","R":"wnnnnnwwn","S":"nnwnnnwwn","T":"nnnnwnwwn","U":"wwnnnnnnw","V":"nwwnnnnnw","W":"wwwnnnnnn","X":"nwnnwnnnw","Y":"wwnnwnnnn","Z":"nwwnwnnnn","-":"nwnnnnwnw",".":"wwnnnnwnn"," ":"nwwnnnwnn","$":"nwnwnwnnn","/":"nwnwnnnwn","+":"nwnnnwnwn","%":"nnnwnwnwn","*":"nwnnwnwnn"};
- const text='*'+String(value).toUpperCase().replace(/[^0-9A-Z.\- $/+%]/g,'')+'*';let x=4,bars='';for(const ch of text){const pat=patterns[ch]||patterns['0'];for(let i=0;i<pat.length;i++){const wide=pat[i]==='w',w=wide?3:1;const black=i%2===0;bars+=`<rect x="${x}" y="8" width="${w}" height="58" fill="${black?'#111':'white'}"/>`;x+=w}x+=1}return `<svg xmlns="http://www.w3.org/2000/svg" width="${x+4}" height="86" viewBox="0 0 ${x+4} 86" aria-label="Barcode ${esc(value)}">${bars}<text x="${(x+4)/2}" y="82" text-anchor="middle" font-family="Arial" font-size="12">${esc(value)}</text></svg>`;
+
+function updateVisitCost() {
+  const sel = document.getElementById('visitProcedure');
+  const opt = sel?.options[sel.selectedIndex];
+  const costEl = document.getElementById('visitCost');
+  if (costEl && opt && opt.value) {
+    costEl.value = opt.dataset.cost || 0;
+  }
+  updatePaymentChoice();
 }
-async function printSticker(){
- const p=patients.find(x=>x.id===selectedId);if(!p){alert('No patient selected.');return}
- const w=window.open('','_blank','width=620,height=420');if(!w){alert('Please allow pop-ups to preview the sticker.');return}
- const logoUrl = clinicLogoDataUrl || (location.href.substring(0,location.href.lastIndexOf('/')+1)+'assets/clinic-logo.png');
- w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>OPD Sticker - ${esc(p.OPDNumber)}</title><style>
+
+function addCustomProcedure() {
+  const name = prompt('Enter custom procedure name:');
+  if (!name || !name.trim()) return;
+  const raw = prompt('Enter custom price (Rs.):');
+  if (raw === null) return;
+  const cost = Number(raw);
+  if (!Number.isFinite(cost) || cost <= 0) {
+    showToast('Please enter a valid price.', 'warn');
+    return;
+  }
+  pendingProcedures.push({ procedure: name.trim(), cost });
+  renderPendingProcedures();
+}
+
+function ensurePatientArrays(p) {
+  p.VisitHistory = p.VisitHistory || [];
+  p.PaymentHistory = p.PaymentHistory || [];
+  p.Documents = p.Documents || [];
+  p.Treatments = p.Treatments || [];
+}
+
+let pendingProcedures = [];
+
+function addPendingProcedure() {
+  const sel = document.getElementById('visitProcedure');
+  const opt = sel?.options[sel?.selectedIndex];
+  const cost = Number(document.getElementById('visitCost')?.value) || 0;
+  const item = (opt && opt.value) ? PROCEDURES[Number(opt.value)] : null;
+  const procName = item ? item.name : (document.getElementById('customProcedureName')?.value?.trim() || 'General Dental Treatment');
+
+  if (cost <= 0) {
+    showToast('Please enter a treatment amount before adding.', 'warn');
+    document.getElementById('visitCost')?.focus();
+    return;
+  }
+
+  pendingProcedures.push({ procedure: procName, cost });
+  renderPendingProcedures();
+  if (sel) sel.value = '';
+  const costEl = document.getElementById('visitCost');
+  if (costEl) costEl.value = '0';
+  updatePaymentChoice();
+  showToast(`Added: ${procName} (Rs. ${cost.toLocaleString()})`, 'success');
+}
+
+function removePendingProcedure(i) {
+  pendingProcedures.splice(i, 1);
+  renderPendingProcedures();
+}
+
+function renderPendingProcedures() {
+  const box = document.getElementById('pendingProcedures');
+  const total = pendingProcedures.reduce((a, x) => a + x.cost, 0);
+  if (!box) return;
+
+  if (pendingProcedures.length) {
+    box.innerHTML = `<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#38bdf8">Staged Procedures (${pendingProcedures.length}):</div>
+      <table class="mini-table">
+        <thead><tr><th>Procedure</th><th>Cost</th><th></th></tr></thead>
+        <tbody>${pendingProcedures.map((x, i) => `<tr><td>${esc(x.procedure)}</td><td>Rs. ${x.cost.toLocaleString()}</td><td><button type="button" class="btn danger" style="padding:2px 8px;font-size:10px" onclick="removePendingProcedure(${i})">✕</button></td></tr>`).join('')}</tbody>
+        <tfoot><tr><th>Total</th><th>Rs. ${total.toLocaleString()}</th><th></th></tr></tfoot>
+      </table>`;
+  } else {
+    box.innerHTML = '<div class="muted">No additional procedures staged yet. The selected procedure &amp; amount above will be saved directly.</div>';
+  }
+  updatePaymentChoice();
+}
+
+function getVisitSubtotal() {
+  const staged = pendingProcedures.reduce((a, x) => a + Number(x.cost || 0), 0);
+  if (staged > 0) return staged;
+  const directCost = Number(document.getElementById('visitCost')?.value) || 0;
+  if (directCost > 0) return directCost;
+  const paidVal = Number(document.getElementById('visitPaid')?.value) || 0;
+  return paidVal;
+}
+
+function updateDiscountFromPercent() {
+  const subtotal = getVisitSubtotal();
+  const pct = Math.max(0, Math.min(100, Number(document.getElementById('discountPercent')?.value) || 0));
+  const amt = (subtotal > 0) ? (subtotal * pct / 100) : 0;
+  const a = document.getElementById('discountAmount');
+  if (a && subtotal > 0) a.value = amt.toFixed(2);
+  updatePaymentChoice();
+}
+
+function updateDiscountFromAmount() {
+  const subtotal = getVisitSubtotal();
+  const rawAmt = Number(document.getElementById('discountAmount')?.value) || 0;
+  const amt = (subtotal > 0) ? Math.max(0, Math.min(subtotal, rawAmt)) : Math.max(0, rawAmt);
+  const pct = (subtotal > 0) ? (amt / subtotal * 100) : 0;
+  const p = document.getElementById('discountPercent');
+  if (p && subtotal > 0) p.value = pct.toFixed(2);
+  updatePaymentChoice();
+}
+
+function updatePaymentChoice() {
+  const subtotal = getVisitSubtotal();
+  const rawDisc = Number(document.getElementById('discountAmount')?.value) || 0;
+  const discount = Math.max(0, Math.min(subtotal, rawDisc));
+  const total = Math.max(0, subtotal - discount);
+  const choice = document.querySelector('input[name=paymentType]:checked')?.value || 'total';
+  const paidEl = document.getElementById('visitPaid');
+  const hint = document.getElementById('paymentHint');
+  const totalEl = document.getElementById('discountedTotal');
+  const addBtn = document.getElementById('addVisitBtn');
+  const visitHint = document.getElementById('visitHint');
+
+  if (totalEl) totalEl.textContent = 'Rs. ' + total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  if (paidEl) {
+    if (choice === 'total') {
+      if (total > 0 || !paidEl.value || paidEl.value === '0.00' || paidEl.value === '0') {
+        paidEl.value = total > 0 ? total.toFixed(2) : '0.00';
+      }
+      paidEl.placeholder = total > 0 ? total.toFixed(2) : 'Total amount';
+      if (hint) hint.textContent = 'Total payment selected — auto-filled with final amount (Rs. ' + total.toLocaleString() + '). You can adjust if needed.';
+    } else {
+      paidEl.placeholder = 'Enter partial amount';
+      if (hint) hint.textContent = 'Partial payment selected — enter amount received today (up to Rs. ' + total.toLocaleString() + ').';
+    }
+  }
+
+  const costElVal = Number(document.getElementById('visitCost')?.value) || 0;
+  const paidElVal = Number(paidEl?.value) || 0;
+  const hasAmount = total > 0 || costElVal > 0 || paidElVal > 0 || pendingProcedures.length > 0;
+  if (addBtn) addBtn.disabled = !hasAmount;
+  if (visitHint) {
+    visitHint.textContent = hasAmount ? '✓ Ready to save visit & print bill.' : 'Select a procedure or enter an amount to enable Add Visit.';
+  }
+}
+
+function addVisit() {
+  const p = patients.find(x => x.id === selectedId);
+  if (!p) return;
+  ensurePatientArrays(p);
+
+  // Auto-stage procedure if none added to list yet
+  if (!pendingProcedures.length) {
+    const sel = document.getElementById('visitProcedure');
+    const opt = sel?.options[sel?.selectedIndex];
+    const item = (opt && opt.value) ? PROCEDURES[Number(opt.value)] : null;
+    const directCost = Number(document.getElementById('visitCost')?.value) || 0;
+    const paidInput = Number(document.getElementById('visitPaid')?.value) || 0;
+    const finalCost = directCost > 0 ? directCost : (paidInput > 0 ? paidInput : 0);
+
+    if (finalCost > 0) {
+      const procName = item ? item.name : (document.getElementById('customProcedureName')?.value?.trim() || 'General Dental Treatment / Consultation');
+      pendingProcedures.push({ procedure: procName, cost: finalCost });
+    }
+  }
+
+  if (!pendingProcedures.length) {
+    showToast('Please select a procedure or enter the treatment amount.', 'warn');
+    document.getElementById('visitCost')?.focus();
+    return;
+  }
+
+  const subtotal = getVisitSubtotal();
+  const rawDiscount = Number(document.getElementById('discountAmount')?.value) || 0;
+  const discountAmount = Math.max(0, Math.min(subtotal, rawDiscount));
+  const discountPercent = subtotal ? (discountAmount / subtotal * 100) : 0;
+  const total = Math.max(0, subtotal - discountAmount);
+  const choice = document.querySelector('input[name=paymentType]:checked')?.value || 'total';
+
+  const paidEl = document.getElementById('visitPaid');
+  const paidVal = Number(paidEl?.value);
+  const paid = (!isNaN(paidVal) && paidVal >= 0) ? paidVal : total;
+
+  if (paid < 0) {
+    showToast('Payment amount cannot be negative.', 'warn');
+    return;
+  }
+
+  let mode = document.getElementById('visitPaymentMode')?.value || 'Cash';
+  if (!mode) mode = 'Cash';
+
+  const now = new Date(), date = now.toISOString().slice(0, 10), time = now.toTimeString().slice(0, 8);
+  const visitNo = (p.VisitHistory.length || 0) + 1;
+  const billNo = 'B-' + date.replaceAll('-', '') + '-' + pad(p.OPDNumber) + '-' + String(visitNo).padStart(3, '0');
+  const procNames = pendingProcedures.map(x => x.procedure).join(', ');
+
+  function completeSaveVisit(payMethod, payDone, txnId) {
+    const visit = {
+      id: crypto.randomUUID(),
+      date,
+      time,
+      procedures: procNames,
+      paymentDone: payDone,
+      amount: payDone,
+      paymentMethod: payMethod,
+      txnId: txnId || '',
+      subtotal,
+      discountPercent: Number(discountPercent.toFixed(2)),
+      discountAmount: Number(discountAmount.toFixed(2)),
+      cost: total,
+      billNumber: billNo,
+      procedureItems: pendingProcedures.map(x => ({ procedure: x.procedure, cost: x.cost }))
+    };
+    p.VisitHistory.unshift(visit);
+    pendingProcedures.forEach(x => p.Treatments.push({ procedure: x.procedure, cost: x.cost, date, time, billNumber: billNo }));
+    p.PaymentHistory.unshift({ date, time, billNumber: billNo, amount: payDone, method: payMethod, txnId: txnId || '', status: payDone >= total ? 'Paid' : payDone > 0 ? 'Partial' : 'Pending' });
+    p.PaymentStatus = payDone >= total ? 'Paid' : payDone > 0 ? 'Partial' : 'Pending';
+    p.PaymentMethod = payMethod;
+    p.Subtotal = (Number(p.Subtotal) || 0) + subtotal;
+    p.FinalAmount = (Number(p.FinalAmount) || 0) + total;
+    pendingProcedures = [];
+    save();
+    renderProfile();
+    showToast(`✓ Visit saved successfully! Bill No: ${billNo}`, 'success');
+    if (confirm('Visit saved. Bill No. ' + billNo + '\n\nWould you like to print this bill now?')) {
+      printBill(billNo);
+    }
+  }
+
+  if ((mode === 'NepalPay QR' || mode === 'Scan') && paid > 0) {
+    openNepalPayModal({
+      amount: paid,
+      billNumber: billNo,
+      patientName: p.Name,
+      patientContact: p.Contact,
+      opdNumber: p.OPDNumber,
+      remarks: procNames.slice(0, 30),
+      onSuccess: (eventData) => {
+        completeSaveVisit('NepalPay QR', paid, eventData.txnId);
+      }
+    });
+  } else {
+    completeSaveVisit(mode, paid);
+  }
+}
+
+function findBillForPatient(billNo) {
+  const p = patients.find(x => x.id === selectedId); if (!p) return null; ensurePatientArrays(p);
+  const v = p.VisitHistory.find(x => x.billNumber === billNo) || p.VisitHistory[0]; if (!v) return null;
+  return { p, v };
+}
+function code39Svg(value) {
+  const patterns = { "0": "nnnwwnwnn", "1": "wnnwnnnnw", "2": "nnwwnnnnw", "3": "wnwwnnnnn", "4": "nnnwwnnnw", "5": "wnnwwnnnn", "6": "nnwwwnnnn", "7": "nnnwnnwnw", "8": "wnnwnnwnn", "9": "nnwwnnwnn", "A": "wnnnnwnnw", "B": "nnwnnwnnw", "C": "wnwnnwnnn", "D": "nnnnwwnnw", "E": "wnnnwwnnn", "F": "nnwnwwnnn", "G": "nnnnnwwnw", "H": "wnnnnwwnn", "I": "nnwnnwwnn", "J": "nnnnwwwnn", "K": "wnnnnnnww", "L": "nnwnnnnww", "M": "wnwnnnnwn", "N": "nnnnwnnww", "O": "wnnnwnnwn", "P": "nnwnwnnwn", "Q": "nnnnnnwww", "R": "wnnnnnwwn", "S": "nnwnnnwwn", "T": "nnnnwnwwn", "U": "wwnnnnnnw", "V": "nwwnnnnnw", "W": "wwwnnnnnn", "X": "nwnnwnnnw", "Y": "wwnnwnnnn", "Z": "nwwnwnnnn", "-": "nwnnnnwnw", ".": "wwnnnnwnn", " ": "nwwnnnwnn", "$": "nwnwnwnnn", "/": "nwnwnnnwn", "+": "nwnnnwnwn", "%": "nnnwnwnwn", "*": "nwnnwnwnn" };
+  const text = '*' + String(value).toUpperCase().replace(/[^0-9A-Z.\- $/+%]/g, '') + '*'; let x = 4, bars = ''; for (const ch of text) { const pat = patterns[ch] || patterns['0']; for (let i = 0; i < pat.length; i++) { const wide = pat[i] === 'w', w = wide ? 3 : 1; const black = i % 2 === 0; bars += `<rect x="${x}" y="8" width="${w}" height="58" fill="${black ? '#111' : 'white'}"/>`; x += w } x += 1 } return `<svg xmlns="http://www.w3.org/2000/svg" width="${x + 4}" height="86" viewBox="0 0 ${x + 4} 86" aria-label="Barcode ${esc(value)}">${bars}<text x="${(x + 4) / 2}" y="82" text-anchor="middle" font-family="Arial" font-size="12">${esc(value)}</text></svg>`;
+}
+async function printSticker() {
+  const p = patients.find(x => x.id === selectedId); if (!p) { alert('No patient selected.'); return }
+  const w = window.open('', '_blank', 'width=620,height=420'); if (!w) { alert('Please allow pop-ups to preview the sticker.'); return }
+  const logoUrl = clinicLogoDataUrl || (location.href.substring(0, location.href.lastIndexOf('/') + 1) + 'assets/clinic-logo.png');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>OPD Sticker - ${esc(p.OPDNumber)}</title><style>
  @page{size:100mm 50mm;margin:0}
  html,body{width:100mm!important;height:50mm!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#fff}
  *{box-sizing:border-box}
@@ -211,246 +526,246 @@ async function printSticker(){
  .barcode svg{display:block;width:82mm;height:11mm;max-width:82mm}
  .print{position:fixed;top:8px;right:8px;padding:8px 14px;font-weight:700}
  @media print{.print{display:none!important}html,body{width:100mm!important;height:50mm!important;overflow:hidden!important}.sticker{width:100mm!important;height:50mm!important;overflow:hidden!important}}
- </style></head><body><div class="sticker"><div class="head"><img class="logo" src="${logoUrl}" onerror="this.style.display='none'"><div class="clinic">INFINITY DENTAL CLINIC<br><small>Endless Care, Beautiful Smiles</small></div></div><div class="details"><div><b>Name</b><span>: ${esc(p.Name)}</span></div><div><b>Age/Gender</b><span>: ${esc(p.Age||'—')} / ${esc(p.Gender||'—')}</span></div><div><b>Address</b><span>: ${esc(p.Address||'—')}</span></div><div><b>Phone</b><span>: ${esc(p.Contact||'—')}</span></div><div><b>OPD No.</b><span>: OPD-${pad(p.OPDNumber)}</span></div></div><div class="barcode">${code39Svg('OPD-'+pad(p.OPDNumber))}</div></div><button class="print" onclick="window.print()">PRINT STICKER</button></body></html>`);w.document.close();w.focus();
+ </style></head><body><div class="sticker"><div class="head"><img class="logo" src="${logoUrl}" onerror="this.style.display='none'"><div class="clinic">INFINITY DENTAL CLINIC<br><small>Endless Care, Beautiful Smiles</small></div></div><div class="details"><div><b>Name</b><span>: ${esc(p.Name)}</span></div><div><b>Age/Gender</b><span>: ${esc(p.Age || '—')} / ${esc(p.Gender || '—')}</span></div><div><b>Address</b><span>: ${esc(p.Address || '—')}</span></div><div><b>Phone</b><span>: ${esc(p.Contact || '—')}</span></div><div><b>OPD No.</b><span>: OPD-${pad(p.OPDNumber)}</span></div></div><div class="barcode">${code39Svg('OPD-' + pad(p.OPDNumber))}</div></div><button class="print" onclick="window.print()">PRINT STICKER</button></body></html>`); w.document.close(); w.focus();
 }
-function printBill(billNo){
- const found=findBillForPatient(billNo);if(!found){alert('No bill found for this patient.');return}
- const {p,v}=found,items=v.procedureItems||String(v.procedures||'').split(', ').map(name=>({procedure:name,cost:0}));
- const subtotal=Number(v.subtotal||v.cost||items.reduce((a,x)=>a+Number(x.cost||0),0));
- const discountAmount=Number(v.discountAmount||0),discountPercent=Number(v.discountPercent||0);
- const showDiscount=discountAmount>0;
- const total=Math.max(0,subtotal-discountAmount);
- const paid=Number(v.paymentDone||v.amount||0),due=Math.max(0,total-paid);
- const billWindow=window.open('','_blank','width=820,height=1000');if(!billWindow){alert('Please allow pop-ups to print the bill.');return}
- const rows=items.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.procedure)}</td><td>1</td><td>${Number(x.cost||0).toLocaleString()}</td><td>${Number(x.cost||0).toLocaleString()}</td></tr>`).join('');
- const billLogoUrl = clinicLogoDataUrl || (location.href.substring(0,location.href.lastIndexOf('/')+1)+'assets/clinic-logo.png');
- billWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Patient Bill - ${esc(v.billNumber||'')}</title><style>
+function printBill(billNo) {
+  const found = findBillForPatient(billNo); if (!found) { alert('No bill found for this patient.'); return }
+  const { p, v } = found, items = v.procedureItems || String(v.procedures || '').split(', ').map(name => ({ procedure: name, cost: 0 }));
+  const subtotal = Number(v.subtotal || v.cost || items.reduce((a, x) => a + Number(x.cost || 0), 0));
+  const discountAmount = Number(v.discountAmount || 0), discountPercent = Number(v.discountPercent || 0);
+  const showDiscount = discountAmount > 0;
+  const total = Math.max(0, subtotal - discountAmount);
+  const paid = Number(v.paymentDone || v.amount || 0), due = Math.max(0, total - paid);
+  const billWindow = window.open('', '_blank', 'width=820,height=1000'); if (!billWindow) { alert('Please allow pop-ups to print the bill.'); return }
+  const rows = items.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.procedure)}</td><td>1</td><td>${Number(x.cost || 0).toLocaleString()}</td><td>${Number(x.cost || 0).toLocaleString()}</td></tr>`).join('');
+  const billLogoUrl = clinicLogoDataUrl || (location.href.substring(0, location.href.lastIndexOf('/') + 1) + 'assets/clinic-logo.png');
+  billWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Patient Bill - ${esc(v.billNumber || '')}</title><style>
  @page{size:A5 portrait;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;font-size:10.5pt;line-height:1.35}.bill{width:100%}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:1.5px solid #111;padding-bottom:8px}.logo{width:120px;height:auto;filter:grayscale(1)}.clinic{text-align:right}.clinic h1{font-size:19pt;margin:0 0 2px;letter-spacing:.5px}.clinic .slogan{font-size:9.5pt}.bill-title{text-align:center;font-size:17pt;font-weight:700;margin:12px 0 9px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.box{border:1px solid #222;padding:7px}.line{display:flex;justify-content:space-between;gap:10px;margin:2px 0}.label{font-weight:700}.table{width:100%;border-collapse:collapse;margin-top:8px}.table th,.table td{border:1px solid #222;padding:5px 4px}.table th{font-weight:700;text-align:center}.table td:nth-child(1),.table td:nth-child(3){text-align:center}.table td:nth-child(4),.table td:nth-child(5){text-align:right}.total td{font-weight:700}.payment{margin-top:10px;border-top:1px solid #111;padding-top:8px}.payment-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 20px}.thank{text-align:center;border-top:1px solid #111;margin-top:14px;padding-top:10px;font-size:13pt;font-weight:700}.thank small{display:block;font-size:9.5pt;font-weight:400;margin-top:2px}.print-actions{text-align:center;margin:10px 0}@media print{.print-actions{display:none}}
  </style></head><body><div class="bill"><div class="top"><img class="logo" src="${billLogoUrl}"><div class="clinic"><h1>INFINITY DENTAL CLINIC</h1><div class="slogan">Endless Care, Beautiful Smiles</div></div></div>
- <div class="bill-title">PATIENT BILL</div><div class="meta"><div class="box"><div class="line"><span class="label">Patient Name</span><span>${esc(p.Name)}</span></div><div class="line"><span class="label">Contact</span><span>${esc(p.Contact||'—')}</span></div><div class="line"><span class="label">Age / Gender</span><span>${esc(p.Age||'—')} / ${esc(p.Gender||'—')}</span></div></div><div class="box"><div class="line"><span class="label">Bill No.</span><span>${esc(v.billNumber||'—')}</span></div><div class="line"><span class="label">OPD No.</span><span>OPD-${pad(p.OPDNumber)}</span></div><div class="line"><span class="label">Date</span><span>${esc(v.date||'—')}</span></div><div class="line"><span class="label">Time</span><span>${esc(v.time||'—')}</span></div></div></div>
- <table class="table"><thead><tr><th>S.N.</th><th>Procedure / Treatment</th><th>Qty</th><th>Rate (NPR)</th><th>Amount (NPR)</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right">Subtotal (NPR)</td><td>${subtotal.toLocaleString()}</td></tr>${showDiscount?`<tr><td colspan="4" style="text-align:right">Discount ${discountPercent?`(${discountPercent.toFixed(2)}%)`:``}</td><td>- ${discountAmount.toLocaleString()}</td></tr>`:``}<tr class="total"><td colspan="4" style="text-align:right">${showDiscount?'Total After Discount':'Total'} (NPR)</td><td>${total.toLocaleString()}</td></tr></tfoot></table>
- <div class="payment"><div class="payment-grid"><div><span class="label">Payment Method:</span> ${esc(v.paymentMethod||'—')}</div><div><span class="label">Amount Paid:</span> NPR ${paid.toLocaleString()}</div><div><span class="label">Payment Status:</span> ${paid>=total?'Paid':paid>0?'Partial':'Pending'}</div><div><span class="label">Balance Due:</span> NPR ${due.toLocaleString()}</div></div></div>
- <div class="thank">Thank You!<small>Endless Care, Beautiful Smiles</small></div><div class="print-actions"><button onclick="window.print()">PRINT</button></div></div></body></html>`);billWindow.document.close();billWindow.focus();setTimeout(()=>billWindow.print(),400);
+ <div class="bill-title">PATIENT BILL</div><div class="meta"><div class="box"><div class="line"><span class="label">Patient Name</span><span>${esc(p.Name)}</span></div><div class="line"><span class="label">Contact</span><span>${esc(p.Contact || '—')}</span></div><div class="line"><span class="label">Age / Gender</span><span>${esc(p.Age || '—')} / ${esc(p.Gender || '—')}</span></div></div><div class="box"><div class="line"><span class="label">Bill No.</span><span>${esc(v.billNumber || '—')}</span></div><div class="line"><span class="label">OPD No.</span><span>OPD-${pad(p.OPDNumber)}</span></div><div class="line"><span class="label">Date</span><span>${esc(v.date || '—')}</span></div><div class="line"><span class="label">Time</span><span>${esc(v.time || '—')}</span></div></div></div>
+ <table class="table"><thead><tr><th>S.N.</th><th>Procedure / Treatment</th><th>Qty</th><th>Rate (NPR)</th><th>Amount (NPR)</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right">Subtotal (NPR)</td><td>${subtotal.toLocaleString()}</td></tr>${showDiscount ? `<tr><td colspan="4" style="text-align:right">Discount ${discountPercent ? `(${discountPercent.toFixed(2)}%)` : ``}</td><td>- ${discountAmount.toLocaleString()}</td></tr>` : ``}<tr class="total"><td colspan="4" style="text-align:right">${showDiscount ? 'Total After Discount' : 'Total'} (NPR)</td><td>${total.toLocaleString()}</td></tr></tfoot></table>
+ <div class="payment"><div class="payment-grid"><div><span class="label">Payment Method:</span> ${esc(v.paymentMethod || '—')}</div><div><span class="label">Amount Paid:</span> NPR ${paid.toLocaleString()}</div><div><span class="label">Payment Status:</span> ${paid >= total ? 'Paid' : paid > 0 ? 'Partial' : 'Pending'}</div><div><span class="label">Balance Due:</span> NPR ${due.toLocaleString()}</div></div></div>
+ <div class="thank">Thank You!<small>Endless Care, Beautiful Smiles</small></div><div class="print-actions"><button onclick="window.print()">PRINT</button></div></div></body></html>`); billWindow.document.close(); billWindow.focus(); setTimeout(() => billWindow.print(), 400);
 }
 
-function updateVisitCost(){const sel=document.getElementById('visitProcedure'),opt=sel?.options[sel.selectedIndex],cost=document.getElementById('visitCost');if(!cost)return;if(!opt||!opt.value){cost.value='0';cost.placeholder='Enter amount';return}cost.value=opt.dataset.cost||0;cost.placeholder='Actual amount charged'}
-function updateAppointmentAd(){const out=document.getElementById('appointmentAdDate'),ad=document.getElementById('appointmentAdDateHidden')?.value||'';if(!out)return;if(ad){out.textContent='English (AD): '+ad}else{out.textContent='English date will appear here'}}
-function initNepaliAppointmentPicker(p){const el=document.getElementById('appointmentBsDate');if(!el||!window.NepaliFunctions)return;try{if(el._ndpReady)return;el.nepaliDatePicker({dateFormat:'YYYY-MM-DD',unicodeDate:false,readOnlyInput:true,ndpEnglishInput:'appointmentAdDateHidden',ndpTriggerButton:true,ndpTriggerButtonText:'📅',ndpYear:true,ndpMonth:true,onChange:function(){updateAppointmentAd()}});el._ndpReady=true;if(p&&p.Appointment&&p.Appointment.bsDate){el.value=p.Appointment.bsDate;try{document.getElementById('appointmentAdDateHidden').value= p.Appointment.adDate||NepaliFunctions.BS2AD(p.Appointment.bsDate)}catch(e){}}updateAppointmentAd()}catch(e){console.warn('Nepali datepicker init failed',e)}}
-function setTodayBsAppointment(){if(window.NepaliFunctions){const x=NepaliFunctions.GetCurrentBsDate();document.getElementById('appointmentBsDate').value=x.year+'-'+String(x.month).padStart(2,'0')+'-'+String(x.date).padStart(2,'0');try{document.getElementById('appointmentAdDateHidden').value=NepaliFunctions.BS2AD(document.getElementById('appointmentBsDate').value)}catch(e){}updateAppointmentAd()}else{alert('Nepali calendar could not be loaded.')}}
-function saveAppointment(){const p=patients.find(x=>x.id===selectedId);if(!p)return;const bs=(document.getElementById('appointmentBsDate').value||'').trim(),ad=(document.getElementById('appointmentAdDateHidden')?.value||'').trim(),t=document.getElementById('appointmentTime').value;if(!bs||!t){alert('Please select appointment date and time.');return}if(!ad){alert('Please select the appointment date from the Nepali calendar.');return}p.Appointment={bsDate:bs,adDate:ad,time:t,status:'scheduled'};save();alert('Appointment saved for BS '+bs+' ('+ad+') at '+t);renderProfile()}
+function updateVisitCost() { const sel = document.getElementById('visitProcedure'), opt = sel?.options[sel.selectedIndex], cost = document.getElementById('visitCost'); if (!cost) return; if (!opt || !opt.value) { cost.value = '0'; cost.placeholder = 'Enter amount'; return } cost.value = opt.dataset.cost || 0; cost.placeholder = 'Actual amount charged' }
+function updateAppointmentAd() { const out = document.getElementById('appointmentAdDate'), ad = document.getElementById('appointmentAdDateHidden')?.value || ''; if (!out) return; if (ad) { out.textContent = 'English (AD): ' + ad } else { out.textContent = 'English date will appear here' } }
+function initNepaliAppointmentPicker(p) { const el = document.getElementById('appointmentBsDate'); if (!el || !window.NepaliFunctions) return; try { if (el._ndpReady) return; el.nepaliDatePicker({ dateFormat: 'YYYY-MM-DD', unicodeDate: false, readOnlyInput: true, ndpEnglishInput: 'appointmentAdDateHidden', ndpTriggerButton: true, ndpTriggerButtonText: '📅', ndpYear: true, ndpMonth: true, onChange: function () { updateAppointmentAd() } }); el._ndpReady = true; if (p && p.Appointment && p.Appointment.bsDate) { el.value = p.Appointment.bsDate; try { document.getElementById('appointmentAdDateHidden').value = p.Appointment.adDate || NepaliFunctions.BS2AD(p.Appointment.bsDate) } catch (e) { } } updateAppointmentAd() } catch (e) { console.warn('Nepali datepicker init failed', e) } }
+function setTodayBsAppointment() { if (window.NepaliFunctions) { const x = NepaliFunctions.GetCurrentBsDate(); document.getElementById('appointmentBsDate').value = x.year + '-' + String(x.month).padStart(2, '0') + '-' + String(x.date).padStart(2, '0'); try { document.getElementById('appointmentAdDateHidden').value = NepaliFunctions.BS2AD(document.getElementById('appointmentBsDate').value) } catch (e) { } updateAppointmentAd() } else { alert('Nepali calendar could not be loaded.') } }
+function saveAppointment() { const p = patients.find(x => x.id === selectedId); if (!p) return; const bs = (document.getElementById('appointmentBsDate').value || '').trim(), ad = (document.getElementById('appointmentAdDateHidden')?.value || '').trim(), t = document.getElementById('appointmentTime').value; if (!bs || !t) { alert('Please select appointment date and time.'); return } if (!ad) { alert('Please select the appointment date from the Nepali calendar.'); return } p.Appointment = { bsDate: bs, adDate: ad, time: t, status: 'scheduled' }; save(); alert('Appointment saved for BS ' + bs + ' (' + ad + ') at ' + t); renderProfile() }
 // --- Patient Pictures, Photos, Dental X-Rays & Scanned Documents ---
-function uploadPatientDocument(input){
-  const p=patients.find(x=>x.id===selectedId);
-  if(!p||!input.files.length)return;
+function uploadPatientDocument(input) {
+  const p = patients.find(x => x.id === selectedId);
+  if (!p || !input.files.length) return;
   ensurePatientArrays(p);
 
-  const files=Array.from(input.files);
-  let processed=0;
+  const files = Array.from(input.files);
+  let processed = 0;
 
-  files.forEach(file=>{
+  files.forEach(file => {
     const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|gif|tif|tiff)$/i.test(file.name);
-    const isPdf = file.type==='application/pdf' || /\.pdf$/i.test(file.name);
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 
-    if(!isImage && !isPdf){
+    if (!isImage && !isPdf) {
       alert(`File "${file.name}" is not supported.\nPlease select an image (JPG, PNG, WEBP, BMP) or a PDF document.`);
       return;
     }
 
-    if(file.size > 20*1024*1024){
+    if (file.size > 20 * 1024 * 1024) {
       alert(`File "${file.name}" is larger than 20MB. Please select a smaller photo or PDF.`);
       return;
     }
 
-    const reader=new FileReader();
-    reader.onload=()=>{
+    const reader = new FileReader();
+    reader.onload = () => {
       p.Documents.unshift({
         name: file.name,
         size: file.size,
-        type: file.type || (isImage?'image/jpeg':'application/pdf'),
+        type: file.type || (isImage ? 'image/jpeg' : 'application/pdf'),
         isImage: isImage,
         data: reader.result,
         date: new Date().toISOString()
       });
       processed++;
-      if(processed===files.length){
+      if (processed === files.length) {
         save();
         renderProfile();
       }
     };
     reader.readAsDataURL(file);
   });
-  input.value='';
+  input.value = '';
 }
 
 // Backward-compatible alias
-function uploadPatientPdf(input){ uploadPatientDocument(input); }
+function uploadPatientPdf(input) { uploadPatientDocument(input); }
 
-function openPatientDocument(index){
-  const p=patients.find(x=>x.id===selectedId);
-  const d=p?.Documents?.[index];
-  if(!d)return;
-  const isImg = d.isImage || d.type?.startsWith('image/') || String(d.data||'').startsWith('data:image/');
-  if(isImg){
+function openPatientDocument(index) {
+  const p = patients.find(x => x.id === selectedId);
+  const d = p?.Documents?.[index];
+  if (!d) return;
+  const isImg = d.isImage || d.type?.startsWith('image/') || String(d.data || '').startsWith('data:image/');
+  if (isImg) {
     openImageViewer(d.name, d.data);
   } else {
-    const w=window.open();
-    if(w){
+    const w = window.open();
+    if (w) {
       w.document.write(`<title>${esc(d.name)}</title><iframe src="${d.data}" style="width:100%;height:100vh;border:0"></iframe>`);
       w.document.close();
     }
   }
 }
-function openPatientPdf(index){ openPatientDocument(index); }
+function openPatientPdf(index) { openPatientDocument(index); }
 
-function downloadPatientDocument(index){
-  const p=patients.find(x=>x.id===selectedId);
-  const d=p?.Documents?.[index];
-  if(!d||!d.data)return;
-  const a=document.createElement('a');
-  a.href=d.data;
-  a.download=d.name||'patient-document';
+function downloadPatientDocument(index) {
+  const p = patients.find(x => x.id === selectedId);
+  const d = p?.Documents?.[index];
+  if (!d || !d.data) return;
+  const a = document.createElement('a');
+  a.href = d.data;
+  a.download = d.name || 'patient-document';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 }
 
-function deletePatientDocument(index){
-  const p=patients.find(x=>x.id===selectedId);
-  if(!p)return;
-  const d=p.Documents?.[index];
-  const typeName=(d?.isImage || d?.type?.startsWith('image/'))?'picture / X-ray':'scanned document';
-  if(confirm(`Remove this ${typeName} from the patient record?`)){
-    p.Documents.splice(index,1);
+function deletePatientDocument(index) {
+  const p = patients.find(x => x.id === selectedId);
+  if (!p) return;
+  const d = p.Documents?.[index];
+  const typeName = (d?.isImage || d?.type?.startsWith('image/')) ? 'picture / X-ray' : 'scanned document';
+  if (confirm(`Remove this ${typeName} from the patient record?`)) {
+    p.Documents.splice(index, 1);
     save();
     renderProfile();
   }
 }
-function deletePatientPdf(index){ deletePatientDocument(index); }
+function deletePatientPdf(index) { deletePatientDocument(index); }
 
 // --- Lightbox High-Resolution Viewer for Dental Photos & Radiographs ---
 let activeLightboxImage = null;
 let activeImageScale = 1;
 let activeImageRotation = 0;
 
-function openImageViewer(name, dataUrl){
+function openImageViewer(name, dataUrl) {
   activeLightboxImage = { name, dataUrl };
   activeImageScale = 1;
   activeImageRotation = 0;
   const modal = document.getElementById('imageLightboxModal');
   const img = document.getElementById('lightboxImg');
   const title = document.getElementById('lightboxTitle');
-  if(title) title.textContent = name || 'Dental Picture / X-Ray Viewer';
-  if(img){
+  if (title) title.textContent = name || 'Dental Picture / X-Ray Viewer';
+  if (img) {
     img.src = dataUrl;
     applyImageTransform();
   }
-  if(modal) modal.classList.add('active');
+  if (modal) modal.classList.add('active');
 }
 
-function closeImageViewer(){
+function closeImageViewer() {
   const modal = document.getElementById('imageLightboxModal');
-  if(modal) modal.classList.remove('active');
+  if (modal) modal.classList.remove('active');
   const img = document.getElementById('lightboxImg');
-  if(img) img.src = '';
+  if (img) img.src = '';
   activeLightboxImage = null;
 }
 
-function zoomImage(delta){
+function zoomImage(delta) {
   activeImageScale = Math.max(0.2, Math.min(5, activeImageScale + delta));
   applyImageTransform();
 }
 
-function rotateImage(deg){
+function rotateImage(deg) {
   activeImageRotation = (activeImageRotation + deg) % 360;
   applyImageTransform();
 }
 
-function resetImageTransform(){
+function resetImageTransform() {
   activeImageScale = 1;
   activeImageRotation = 0;
   applyImageTransform();
 }
 
-function applyImageTransform(){
+function applyImageTransform() {
   const img = document.getElementById('lightboxImg');
-  if(img){
+  if (img) {
     img.style.transform = `scale(${activeImageScale}) rotate(${activeImageRotation}deg)`;
   }
 }
 
-function printActiveImage(){
-  if(!activeLightboxImage||!activeLightboxImage.dataUrl)return;
-  const w=window.open('','_blank','width=850,height=900');
-  if(!w){alert('Please allow pop-ups to print the picture.');return;}
+function printActiveImage() {
+  if (!activeLightboxImage || !activeLightboxImage.dataUrl) return;
+  const w = window.open('', '_blank', 'width=850,height=900');
+  if (!w) { alert('Please allow pop-ups to print the picture.'); return; }
   w.document.write(`<!doctype html><html><head><title>${esc(activeLightboxImage.name)}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#fff}img{max-width:95%;max-height:95vh;object-fit:contain}</style></head><body><img src="${activeLightboxImage.dataUrl}"><script>window.onload=function(){window.print();window.close();}<\/script></body></html>`);
   w.document.close();
 }
 
-function downloadActiveImage(){
-  if(!activeLightboxImage||!activeLightboxImage.dataUrl)return;
-  const a=document.createElement('a');
-  a.href=activeLightboxImage.dataUrl;
-  a.download=activeLightboxImage.name||'dental-photo.jpg';
+function downloadActiveImage() {
+  if (!activeLightboxImage || !activeLightboxImage.dataUrl) return;
+  const a = document.createElement('a');
+  a.href = activeLightboxImage.dataUrl;
+  a.download = activeLightboxImage.name || 'dental-photo.jpg';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 }
 
-function setPaymentMode(mode){}
-function editPatientInfo(){
- const p=patients.find(x=>x.id===selectedId); if(!p)return;
- const el=document.getElementById('profileContent');
- el.innerHTML=`<div class="card"><div class="profile-head"><div><div class="section-title">Edit Patient Information</div><span class="badge">OPD ${pad(p.OPDNumber)} (cannot be changed)</span></div><button class="btn secondary" onclick="renderProfile()">CANCEL</button></div>
+function setPaymentMode(mode) { }
+function editPatientInfo() {
+  const p = patients.find(x => x.id === selectedId); if (!p) return;
+  const el = document.getElementById('profileContent');
+  el.innerHTML = `<div class="card"><div class="profile-head"><div><div class="section-title">Edit Patient Information</div><span class="badge">OPD ${pad(p.OPDNumber)} (cannot be changed)</span></div><button class="btn secondary" onclick="renderProfile()">CANCEL</button></div>
  <div class="formgrid" style="margin-top:16px">
-   <div class="field"><label>Patient Name</label><input id="editPatientName" type="text" value="${esc(p.Name||'')}"></div>
-   <div class="field"><label>Contact Number</label><input id="editPatientContact" type="text" value="${esc(p.Contact||'')}"></div>
-   <div class="field"><label>Age</label><input id="editPatientAge" type="text" value="${esc(p.Age||'')}"></div>
-   <div class="field"><label>Gender</label><select id="editPatientGender"><option value="">Select Gender</option><option value="Male" ${p.Gender==='Male'?'selected':''}>Male</option><option value="Female" ${p.Gender==='Female'?'selected':''}>Female</option><option value="Other" ${p.Gender==='Other'?'selected':''}>Other</option></select></div>
-   <div class="field" style="grid-column:1/-1"><label>Address</label><input id="editPatientAddress" type="text" value="${esc(p.Address||'')}"></div>
+   <div class="field"><label>Patient Name</label><input id="editPatientName" type="text" value="${esc(p.Name || '')}"></div>
+   <div class="field"><label>Contact Number</label><input id="editPatientContact" type="text" value="${esc(p.Contact || '')}"></div>
+   <div class="field"><label>Age</label><input id="editPatientAge" type="text" value="${esc(p.Age || '')}"></div>
+   <div class="field"><label>Gender</label><select id="editPatientGender"><option value="">Select Gender</option><option value="Male" ${p.Gender === 'Male' ? 'selected' : ''}>Male</option><option value="Female" ${p.Gender === 'Female' ? 'selected' : ''}>Female</option><option value="Other" ${p.Gender === 'Other' ? 'selected' : ''}>Other</option></select></div>
+   <div class="field" style="grid-column:1/-1"><label>Address</label><input id="editPatientAddress" type="text" value="${esc(p.Address || '')}"></div>
  </div>
  <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="savePatientInfo()">SAVE CHANGES</button><button class="btn secondary" onclick="renderProfile()">CANCEL</button></div></div>`;
- document.getElementById('editPatientName')?.focus();
+  document.getElementById('editPatientName')?.focus();
 }
-function savePatientInfo(){
- const p=patients.find(x=>x.id===selectedId); if(!p)return;
- const name=(document.getElementById('editPatientName')?.value||'').trim();
- const contact=(document.getElementById('editPatientContact')?.value||'').trim();
- const age=(document.getElementById('editPatientAge')?.value||'').trim();
- const gender=document.getElementById('editPatientGender')?.value||'';
- const address=(document.getElementById('editPatientAddress')?.value||'').trim();
- if(!name){alert('Please enter the patient name.');document.getElementById('editPatientName')?.focus();return}
- if(!contact){alert('Please enter the contact number.');document.getElementById('editPatientContact')?.focus();return}
- if(!gender){alert('Please select gender.');document.getElementById('editPatientGender')?.focus();return}
- p.Name=name;p.Contact=contact;p.Age=age;p.Gender=gender;p.Address=address;
- save();renderProfile();renderPatients();renderRecentPatients();alert('Patient information updated successfully.');
+function savePatientInfo() {
+  const p = patients.find(x => x.id === selectedId); if (!p) return;
+  const name = (document.getElementById('editPatientName')?.value || '').trim();
+  const contact = (document.getElementById('editPatientContact')?.value || '').trim();
+  const age = (document.getElementById('editPatientAge')?.value || '').trim();
+  const gender = document.getElementById('editPatientGender')?.value || '';
+  const address = (document.getElementById('editPatientAddress')?.value || '').trim();
+  if (!name) { alert('Please enter the patient name.'); document.getElementById('editPatientName')?.focus(); return }
+  if (!contact) { alert('Please enter the contact number.'); document.getElementById('editPatientContact')?.focus(); return }
+  if (!gender) { alert('Please select gender.'); document.getElementById('editPatientGender')?.focus(); return }
+  p.Name = name; p.Contact = contact; p.Age = age; p.Gender = gender; p.Address = address;
+  save(); renderProfile(); renderPatients(); renderRecentPatients(); alert('Patient information updated successfully.');
 }
-function renderProfile(){
- const p=patients.find(x=>x.id===selectedId);const el=document.getElementById('profileContent');
- if(!p){el.innerHTML='<div class="card empty">No patient selected.</div>';return}ensurePatientArrays(p);
- const visits=p.VisitHistory,pays=p.PaymentHistory,docs=p.Documents;
- el.innerHTML=`<div class="card"><div class="profile-head"><div><div class="section-title">${esc(p.Name)}</div><span class="badge">OPD ${pad(p.OPDNumber)}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary" onclick="showPage('patients')">BACK TO PATIENTS</button><button class="btn secondary" onclick="editPatientInfo()">EDIT PATIENT INFO</button><button class="btn secondary" onclick="printSticker()">PRINT STICKER</button><button class="btn primary" onclick="printLatestBill()">PRINT BILL</button></div></div>
-    <div class="profile-info-row"><div class="patient-details"><div class="section-title">Patient Details</div><div class="details-grid"><div><b>Name:</b> ${esc(p.Name)}</div><div><b>OPD No:</b> ${pad(p.OPDNumber)}</div><div><b>Contact:</b> ${esc(p.Contact)||'—'}</div><div><b>Age / Gender:</b> ${esc(p.Age)||'—'} / ${esc(p.Gender)||'—'}</div><div><b>Address:</b> ${esc(p.Address)||'—'}</div><div><b>Registered:</b> ${esc(p.Date)} ${esc(p.Time)}</div></div></div>
+function renderProfile() {
+  const p = patients.find(x => x.id === selectedId); const el = document.getElementById('profileContent');
+  if (!p) { el.innerHTML = '<div class="card empty">No patient selected.</div>'; return } ensurePatientArrays(p);
+  const visits = p.VisitHistory, pays = p.PaymentHistory, docs = p.Documents;
+  el.innerHTML = `<div class="card"><div class="profile-head"><div><div class="section-title">${esc(p.Name)}</div><span class="badge">OPD ${pad(p.OPDNumber)}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary" onclick="showPage('patients')">BACK TO PATIENTS</button><button class="btn secondary" onclick="editPatientInfo()">EDIT PATIENT INFO</button><button class="btn secondary" onclick="printSticker()">PRINT STICKER</button><button class="btn primary" onclick="printLatestBill()">PRINT BILL</button></div></div>
+    <div class="profile-info-row"><div class="patient-details"><div class="section-title">Patient Details</div><div class="details-grid"><div><b>Name:</b> ${esc(p.Name)}</div><div><b>OPD No:</b> ${pad(p.OPDNumber)}</div><div><b>Contact:</b> ${esc(p.Contact) || '—'}</div><div><b>Age / Gender:</b> ${esc(p.Age) || '—'} / ${esc(p.Gender) || '—'}</div><div><b>Address:</b> ${esc(p.Address) || '—'}</div><div><b>Registered:</b> ${esc(p.Date)} ${esc(p.Time)}</div></div></div>
     <div class="documents-compact">
       <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>Patient Pictures &amp; Documents</span>
-        <span class="badge" style="font-size:10px;padding:2px 7px">${docs.length} ${docs.length===1?'file':'files'}</span>
+        <span class="badge" style="font-size:10px;padding:2px 7px">${docs.length} ${docs.length === 1 ? 'file' : 'files'}</span>
       </div>
       <div class="muted" style="font-size:11px;margin-bottom:6px">X-Rays, dental photos, reports, or PDFs</div>
       <div class="doc-upload"><input type="file" multiple accept="image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.webp,.bmp" onchange="uploadPatientDocument(this)"></div>
-      ${docs.length?docs.map((d,i)=>{
-        const isImg = d.isImage || d.type?.startsWith('image/') || String(d.data||'').startsWith('data:image/');
-        return `
+      ${docs.length ? docs.map((d, i) => {
+    const isImg = d.isImage || d.type?.startsWith('image/') || String(d.data || '').startsWith('data:image/');
+    return `
         <div class="doc-item">
           <div class="doc-left">
-            ${isImg?`
+            ${isImg ? `
               <img class="doc-thumb" src="${d.data}" onclick="openImageViewer('${esc(d.name)}','${d.data}')" title="Click to view full size photo" alt="Photo">
-            `:`
+            `: `
               <div class="doc-pdf-icon">PDF</div>
             `}
             <div class="doc-meta">
-              <span class="pill" style="${isImg?'background:#e0f2fe;color:#0369a1':'background:#fee2e2;color:#991b1b'}">${isImg?'📷 PHOTO / X-RAY':'📄 PDF'}</span>
+              <span class="pill" style="${isImg ? 'background:#e0f2fe;color:#0369a1' : 'background:#fee2e2;color:#991b1b'}">${isImg ? '📷 PHOTO / X-RAY' : '📄 PDF'}</span>
               <b title="${esc(d.name)}">${esc(d.name)}</b>
-              <div class="muted">${new Date(d.date).toLocaleString()} • ${(d.size/1024/1024).toFixed(2)} MB</div>
+              <div class="muted">${new Date(d.date).toLocaleString()} • ${(d.size / 1024 / 1024).toFixed(2)} MB</div>
             </div>
           </div>
           <div style="display:flex;gap:4px">
@@ -460,134 +775,311 @@ function renderProfile(){
           </div>
         </div>
         `;
-      }).join(''):'<div class="muted" style="padding:8px 0;text-align:center">No pictures or documents uploaded yet.</div>'}
+  }).join('') : '<div class="muted" style="padding:8px 0;text-align:center">No pictures or documents uploaded yet.</div>'}
     </div>
   </div>
  <div class="grid2 profile-main-grid" style="margin-top:18px">
-   <div class="card"><div class="section-title">Add Visit / Procedure</div><div class="muted" style="margin-bottom:10px"><b>Price List:</b> loaded from C:\Infiinity Dental Clinic\price-list.json. Select a treatment, then enter the actual amount charged if needed.</div><div class="procedure-row"><select id="visitProcedure" onchange="updateVisitCost()"><option value="">Select procedure</option>${renderProcedureOptions()}</select><input id="visitCost" type="number" min="0" step="0.01" value="0" title="Actual amount charged"><button class="btn secondary" onclick="addPendingProcedure()">ADD PROCEDURE</button><button class="btn secondary" onclick="addCustomProcedure()">CUSTOM PROCEDURE</button></div><div id="pendingProcedures" class="card" style="margin-top:10px;background:#f8fafb"><div class="muted">No procedures added yet. Add one or more procedures above.</div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div class="section-title">Discount</div><div class="muted" style="margin-bottom:8px">Discount is decided separately for each visit.</div><div class="formgrid"><div class="field"><label>Discount %</label><input id="discountPercent" type="number" min="0" max="100" step="0.01" value="0" oninput="updateDiscountFromPercent()"></div><div class="field"><label>Discount Amount (Rs.)</label><input id="discountAmount" type="number" min="0" step="0.01" value="0" oninput="updateDiscountFromAmount()"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid #dfe7ed"><span class="muted">Final Total After Discount</span><strong id="discountedTotal">Rs. 0</strong></div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div class="section-title">Payment Done</div><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="paymentType" value="total" checked onchange="updatePaymentChoice()"> Total Payment</label><label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="paymentType" value="partial" onchange="updatePaymentChoice()"> Partial Payment</label></div><div class="formgrid"><div class="field"><label>Amount Paid (Rs.)</label><input id="visitPaid" type="number" min="0" placeholder="Total amount" readonly></div><div class="field"><label>Payment Method</label><div class="payment-modes"><button type="button" class="payment-mode" data-mode="Cash" onclick="selectVisitPaymentMode('Cash')">CASH</button><button type="button" class="payment-mode" data-mode="NepalPay QR" onclick="selectVisitPaymentMode('NepalPay QR')">NEPALPAY QR</button><button type="button" class="payment-mode" data-mode="MPOS" onclick="selectVisitPaymentMode('MPOS')">MPOS</button></div><input id="visitPaymentMode" type="hidden" value=""></div></div><div id="paymentHint" class="muted" style="margin-top:8px">Total payment selected — discounted final amount is filled automatically.</div></div><div class="card" style="margin-top:12px;background:#f8fafb"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="section-title" style="margin:0">Next Appointment</div><span class="muted" style="font-size:11px">English (AD) &amp; Nepali (BS) Synchronized</span></div><div class="formgrid"><div class="field"><label>English Date (AD) — Click to pick or type</label><input id="appointmentAdDate" type="date" onclick="this.showPicker &amp;&amp; this.showPicker()" onchange="onAppointmentAdChange(this.value)"></div><div class="field"><label>Nepali Date (BS) — Write / Edit</label><input id="appointmentBsDateInput" placeholder="YYYY-MM-DD (e.g. 2083-05-27)" oninput="onAppointmentBsChange(this.value)"></div></div><div id="appointmentBsDateDisplay" class="appt-bs-sync-badge" style="margin-top:8px">📅 Select or write a date above</div><div style="margin-top:10px"><div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px">QUICK DATE PRESETS:</div><div class="quick-dates" style="flex-wrap:wrap"><button type="button" class="btn secondary quick-date" data-days="0" onclick="setQuickAppointment(0,this)">TODAY</button><button type="button" class="btn secondary quick-date" data-days="1" onclick="setQuickAppointment(1,this)">TOMORROW</button><button type="button" class="btn secondary quick-date" data-days="3" onclick="setQuickAppointment(3,this)">AFTER 3 DAYS</button><button type="button" class="btn secondary quick-date" data-days="7" onclick="setQuickAppointment(7,this)">AFTER 1 WEEK</button><button type="button" class="btn secondary quick-date" data-days="14" onclick="setQuickAppointment(14,this)">AFTER 2 WEEKS</button><button type="button" class="btn secondary quick-date" data-days="30" onclick="setQuickAppointment(30,this)">AFTER 1 MONTH</button></div></div><div class="formgrid" style="margin-top:12px;align-items:flex-end"><div class="field"><label>Appointment Time</label><input id="appointmentTime" type="time" onclick="this.showPicker &amp;&amp; this.showPicker()" value="10:00"></div><div class="field"><label class="muted" style="font-size:11px">Common Time Slots:</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('10:00')">10:00 AM</button><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('11:30')">11:30 AM</button><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('14:00')">02:00 PM</button><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('16:00')">04:00 PM</button><button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('17:30')">05:30 PM</button></div></div></div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveAppointment()">SAVE APPOINTMENT</button></div></div><div style="margin-top:12px"><button id="addVisitBtn" class="btn primary" onclick="addVisit()" disabled>ADD VISIT</button><span id="visitHint" class="muted" style="margin-left:10px">Add at least one procedure to enable Add Visit.</span></div></div>
+   <div class="card" style="background:#090f19;border:1px solid #1e2e46;border-radius:12px;padding:20px">
+     <div class="section-title" style="margin:0 0 4px 0">Add Visit / Procedure</div>
+     <div class="muted" style="margin-bottom:12px;font-size:12px">Select a treatment or enter the amount directly. Quick presets available below.</div>
+
+     <!-- Quick Common Procedure Presets -->
+     <div style="margin-bottom:14px">
+       <div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">⚡ One-Click Presets:</div>
+       <div style="display:flex;gap:6px;flex-wrap:wrap">
+         <button type="button" class="quick-proc-pill" onclick="applyQuickProcedure('Consultation', 500)">🩺 Consultation (Rs. 500)</button>
+         <button type="button" class="quick-proc-pill" onclick="applyQuickProcedure('OPD Card', 100)">📋 OPD Card (Rs. 100)</button>
+         <button type="button" class="quick-proc-pill" onclick="applyQuickProcedure('Scaling & Polishing', 1500)">✨ Scaling (Rs. 1,500)</button>
+         <button type="button" class="quick-proc-pill" onclick="applyQuickProcedure('Tooth-Colored Filling', 1500)">🦷 Filling (Rs. 1,500)</button>
+         <button type="button" class="quick-proc-pill" onclick="applyQuickProcedure('Tooth Extraction', 1000)">🩹 Extraction (Rs. 1,000)</button>
+         <button type="button" class="quick-proc-pill" onclick="applyQuickProcedure('Root Canal Treatment (RCT)', 7000)">⚡ RCT (Rs. 7,000)</button>
+       </div>
+     </div>
+
+     <!-- Treatment Picker & Amount Row -->
+     <div style="display:grid;grid-template-columns:1.8fr 1fr auto;gap:8px;align-items:center">
+       <div>
+         <label style="font-size:11px;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Select Treatment</label>
+         <select id="visitProcedure" onchange="updateVisitCost()" style="width:100%;box-sizing:border-box">
+           <option value="">Select treatment from price list...</option>
+           ${renderProcedureOptions()}
+         </select>
+       </div>
+       <div>
+         <label style="font-size:11px;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Treatment Amount (Rs.) *</label>
+         <input id="visitCost" type="number" min="0" step="1" value="0" placeholder="e.g. 1500" title="Actual amount charged" oninput="onVisitCostInput(this.value)" style="width:100%;box-sizing:border-box">
+       </div>
+       <div style="align-self:flex-end">
+         <button type="button" class="btn secondary" onclick="addPendingProcedure()" title="Add another procedure item to this visit" style="font-size:11.5px;padding:9px 12px">+ Add Item</button>
+       </div>
+     </div>
+
+     <div id="pendingProcedures" class="card" style="margin-top:10px;background:#060a12;border:1px solid #1a2538;padding:10px">
+       <div class="muted">No additional procedures staged yet. The selected procedure &amp; amount above will be saved directly.</div>
+     </div>
+
+     <!-- Discount Card -->
+     <div class="card" style="margin-top:12px;background:#060a12;border:1px solid #1a2538;padding:14px">
+       <div class="section-title" style="margin:0 0 4px 0">Discount</div>
+       <div class="muted" style="margin-bottom:8px;font-size:11.5px">Discount is decided separately for each visit.</div>
+       <div class="formgrid">
+         <div class="field">
+           <label>Discount %</label>
+           <input id="discountPercent" type="number" min="0" max="100" step="0.01" value="0" placeholder="0" oninput="updateDiscountFromPercent()">
+         </div>
+         <div class="field">
+           <label>Discount Amount (Rs.)</label>
+           <input id="discountAmount" type="number" min="0" step="1" value="0" placeholder="0" oninput="updateDiscountFromAmount()">
+         </div>
+       </div>
+       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid #1e2e46">
+         <span class="muted" style="font-size:12.5px;font-weight:600">Final Total After Discount</span>
+         <strong id="discountedTotal" style="font-size:16px;color:#38bdf8">Rs. 0</strong>
+       </div>
+     </div>
+
+     <!-- Payment Done Card -->
+     <div class="card" style="margin-top:12px;background:#060a12;border:1px solid #1a2538;padding:14px">
+       <div class="section-title" style="margin:0 0 8px 0">Payment Done</div>
+       <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+         <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+           <input type="radio" name="paymentType" value="total" checked onchange="updatePaymentChoice()"> Total Payment
+         </label>
+         <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+           <input type="radio" name="paymentType" value="partial" onchange="updatePaymentChoice()"> Partial Payment
+         </label>
+       </div>
+       <div class="formgrid">
+         <div class="field">
+           <label>Amount Paid (Rs.)</label>
+           <input id="visitPaid" type="number" min="0" step="1" placeholder="Enter amount paid" oninput="onVisitPaidInput(this.value)">
+         </div>
+         <div class="field">
+           <label>Payment Method</label>
+           <div class="payment-modes">
+             <button type="button" class="payment-mode selected" data-mode="Cash" onclick="selectVisitPaymentMode('Cash')">CASH</button>
+             <button type="button" class="payment-mode" data-mode="NepalPay QR" onclick="selectVisitPaymentMode('NepalPay QR')">NEPALPAY QR</button>
+             <button type="button" class="payment-mode" data-mode="MPOS" onclick="selectVisitPaymentMode('MPOS')">MPOS</button>
+           </div>
+           <input id="visitPaymentMode" type="hidden" value="Cash">
+         </div>
+       </div>
+       <div id="paymentHint" class="muted" style="margin-top:8px;font-size:11.5px">Total payment selected — auto-filled with final amount. You can also adjust it directly.</div>
+     </div>
+
+     <!-- Next Appointment Card -->
+     <div class="card" style="margin-top:12px;background:#060a12;border:1px solid #1a2538;padding:14px">
+       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+         <div class="section-title" style="margin:0">Next Appointment</div>
+         <span class="muted" style="font-size:11px">English (AD) &amp; Nepali (BS) Synchronized</span>
+       </div>
+       <div class="formgrid">
+         <div class="field">
+           <label>English Date (AD) — Click to pick or type</label>
+           <input id="appointmentAdDate" type="date" onclick="this.showPicker &amp;&amp; this.showPicker()" onchange="onAppointmentAdChange(this.value)">
+         </div>
+         <div class="field">
+           <label>Nepali Date (BS) — Write / Edit</label>
+           <input id="appointmentBsDateInput" placeholder="YYYY-MM-DD (e.g. 2083-05-27)" oninput="onAppointmentBsChange(this.value)">
+         </div>
+       </div>
+       <div id="appointmentBsDateDisplay" class="appt-bs-sync-badge" style="margin-top:8px">📅 Select or write a date above</div>
+       <div style="margin-top:10px">
+         <div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px">QUICK DATE PRESETS:</div>
+         <div class="quick-dates" style="flex-wrap:wrap">
+           <button type="button" class="btn secondary quick-date" data-days="0" onclick="setQuickAppointment(0,this)">TODAY</button>
+           <button type="button" class="btn secondary quick-date" data-days="1" onclick="setQuickAppointment(1,this)">TOMORROW</button>
+           <button type="button" class="btn secondary quick-date" data-days="3" onclick="setQuickAppointment(3,this)">AFTER 3 DAYS</button>
+           <button type="button" class="btn secondary quick-date" data-days="7" onclick="setQuickAppointment(7,this)">AFTER 1 WEEK</button>
+           <button type="button" class="btn secondary quick-date" data-days="14" onclick="setQuickAppointment(14,this)">AFTER 2 WEEKS</button>
+           <button type="button" class="btn secondary quick-date" data-days="30" onclick="setQuickAppointment(30,this)">AFTER 1 MONTH</button>
+         </div>
+       </div>
+       <div class="formgrid" style="margin-top:12px;align-items:flex-end">
+         <div class="field">
+           <label>Appointment Time</label>
+           <input id="appointmentTime" type="time" onclick="this.showPicker &amp;&amp; this.showPicker()" value="10:00">
+         </div>
+         <div class="field">
+           <label class="muted" style="font-size:11px">Common Time Slots:</label>
+           <div style="display:flex;gap:6px;flex-wrap:wrap">
+             <button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('10:00')">10:00 AM</button>
+             <button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('11:30')">11:30 AM</button>
+             <button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('14:00')">02:00 PM</button>
+             <button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('16:00')">04:00 PM</button>
+             <button type="button" class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="setQuickTime('17:30')">05:30 PM</button>
+           </div>
+         </div>
+       </div>
+       <div class="actions" style="margin-top:12px">
+         <button type="button" class="btn primary" onclick="saveAppointment()">SAVE APPOINTMENT</button>
+       </div>
+     </div>
+
+     <div style="margin-top:16px;display:flex;align-items:center;gap:12px">
+       <button id="addVisitBtn" class="btn primary" onclick="addVisit()" style="font-size:14px;padding:10px 22px">ADD VISIT &amp; SAVE</button>
+       <span id="visitHint" class="muted" style="font-size:12.5px">Enter amount or select a procedure to add visit.</span>
+     </div>
+   </div>
  </div>
- <div class="grid2" style="margin-top:18px"><div class="card"><div class="section-title">Visit History</div>${visits.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th></tr></thead><tbody>${visits.map(v=>`<tr><td>${esc(v.date||'—')}</td><td>${esc(v.time||'—')}</td><td>${esc(v.procedures||v.treatment||'—')}<div class="muted">Cost: Rs. ${Number(v.cost||0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone||v.amount||0).toLocaleString()}${v.paymentMethod?`<div class="muted">${esc(v.paymentMethod)}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No visits recorded yet.</div>'}</div><div class="card"><div class="section-title">Payment History</div>${pays.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>${pays.map(v=>`<tr><td>${esc(v.date)}</td><td>${esc(v.billNumber)}</td><td>Rs. ${Number(v.amount||0).toLocaleString()}</td><td>${esc(v.method)}</td><td>${esc(v.status)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No payments recorded yet.</div>'}</div></div>`;
- restoreAppointmentFields(p);renderPendingProcedures();updatePaymentChoice();
+ <div class="grid2" style="margin-top:18px"><div class="card"><div class="section-title">Visit History</div>${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th></tr></thead><tbody>${visits.map(v => `<tr><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}</div><div class="card"><div class="section-title">Payment History</div>${pays.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>${pays.map(v => `<tr><td>${esc(v.date)}</td><td>${esc(v.billNumber)}</td><td>Rs. ${Number(v.amount || 0).toLocaleString()}</td><td>${esc(v.method)}</td><td>${esc(v.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No payments recorded yet.</div>'}</div></div>`;
+  restoreAppointmentFields(p); renderPendingProcedures(); updatePaymentChoice();
 }
-function restoreAppointmentFields(p){
-  const d=document.getElementById('appointmentAdDate'),t=document.getElementById('appointmentTime');
-  const bsInput=document.getElementById('appointmentBsDateInput');
-  if(!d||!t)return;
-  if(p&&p.Appointment){
-    d.value=p.Appointment.adDate||p.Appointment.date||'';
-    if(bsInput) bsInput.value=p.Appointment.bsDate||(d.value?(apptBsFromAd(d.value)||''):'');
-    t.value=p.Appointment.time||'10:00';
+function restoreAppointmentFields(p) {
+  const d = document.getElementById('appointmentAdDate'), t = document.getElementById('appointmentTime');
+  const bsInput = document.getElementById('appointmentBsDateInput');
+  if (!d || !t) return;
+  if (p && p.Appointment) {
+    d.value = p.Appointment.adDate || p.Appointment.date || '';
+    if (bsInput) bsInput.value = p.Appointment.bsDate || (d.value ? (apptBsFromAd(d.value) || '') : '');
+    t.value = p.Appointment.time || '10:00';
     updateAppointmentBsDisplay();
-  }else{
-    d.value='';
-    if(bsInput) bsInput.value='';
-    t.value='10:00';
+  } else {
+    d.value = '';
+    if (bsInput) bsInput.value = '';
+    t.value = '10:00';
     updateAppointmentBsDisplay();
   }
-  document.querySelectorAll('.quick-date').forEach(b=>b.classList.remove('primary'));
+  document.querySelectorAll('.quick-date').forEach(b => b.classList.remove('primary'));
 }
 
-function onAppointmentAdChange(adVal){
-  const bsInput=document.getElementById('appointmentBsDateInput');
-  if(adVal){
-    const bs=apptBsFromAd(adVal);
-    if(bs && bsInput) bsInput.value=bs;
+function onAppointmentAdChange(adVal) {
+  const bsInput = document.getElementById('appointmentBsDateInput');
+  if (adVal) {
+    const bs = apptBsFromAd(adVal);
+    if (bs && bsInput) bsInput.value = bs;
   }
   updateAppointmentBsDisplay();
 }
 
-function onAppointmentBsChange(bsVal){
-  const adInput=document.getElementById('appointmentAdDate');
-  const clean=(bsVal||'').trim();
-  if(/^\d{4}-\d{2}-\d{2}$/.test(clean)){
-    const ad=apptAdFromBs(clean);
-    if(ad && adInput) adInput.value=ad;
+function onAppointmentBsChange(bsVal) {
+  const adInput = document.getElementById('appointmentAdDate');
+  const clean = (bsVal || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    const ad = apptAdFromBs(clean);
+    if (ad && adInput) adInput.value = ad;
   }
   updateAppointmentBsDisplay();
 }
 
-function updateAppointmentBsDisplay(){
-  const el=document.getElementById('appointmentBsDateDisplay');
-  const d=document.getElementById('appointmentAdDate')?.value;
-  const bsInput=document.getElementById('appointmentBsDateInput');
-  if(!el)return;
-  if(d){
-    const bs=apptBsFromAd(d);
-    if(bs){
-      if(bsInput && !bsInput.value) bsInput.value=bs;
-      const parts=bs.split('-').map(Number);
-      const mName=(typeof APPT_BS_MONTHS_NP!=='undefined'&&APPT_BS_MONTHS_NP[parts[1]-1])||'';
-      const enMName=(typeof APPT_BS_MONTHS!=='undefined'&&APPT_BS_MONTHS[parts[1]-1])||'';
-      el.innerHTML=`📅 <b>Nepali (BS):</b> ${bs} (${mName} ${parts[2]}, ${parts[0]} • ${enMName}) &nbsp;·&nbsp; <b>English (AD):</b> ${d}`;
+function updateAppointmentBsDisplay() {
+  const el = document.getElementById('appointmentBsDateDisplay');
+  const d = document.getElementById('appointmentAdDate')?.value;
+  const bsInput = document.getElementById('appointmentBsDateInput');
+  if (!el) return;
+  if (d) {
+    const bs = apptBsFromAd(d);
+    if (bs) {
+      if (bsInput && !bsInput.value) bsInput.value = bs;
+      const parts = bs.split('-').map(Number);
+      const mName = (typeof APPT_BS_MONTHS_NP !== 'undefined' && APPT_BS_MONTHS_NP[parts[1] - 1]) || '';
+      const enMName = (typeof APPT_BS_MONTHS !== 'undefined' && APPT_BS_MONTHS[parts[1] - 1]) || '';
+      el.innerHTML = `📅 <b>Nepali (BS):</b> ${bs} (${mName} ${parts[2]}, ${parts[0]} • ${enMName}) &nbsp;·&nbsp; <b>English (AD):</b> ${d}`;
       return;
     }
   }
-  if(bsInput?.value && /^\d{4}-\d{2}-\d{2}$/.test(bsInput.value.trim())){
-    const ad=apptAdFromBs(bsInput.value.trim());
-    if(ad){
-      el.innerHTML=`📅 <b>Nepali (BS):</b> ${bsInput.value.trim()} &nbsp;·&nbsp; <b>English (AD):</b> ${ad}`;
+  if (bsInput?.value && /^\d{4}-\d{2}-\d{2}$/.test(bsInput.value.trim())) {
+    const ad = apptAdFromBs(bsInput.value.trim());
+    if (ad) {
+      el.innerHTML = `📅 <b>Nepali (BS):</b> ${bsInput.value.trim()} &nbsp;·&nbsp; <b>English (AD):</b> ${ad}`;
       return;
     }
   }
-  el.textContent='📅 Pick an English date or type a Nepali BS date above.';
+  el.textContent = '📅 Pick an English date or type a Nepali BS date above.';
 }
 
-function setQuickAppointment(days,btn){
-  const d=new Date();
-  d.setHours(0,0,0,0);
-  d.setDate(d.getDate()+Number(days));
-  const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const el=document.getElementById('appointmentAdDate');
-  const bsInput=document.getElementById('appointmentBsDateInput');
-  if(el) el.value=iso;
-  if(bsInput) bsInput.value=apptBsFromAd(iso)||'';
-  document.querySelectorAll('.quick-date').forEach(b=>b.classList.remove('primary'));
-  if(btn) btn.classList.add('primary');
+function setQuickAppointment(days, btn) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + Number(days));
+  const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const el = document.getElementById('appointmentAdDate');
+  const bsInput = document.getElementById('appointmentBsDateInput');
+  if (el) el.value = iso;
+  if (bsInput) bsInput.value = apptBsFromAd(iso) || '';
+  document.querySelectorAll('.quick-date').forEach(b => b.classList.remove('primary'));
+  if (btn) btn.classList.add('primary');
   updateAppointmentBsDisplay();
 }
 
-function setQuickTime(val){
-  const t=document.getElementById('appointmentTime');
-  if(t) t.value=val;
+function setQuickTime(val) {
+  const t = document.getElementById('appointmentTime');
+  if (t) t.value = val;
 }
 
-function selectVisitPaymentMode(mode){const hidden=document.getElementById('visitPaymentMode');if(hidden)hidden.value=mode;document.querySelectorAll('.payment-mode').forEach(b=>b.classList.toggle('selected',b.dataset.mode===mode));}
-function updateVisitCost(){const sel=document.getElementById('visitProcedure'),opt=sel?.options[sel.selectedIndex],cost=document.getElementById('visitCost');if(!cost)return;if(!opt||!opt.value){cost.value='0';cost.placeholder='Enter amount';return}cost.value=opt.dataset.cost||0;cost.placeholder='Actual amount charged'}
-function updateAppointmentAd(){}
-function initNepaliAppointmentPicker(){}
-function setTodayBsAppointment(){setQuickAppointment(0,null)}
+function selectVisitPaymentMode(mode) { const hidden = document.getElementById('visitPaymentMode'); if (hidden) hidden.value = mode; document.querySelectorAll('.payment-mode').forEach(b => b.classList.toggle('selected', b.dataset.mode === mode)); }
+function updateVisitCost() { const sel = document.getElementById('visitProcedure'), opt = sel?.options[sel.selectedIndex], cost = document.getElementById('visitCost'); if (!cost) return; if (!opt || !opt.value) { cost.value = '0'; cost.placeholder = 'Enter amount'; return } cost.value = opt.dataset.cost || 0; cost.placeholder = 'Actual amount charged' }
+function updateAppointmentAd() { }
+function initNepaliAppointmentPicker() { }
+function setTodayBsAppointment() { setQuickAppointment(0, null) }
 
-function saveAppointment(){
-  const p=patients.find(x=>x.id===selectedId);
-  if(!p)return;
-  let ad=document.getElementById('appointmentAdDate')?.value||'';
-  let bs=(document.getElementById('appointmentBsDateInput')?.value||'').trim();
-  let t=document.getElementById('appointmentTime')?.value||'10:00';
-  if(!ad && bs && /^\d{4}-\d{2}-\d{2}$/.test(bs)){
-    ad=apptAdFromBs(bs)||'';
+function saveAppointment() {
+  const p = patients.find(x => x.id === selectedId);
+  if (!p) return;
+  let ad = document.getElementById('appointmentAdDate')?.value || '';
+  let bs = (document.getElementById('appointmentBsDateInput')?.value || '').trim();
+  let t = document.getElementById('appointmentTime')?.value || '10:00';
+  if (!ad && bs && /^\d{4}-\d{2}-\d{2}$/.test(bs)) {
+    ad = apptAdFromBs(bs) || '';
   }
-  if(!bs && ad){
-    bs=apptBsFromAd(ad)||'';
+  if (!bs && ad) {
+    bs = apptBsFromAd(ad) || '';
   }
-  if(!ad){
+  if (!ad) {
     alert('Please choose or enter an appointment date.');
     return;
   }
-  p.Appointment={adDate:ad,bsDate:bs,time:t,status:'scheduled',date:ad};
+  p.Appointment = { adDate: ad, bsDate: bs, time: t, status: 'scheduled', date: ad };
   save();
   updateAll();
-  alert('Appointment saved for '+(bs?'BS '+bs+' ('+ad+')':ad)+' at '+t);
+  alert('Appointment saved for ' + (bs ? 'BS ' + bs + ' (' + ad + ')' : ad) + ' at ' + t);
   renderProfile();
 }
-function printLatestBill(){const p=patients.find(x=>x.id===selectedId);if(!p||!p.VisitHistory?.length){alert('No saved bill/visit found for this patient yet.');return}printBill(p.VisitHistory[0].billNumber)}
+function printLatestBill() { const p = patients.find(x => x.id === selectedId); if (!p || !p.VisitHistory?.length) { alert('No saved bill/visit found for this patient yet.'); return } printBill(p.VisitHistory[0].billNumber) }
 
-function updateAll(){const now=new Date();const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');const registered=registeredPatients();document.getElementById('statPatients').textContent=registered.length;document.getElementById('statToday').textContent=registered.filter(p=>p.Date===today).length;document.getElementById('statOpd').textContent=pad(nextNumber());document.getElementById('nextOpd').textContent=pad(nextNumber());document.getElementById('statPending').textContent=registered.filter(p=>(p.PaymentStatus||'Pending')==='Pending').length;document.getElementById('statAppointments').textContent=patients.filter(p=>p.Appointment&&p.Appointment.adDate===today).length;const todayAppointments=patients.filter(p=>p.Appointment&&p.Appointment.adDate===today).sort((a,b)=>String(a.Appointment.time||'').localeCompare(String(b.Appointment.time||'')));document.getElementById('todayAppointments').innerHTML=todayAppointments.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>OPD</th><th>Patient</th><th>Contact</th><th>Appointment</th></tr></thead><tbody>${todayAppointments.map(p=>`<tr><td><strong>${esc(p.Appointment.time||'')}</strong></td><td>${p.AppointmentOnly?'Not registered':pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact||'')}</td><td>${esc(p.Appointment.bsDate||p.Appointment.adDate||'')}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg><div>No appointments scheduled for today.</div></div>`;renderPatients();renderRecentPatients()}
-let transactionRange='today';
-function getTransactions(){const out=[];registeredPatients().forEach(p=>{ensurePatientArrays(p);(p.PaymentHistory||[]).forEach((tx,i)=>{out.push({id:p.id,date:tx.date||'',time:tx.time||'',opd:p.OPDNumber,name:p.Name,bill:tx.billNumber||('VIS-'+pad(p.OPDNumber)+'-'+String(i+1).padStart(3,'0')),amount:Number(tx.amount||0),method:tx.method||p.PaymentMethod||'',status:tx.status||p.PaymentStatus||'Pending'});});});return out.sort((a,b)=>(b.date+' '+b.time).localeCompare(a.date+' '+a.time));}
-function dateOnly(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
-function transactionMatches(tx){if(transactionRange==='all')return true;const now=dateOnly(new Date()),d=new Date(tx.date+'T00:00:00');if(transactionRange==='today')return d.getTime()===now.getTime();if(transactionRange==='week'){const day=now.getDay();const diff=day===0?6:day-1;const start=new Date(now);start.setDate(now.getDate()-diff);return d>=start&&d<=now;}if(transactionRange==='month')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();return true;}
-const TRANSACTION_PIN='2468';
-let pendingSecureRange=null;
+function updateAll() {
+  try {
+    const now = new Date();
+    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    const registered = registeredPatients();
+
+    const statPatients = document.getElementById('statPatients');
+    if (statPatients) statPatients.textContent = registered.length;
+
+    const statToday = document.getElementById('statToday');
+    if (statToday) statToday.textContent = registered.filter(p => p.Date === today).length;
+
+    const nextOpdNum = pad(nextNumber());
+    const statOpd = document.getElementById('statOpd');
+    if (statOpd) statOpd.textContent = nextOpdNum;
+
+    const nextOpd = document.getElementById('nextOpd');
+    if (nextOpd) nextOpd.textContent = nextOpdNum;
+
+    const statPending = document.getElementById('statPending');
+    if (statPending) statPending.textContent = registered.filter(p => (p.PaymentStatus || 'Pending') === 'Pending').length;
+
+    const statAppointments = document.getElementById('statAppointments');
+    if (statAppointments) statAppointments.textContent = patients.filter(p => p.Appointment && p.Appointment.adDate === today).length;
+
+    const todayAppointmentsEl = document.getElementById('todayAppointments');
+    if (todayAppointmentsEl) {
+      const todayAppointments = patients.filter(p => p.Appointment && p.Appointment.adDate === today).sort((a, b) => String(a.Appointment.time || '').localeCompare(String(b.Appointment.time || '')));
+      todayAppointmentsEl.innerHTML = todayAppointments.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>OPD</th><th>Patient</th><th>Contact</th><th>Appointment</th></tr></thead><tbody>${todayAppointments.map(p => `<tr><td><strong>${esc(p.Appointment.time || '')}</strong></td><td>${p.AppointmentOnly ? 'Not registered' : pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact || '')}</td><td>${esc(p.Appointment.bsDate || p.Appointment.adDate || '')}</td></tr>`).join('')}</tbody></table></div>` : `<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg><div>No appointments scheduled for today.</div></div>`;
+    }
+
+    renderPatients();
+    renderRecentPatients();
+  } catch (err) {
+    console.warn('[updateAll] Update error:', err);
+  }
+}
+let transactionRange = 'today';
+function getTransactions() { const out = []; registeredPatients().forEach(p => { ensurePatientArrays(p); (p.PaymentHistory || []).forEach((tx, i) => { out.push({ id: p.id, date: tx.date || '', time: tx.time || '', opd: p.OPDNumber, name: p.Name, bill: tx.billNumber || ('VIS-' + pad(p.OPDNumber) + '-' + String(i + 1).padStart(3, '0')), amount: Number(tx.amount || 0), method: tx.method || p.PaymentMethod || '', status: tx.status || p.PaymentStatus || 'Pending' }); }); }); return out.sort((a, b) => (b.date + ' ' + b.time).localeCompare(a.date + ' ' + a.time)); }
+function dateOnly(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function transactionMatches(tx) { if (transactionRange === 'all') return true; const now = dateOnly(new Date()), d = new Date(tx.date + 'T00:00:00'); if (transactionRange === 'today') return d.getTime() === now.getTime(); if (transactionRange === 'week') { const day = now.getDay(); const diff = day === 0 ? 6 : day - 1; const start = new Date(now); start.setDate(now.getDate() - diff); return d >= start && d <= now; } if (transactionRange === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); return true; }
+const TRANSACTION_PIN = '2468';
+let pendingSecureRange = null;
 
 // ==========================================================================
 // INFINITY DENTAL CLINIC - AUTHENTICATION & STAFF MANAGEMENT SYSTEM
@@ -608,7 +1100,7 @@ async function sha256Hex(str) {
       const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    } catch (_) {}
+    } catch (_) { }
   }
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -623,7 +1115,7 @@ function getFallbackUsers() {
   try {
     const raw = localStorage.getItem(FALLBACK_USERS_KEY);
     if (raw) return JSON.parse(raw);
-  } catch (_) {}
+  } catch (_) { }
   const defaults = [
     {
       id: 'admin-001',
@@ -653,7 +1145,7 @@ function getFallbackUsers() {
 function saveFallbackUsers(list) {
   try {
     localStorage.setItem(FALLBACK_USERS_KEY, JSON.stringify(list));
-  } catch (_) {}
+  } catch (_) { }
 }
 
 // Unified Auth Service bridging Electron IPC, Node API, and Local Storage
@@ -724,7 +1216,7 @@ const authService = {
         const data = await res.json();
         if (data.success) return data.users || [];
       }
-    } catch (_) {}
+    } catch (_) { }
     return getFallbackUsers();
   },
 
@@ -885,7 +1377,11 @@ function togglePasswordVisibility(inputId) {
   input.type = input.type === 'password' ? 'text' : 'password';
 }
 
-async function submitLoginForm() {
+let isLoggingIn = false;
+async function submitLoginForm(e) {
+  if (e && typeof e.preventDefault === 'function') e.preventDefault();
+  if (isLoggingIn) return;
+
   const uInput = document.getElementById('loginUsername');
   const pInput = document.getElementById('loginPassword');
   const errBox = document.getElementById('loginErrorMsg');
@@ -912,6 +1408,7 @@ async function submitLoginForm() {
     return;
   }
 
+  isLoggingIn = true;
   if (errBox) errBox.style.display = 'none';
   if (btn) {
     btn.disabled = true;
@@ -934,11 +1431,13 @@ async function submitLoginForm() {
     applyLoggedInState();
     if (pInput) pInput.value = '';
   } catch (err) {
+    console.error('[Login] Error:', err);
     if (errBox) {
       errBox.textContent = err.message || 'Login failed. Please check credentials.';
       errBox.style.display = 'block';
     }
   } finally {
+    isLoggingIn = false;
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = '<span>🔐 SIGN IN TO CLINIC</span>';
@@ -965,13 +1464,16 @@ function checkAuthSession() {
         return;
       }
     }
-  } catch (_) {}
+  } catch (_) { }
   applyLoggedOutState();
 }
 
 function applyLoggedInState() {
   const loginContainer = document.getElementById('loginContainer');
-  if (loginContainer) loginContainer.classList.add('hidden');
+  if (loginContainer) {
+    loginContainer.classList.add('hidden');
+    loginContainer.style.display = 'none';
+  }
 
   const userWrap = document.getElementById('headerUserWrap');
   const userBadge = document.getElementById('headerUserBadge');
@@ -1023,7 +1525,10 @@ function applyLoggedInState() {
 
 function applyLoggedOutState() {
   const loginContainer = document.getElementById('loginContainer');
-  if (loginContainer) loginContainer.classList.remove('hidden');
+  if (loginContainer) {
+    loginContainer.classList.remove('hidden');
+    loginContainer.style.display = 'flex';
+  }
 
   const userWrap = document.getElementById('headerUserWrap');
   if (userWrap) userWrap.style.display = 'none';
@@ -1334,34 +1839,34 @@ async function submitStaffPasswordReset() {
   }
 }
 
-function secureTransactionRange(range){
+function secureTransactionRange(range) {
   if (currentUser?.role === 'superadmin') {
     setTransactionRange(range);
     return;
   }
-  pendingSecureRange=range;
-  const label=range==='week'?'This Week':range==='month'?'This Month':'All Transactions';
-  document.getElementById('adminAuthTitle').textContent='Requires Super Admin Authorization';
-  document.getElementById('adminAuthText').textContent='Enter Super Admin Password or 4-digit PIN (2468) to view '+label+'.';
-  document.getElementById('adminPin').value='';
-  document.getElementById('adminPin').type='password';
-  document.getElementById('adminPin').maxLength=30;
-  document.getElementById('adminPin').pattern='.*';
-  document.getElementById('adminPinError').textContent='';
+  pendingSecureRange = range;
+  const label = range === 'week' ? 'This Week' : range === 'month' ? 'This Month' : 'All Transactions';
+  document.getElementById('adminAuthTitle').textContent = 'Requires Super Admin Authorization';
+  document.getElementById('adminAuthText').textContent = 'Enter Super Admin Password or 4-digit PIN (2468) to view ' + label + '.';
+  document.getElementById('adminPin').value = '';
+  document.getElementById('adminPin').type = 'password';
+  document.getElementById('adminPin').maxLength = 30;
+  document.getElementById('adminPin').pattern = '.*';
+  document.getElementById('adminPinError').textContent = '';
   document.getElementById('adminAuthModal').classList.add('show');
-  setTimeout(()=>document.getElementById('adminPin').focus(),50);
+  setTimeout(() => document.getElementById('adminPin').focus(), 50);
 }
-function closeAdminAuth(){pendingSecureRange=null;document.getElementById('adminAuthModal').classList.remove('show');document.getElementById('adminPin').value=''}
-async function authorizeTransaction(){
-  const val=document.getElementById('adminPin').value.trim();
-  if(!val){
-    document.getElementById('adminPinError').textContent='Please enter Super Admin password or PIN.';
+function closeAdminAuth() { pendingSecureRange = null; document.getElementById('adminAuthModal').classList.remove('show'); document.getElementById('adminPin').value = '' }
+async function authorizeTransaction() {
+  const val = document.getElementById('adminPin').value.trim();
+  if (!val) {
+    document.getElementById('adminPinError').textContent = 'Please enter Super Admin password or PIN.';
     return;
   }
-  if(val===TRANSACTION_PIN){
-    const range=pendingSecureRange;
+  if (val === TRANSACTION_PIN) {
+    const range = pendingSecureRange;
     closeAdminAuth();
-    if(range)setTransactionRange(range);
+    if (range) setTransactionRange(range);
     return;
   }
   try {
@@ -1375,17 +1880,17 @@ async function authorizeTransaction(){
         return;
       }
     }
-  } catch (_) {}
-  document.getElementById('adminPinError').textContent='Incorrect credentials. Authorization denied.';
+  } catch (_) { }
+  document.getElementById('adminPinError').textContent = 'Incorrect credentials. Authorization denied.';
   document.getElementById('adminPin').select();
 }
 
-function setTransactionRange(range){transactionRange=range;['today','week','month','all'].forEach(x=>{const b=document.getElementById('tx'+x.charAt(0).toUpperCase()+x.slice(1));if(b)b.className='btn '+(x===range?'primary':'secondary')});renderTransactions();}
-function renderTransactions(){
-  const all=getTransactions(),list=all.filter(transactionMatches);
-  const total=list.reduce((a,x)=>a+x.amount,0),
-        cash=list.filter(x=>x.method==='Cash').reduce((a,x)=>a+x.amount,0),
-        digital=list.filter(x=>x.method==='Scan'||x.method==='MPOS').reduce((a,x)=>a+x.amount,0);
+function setTransactionRange(range) { transactionRange = range;['today', 'week', 'month', 'all'].forEach(x => { const b = document.getElementById('tx' + x.charAt(0).toUpperCase() + x.slice(1)); if (b) b.className = 'btn ' + (x === range ? 'primary' : 'secondary') }); renderTransactions(); }
+function renderTransactions() {
+  const all = getTransactions(), list = all.filter(transactionMatches);
+  const total = list.reduce((a, x) => a + x.amount, 0),
+    cash = list.filter(x => x.method === 'Cash').reduce((a, x) => a + x.amount, 0),
+    digital = list.filter(x => x.method === 'Scan' || x.method === 'MPOS').reduce((a, x) => a + x.amount, 0);
   const elCount = document.getElementById('txCount');
   if (elCount) elCount.textContent = list.length;
   const elTotal = document.getElementById('txTotal');
@@ -1395,63 +1900,68 @@ function renderTransactions(){
   const elDigital = document.getElementById('txDigital');
   if (elDigital) elDigital.textContent = 'Rs. ' + digital.toLocaleString();
   const elTitle = document.getElementById('txTitle');
-  if (elTitle) elTitle.textContent = transactionRange==='today' ? "Today's Transactions" : transactionRange==='week' ? "This Week's Transactions" : transactionRange==='month' ? "This Month's Transactions" : "All Transactions";
+  if (elTitle) elTitle.textContent = transactionRange === 'today' ? "Today's Transactions" : transactionRange === 'week' ? "This Week's Transactions" : transactionRange === 'month' ? "This Month's Transactions" : "All Transactions";
   const elRows = document.getElementById('transactionRows');
-  if (elRows) elRows.innerHTML = list.length ? list.map(x=>`<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time||'—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method||'—')}</td><td>${esc(x.status)}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`;
+  if (elRows) elRows.innerHTML = list.length ? list.map(x => `<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time || '—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method || '—')}</td><td>${esc(x.status)}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`;
 }
-function renderRecentPatients(){const el=document.getElementById('recentPatients');if(!el)return;const ids=JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1')||'[]');const list=ids.map(id=>patients.find(p=>p.id===id)).filter(p=>p&&!p.AppointmentOnly);el.innerHTML=list.length?`<div class="tablewrap"><table class="table"><thead><tr><th>OPD</th><th>Patient</th><th>Contact</th></tr></thead><tbody>${list.map(p=>`<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact||'')}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><div>No recently opened patients.</div></div>`}
-function populateBillingPatients(){const sel=document.getElementById('billingPatient');if(!sel)return;const current=sel.value;sel.innerHTML='<option value="">Select patient</option>'+registeredPatients().slice().sort((a,b)=>b.OPDNumber-a.OPDNumber).map(p=>`<option value="${p.id}">${pad(p.OPDNumber)} — ${esc(p.Name)}</option>`).join('');if(current)sel.value=current;if(selectedId&&patients.some(p=>p.id===selectedId))sel.value=selectedId;renderBillingForPatient()}
-function selectBillingPatient(id){selectedId=id||selectedId;renderBillingForPatient()}
-function renderBillingForPatient(){const sel=document.getElementById('billingPatient'),sum=document.getElementById('billingSummary'),list=document.getElementById('billingBills');if(!sum||!list)return;if(sel&&selectedId&&patients.some(p=>p.id===selectedId))sel.value=selectedId;const p=patients.find(x=>x.id===(sel?.value||selectedId));if(!p){sum.textContent='Select a patient to see their latest bill.';list.innerHTML='';return}ensurePatientArrays(p);const visits=p.VisitHistory||[];sum.innerHTML=`<b>${esc(p.Name)}</b> • OPD ${pad(p.OPDNumber)} • ${esc(p.Contact||'')}`;list.innerHTML=visits.length?visits.map((v,i)=>`<div class="card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><b>${esc(v.billNumber||'Bill')}</b><div class="muted">${esc(v.date||'')} ${esc(v.time||'')} • Rs. ${Number(v.cost||0).toLocaleString()} • ${esc(v.paymentMethod||'')}</div></div><button class="btn primary" onclick="printBill('${esc(v.billNumber||'')}')">PRINT A5 BILL</button></div></div>`).join(''):'<div class="empty">No saved visits/bills for this patient yet.</div>'}
+function renderRecentPatients() { const el = document.getElementById('recentPatients'); if (!el) return; const ids = JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1') || '[]'); const list = ids.map(id => patients.find(p => p.id === id)).filter(p => p && !p.AppointmentOnly); el.innerHTML = list.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>OPD</th><th>Patient</th><th>Contact</th></tr></thead><tbody>${list.map(p => `<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact || '')}</td></tr>`).join('')}</tbody></table></div>` : `<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><div>No recently opened patients.</div></div>` }
+function populateBillingPatients() { const sel = document.getElementById('billingPatient'); if (!sel) return; const current = sel.value; sel.innerHTML = '<option value="">Select patient</option>' + registeredPatients().slice().sort((a, b) => b.OPDNumber - a.OPDNumber).map(p => `<option value="${p.id}">${pad(p.OPDNumber)} — ${esc(p.Name)}</option>`).join(''); if (current) sel.value = current; if (selectedId && patients.some(p => p.id === selectedId)) sel.value = selectedId; renderBillingForPatient() }
+function selectBillingPatient(id) { selectedId = id || selectedId; renderBillingForPatient() }
+function renderBillingForPatient() { const sel = document.getElementById('billingPatient'), sum = document.getElementById('billingSummary'), list = document.getElementById('billingBills'); if (!sum || !list) return; if (sel && selectedId && patients.some(p => p.id === selectedId)) sel.value = selectedId; const p = patients.find(x => x.id === (sel?.value || selectedId)); if (!p) { sum.textContent = 'Select a patient to see their latest bill.'; list.innerHTML = ''; return } ensurePatientArrays(p); const visits = p.VisitHistory || []; sum.innerHTML = `<b>${esc(p.Name)}</b> • OPD ${pad(p.OPDNumber)} • ${esc(p.Contact || '')}`; list.innerHTML = visits.length ? visits.map((v, i) => `<div class="card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><b>${esc(v.billNumber || 'Bill')}</b><div class="muted">${esc(v.date || '')} ${esc(v.time || '')} • Rs. ${Number(v.cost || 0).toLocaleString()} • ${esc(v.paymentMethod || '')}</div></div><button class="btn primary" onclick="printBill('${esc(v.billNumber || '')}')">PRINT A5 BILL</button></div></div>`).join('') : '<div class="empty">No saved visits/bills for this patient yet.</div>' }
 
-function showPage(id){
+function showPage(id) {
   if (id === 'staff' && currentUser?.role !== 'superadmin') {
     alert('Access restricted to Super Admin only.');
     id = 'dashboard';
   }
-  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
   const p = document.getElementById(id);
   if (p) p.classList.add('active');
-  document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===id));
-  if(id==='patients')renderPatients();
-  if(id==='profile')renderProfile();
-  if(id==='transactions')renderTransactions();
-  if(id==='billing'){populateBillingPatients();}
-  if(id==='dashboard')renderRecentPatients();
-  if(id==='staff'){loadStaffAccounts();}
-  if(id==='nepalpay'){loadSoundboxPorts(false); autoConnectNiziUsb(true);}
-  if(id==='labworks'){loadLabData();loadPatientsDatalist();}
-  if(id==='purchases'){loadPurchasesData();}
-  if(id==='stocks'){loadStockData();refreshPhoneNetworkQr();}
+  document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.page === id));
+  if (id === 'register') {
+    const el = document.getElementById('nextOpd');
+    if (el) el.textContent = pad(nextNumber());
+    setTimeout(() => document.getElementById('name')?.focus(), 40);
+  }
+  if (id === 'patients') renderPatients();
+  if (id === 'profile') renderProfile();
+  if (id === 'transactions') renderTransactions();
+  if (id === 'billing') { populateBillingPatients(); }
+  if (id === 'dashboard') renderRecentPatients();
+  if (id === 'staff') { loadStaffAccounts(); }
+  if (id === 'nepalpay') { loadSoundboxPorts(false); autoConnectNiziUsb(true); }
+  if (id === 'labworks') { loadLabData(); loadPatientsDatalist(); }
+  if (id === 'purchases') { loadPurchasesData(); }
+  if (id === 'stocks') { loadStockData(); refreshPhoneNetworkQr(); }
 }
-document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+document.querySelectorAll('.nav').forEach(b => b.onclick = () => showPage(b.dataset.page));
 
-async function initializeClinicDatabase(){
+async function initializeClinicDatabase() {
   await loadPriceList();
-  if(window.dentalDB?.load){
-    try{const data=await window.dentalDB.load();if(Array.isArray(data))patients=data;const path=await window.dentalDB.path();const el=document.getElementById('dataFolderStatus');if(el)el.textContent=path?'SQLite Database: '+path:'SQLite Database';}
-    catch(e){console.warn('SQLite load failed:',e)}
-  }else{
-    try{
-      const res=await fetch('/api/patients');
-      if(res.ok){
-        const json=await res.json();
-        if(json.success && Array.isArray(json.data)){
-          patients=json.data;
-          const el=document.getElementById('dataFolderStatus');
-          if(el)el.textContent='SQLite Database: '+(json.dbPath||'Localhost Server Connected');
+  if (window.dentalDB?.load) {
+    try { const data = await window.dentalDB.load(); if (Array.isArray(data)) patients = data; const path = await window.dentalDB.path(); const el = document.getElementById('dataFolderStatus'); if (el) el.textContent = path ? 'SQLite Database: ' + path : 'SQLite Database'; }
+    catch (e) { console.warn('SQLite load failed:', e) }
+  } else {
+    try {
+      const res = await fetch('/api/patients');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          patients = json.data;
+          const el = document.getElementById('dataFolderStatus');
+          if (el) el.textContent = 'SQLite Database: ' + (json.dbPath || 'Localhost Server Connected');
         }
       }
-    }catch(err){
-      console.log('Falling back to local browser storage:',err);
+    } catch (err) {
+      console.log('Falling back to local browser storage:', err);
       reconnectStoredDataFolder();
     }
   }
   setupSseListener();
-  updateAll();renderTransactions();renderNepalPayTxnTable();
+  updateAll(); renderTransactions(); renderNepalPayTxnTable();
   checkAuthSession();
 }
-function applyTheme(){
+function applyTheme() {
   const dark = localStorage.getItem('infinity_dental_theme') === 'dark';
   document.body.classList.toggle('dark', dark);
   const themeLabel = document.getElementById('settingsThemeLabel');
@@ -1459,9 +1969,9 @@ function applyTheme(){
   const b = document.getElementById('themeToggle');
   if (b) b.textContent = dark ? 'Light Mode' : 'Dark Mode';
 }
-function toggleTheme(){const dark=!document.body.classList.contains('dark');localStorage.setItem('infinity_dental_theme',dark?'dark':'light');applyTheme()}
+function toggleTheme() { const dark = !document.body.classList.contains('dark'); localStorage.setItem('infinity_dental_theme', dark ? 'dark' : 'light'); applyTheme() }
 applyTheme();
-loadRegistrationDraft();function tick(){document.getElementById('clock').textContent=new Date().toLocaleString(undefined,{dateStyle:'medium',timeStyle:'medium'});setTimeout(tick,1000)}tick();updateAll();renderTransactions();initializeClinicDatabase();
+loadRegistrationDraft(); function tick() { document.getElementById('clock').textContent = new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'medium' }); setTimeout(tick, 1000) } tick(); updateAll(); renderTransactions(); initializeClinicDatabase();
 
 // Auto-detect and connect to NiZi POS USB and check updates on app startup
 if (window.dentalApp && window.dentalApp.getVersion) {
@@ -1716,7 +2226,7 @@ async function startInAppUpdate(downloadUrl) {
       if (checkBtn) checkBtn.disabled = false;
       return;
     }
-  } catch (_) {}
+  } catch (_) { }
 
   // If local launcher wasn't available (remote user or static deployment):
   // Initiate browser direct download
@@ -1788,60 +2298,60 @@ function openExternalUrl(url) {
 }
 
 /* Appointments section */
-const APPT_BS_MONTHS=['Baisakh','Jestha','Asar','Shrawan','Bhadra','Ashwin','Kartik','Mangsir','Poush','Magh','Falgun','Chaitra'];
-const APPT_BS_MONTHS_NP=['बैशाख','जेठ','असार','श्रावण','भाद्र','आश्विन','कार्तिक','मंसिर','पौष','माघ','फाल्गुण','चैत्र'];
-const APPT_BS_DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const APPT_BS_LENGTHS={
-  2080:[31,31,32,31,31,31,30,29,30,29,30,30],
-  2081:[31,31,32,32,31,30,30,30,29,30,29,31],
-  2082:[31,32,31,32,31,30,30,30,29,30,30,30],
-  2083:[31,31,32,31,31,31,30,29,30,29,30,30],
-  2084:[31,31,32,31,31,31,30,30,30,29,30,30],
-  2085:[31,32,31,32,31,31,30,29,30,29,30,30]
+const APPT_BS_MONTHS = ['Baisakh', 'Jestha', 'Asar', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'];
+const APPT_BS_MONTHS_NP = ['बैशाख', 'जेठ', 'असार', 'श्रावण', 'भाद्र', 'आश्विन', 'कार्तिक', 'मंसिर', 'पौष', 'माघ', 'फाल्गुण', 'चैत्र'];
+const APPT_BS_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const APPT_BS_LENGTHS = {
+  2080: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2081: [31, 31, 32, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+  2082: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
+  2083: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2084: [31, 31, 32, 31, 31, 31, 30, 30, 30, 29, 30, 30],
+  2085: [31, 32, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30]
 };
-const APPT_BS_START_YEAR=2080;
-const APPT_BS_ANCHOR={y:2083,m:5,d:27,ad:'2026-09-12'};
-let appointmentMode='BS';
-let appointmentSelectedAD='2026-09-12';
-let appointmentView={y:2083,m:5};
-function apptPad(n){return String(n).padStart(2,'0')}
-function apptIsoDate(d){return d.getFullYear()+'-'+apptPad(d.getMonth()+1)+'-'+apptPad(d.getDate())}
-function apptParseIso(s){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');if(!m)return null;const d=new Date(+m[1],+m[2]-1,+m[3]);return d.getFullYear()==+m[1]&&d.getMonth()==+m[2]-1&&d.getDate()==+m[3]?d:null}
-function apptBsToIndex(y,m,d){let idx=0;for(let yy=APPT_BS_START_YEAR;yy<y;yy++){const lens=APPT_BS_LENGTHS[yy];if(!lens)return null;idx+=lens.reduce((x,v)=>x+v,0)}for(let mm=1;mm<m;mm++)idx+=APPT_BS_LENGTHS[y]?.[mm-1]||0;return idx+(d-1)}
-function apptAdFromBs(bs){const parts=String(bs).split('-').map(Number);if(parts.length!==3)return null;const [y,m,d]=parts,lens=APPT_BS_LENGTHS[y];if(!lens||m<1||m>12||d<1||d>lens[m-1])return null;const anchorBs=apptBsToIndex(2083,5,27),target=apptBsToIndex(y,m,d);if(anchorBs==null||target==null)return null;const base=new Date(2026,8,12);base.setDate(base.getDate()+target-anchorBs);return apptIsoDate(base)}
-function apptBsFromAd(ad){const date=apptParseIso(ad);if(!date)return null;const base=new Date(2026,8,12);const diff=Math.round((date-base)/86400000);let target=apptBsToIndex(2083,5,27)+diff,y=APPT_BS_START_YEAR,m=1;while(true){const lens=APPT_BS_LENGTHS[y];if(!lens)return null;const total=lens.reduce((x,v)=>x+v,0);if(target<total)break;target-=total;y++;}while(target>=APPT_BS_LENGTHS[y][m-1]){target-=APPT_BS_LENGTHS[y][m-1];m++;if(m>12)return null}return y+'-'+apptPad(m)+'-'+apptPad(target+1)}
-function apptBsValid(bs){return !!apptAdFromBs(bs)}
-function appointmentToday(){const d=new Date();appointmentSelectedAD=apptIsoDate(d);appointmentSetViewForAD(appointmentSelectedAD);renderAppointments()}
-function appointmentTomorrow(){const d=new Date();d.setDate(d.getDate()+1);appointmentSelectedAD=apptIsoDate(d);appointmentSetViewForAD(appointmentSelectedAD);renderAppointments()}
-function appointmentSetViewForAD(ad){const bs=apptBsFromAd(ad);if(appointmentMode==='BS'&&bs){const [y,m]=bs.split('-').map(Number);appointmentView={y,m}}else{const d=apptParseIso(ad);appointmentView={y:d.getFullYear(),m:d.getMonth()+1}}}
-function setAppointmentCalendarMode(mode){appointmentMode=mode;appointmentSetViewForAD(appointmentSelectedAD);renderAppointments()}
-function toggleAppointmentGoto(){const el=document.getElementById('appointmentGoto');if(!el)return;el.style.display=el.style.display==='none'?'flex':'none';const input=document.getElementById('appointmentGotoInput');if(input){input.placeholder=appointmentMode==='BS'?'2083-05-27':'2026-09-12';input.focus()}}
-function goAppointmentTypedDate(){const input=document.getElementById('appointmentGotoInput');const value=(input?.value||'').trim();let ad=null;if(appointmentMode==='BS')ad=apptAdFromBs(value);else if(apptParseIso(value))ad=value;if(!ad){alert('Invalid date. Please use YYYY-MM-DD.');return}appointmentSelectedAD=ad;appointmentSetViewForAD(ad);const box=document.getElementById('appointmentGoto');if(box)box.style.display='none';renderAppointments()}
-function appointmentPrevMonth(){if(appointmentMode==='BS'){let {y,m}=appointmentView;m--;if(m<1){m=12;y--}if(!APPT_BS_LENGTHS[y])return;appointmentView={y,m}}else{let {y,m}=appointmentView;m--;if(m<1){m=12;y--}appointmentView={y,m}}renderAppointments()}
-function appointmentNextMonth(){if(appointmentMode==='BS'){let {y,m}=appointmentView;m++;if(m>12){m=1;y++}if(!APPT_BS_LENGTHS[y])return;appointmentView={y,m}}else{let {y,m}=appointmentView;m++;if(m>12){m=1;y++}appointmentView={y,m}}renderAppointments()}
-function appointmentPatientsForAD(ad){return patients.filter(p=>p.Appointment&&p.Appointment.adDate===ad).sort((a,b)=>String(a.Appointment.time||'').localeCompare(String(b.Appointment.time||'')))}
-function toggleNewAppointmentForm(show){const form=document.getElementById('newAppointmentForm');if(!form)return;const opening=show===undefined?form.style.display==='none':!!show;form.style.display=opening?'block':'none';if(opening){document.getElementById('newApptDate').value=appointmentSelectedAD||apptIsoDate(new Date());document.getElementById('newApptName').focus()}}
-function addAppointmentFromSection(){const name=document.getElementById('newApptName').value.trim(),phone=document.getElementById('newApptPhone').value.trim(),ad=document.getElementById('newApptDate').value,time=document.getElementById('newApptTime').value;if(!name){alert('Please enter the patient name.');document.getElementById('newApptName').focus();return}if(!phone){alert('Please enter the phone number.');document.getElementById('newApptPhone').focus();return}if(!apptParseIso(ad)){alert('Please select a valid appointment date.');return}if(!time){alert('Please select an appointment time.');document.getElementById('newApptTime').focus();return}const existing=registeredPatients().find(p=>String(p.Contact||'').replace(/\D/g,'')===phone.replace(/\D/g,'')&&String(p.Name||'').trim().toLowerCase()===name.toLowerCase());const record=existing||{id:crypto.randomUUID(),AppointmentOnly:true,Name:name,Contact:phone,Appointment:null};record.Name=name;record.Contact=phone;record.Appointment={adDate:ad,bsDate:apptBsFromAd(ad)||'',time,status:'scheduled'};if(!existing)patients.push(record);save();appointmentSelectedAD=ad;appointmentSetViewForAD(ad);document.getElementById('newApptName').value='';document.getElementById('newApptPhone').value='';document.getElementById('newApptTime').value='';toggleNewAppointmentForm(false);renderAppointments();alert('Appointment saved for '+name+'. '+(existing?'Linked to the existing registered patient.':'This person remains unregistered and has not been assigned an OPD number.'))}
-function registerAppointmentGuest(id){const p=patients.find(x=>x.id===id&&x.AppointmentOnly);if(!p)return;const now=new Date();p.AppointmentOnly=false;if(p.Appointment)p.Appointment.status='attended';p.OPDNumber=nextNumber();p.Address='';p.Age='';p.Gender='';p.Date=now.toISOString().slice(0,10);p.Time=now.toTimeString().slice(0,8);p.Treatments=[];p.Subtotal=0;p.DiscountPercent=0;p.DiscountAmount=0;p.FinalAmount=0;p.PaymentStatus='Pending';p.PaymentMethod='';p.BillNumber='';p.Documents=[];p.VisitHistory=[];p.PaymentHistory=[];save();selectedId=p.id;showPage('profile');renderProfile();alert('Patient registered successfully. OPD Number: '+pad(p.OPDNumber))}
-function appointmentStatusFor(p){const a=p&&p.Appointment;if(!a)return 'scheduled';if(a.status==='attended')return 'attended';if(a.adDate<apptIsoDate(new Date()))return 'no-show';return 'scheduled'}
-function markAppointmentArrived(id){const p=patients.find(x=>x.id===id&&x.Appointment);if(!p)return;p.Appointment.status='attended';p.Appointment.arrivedAt=new Date().toISOString();save();renderAppointments();alert('Appointment marked as arrived for '+p.Name+'.')}
-function saveAppointmentFollowUp(id){const p=patients.find(x=>x.id===id&&x.Appointment);if(!p)return;const a=p.Appointment;const status=document.getElementById('followStatus_'+id)?.value||'not-called';const date=document.getElementById('followDate_'+id)?.value||apptIsoDate(new Date());const attempts=Math.max(0,Number(document.getElementById('followAttempts_'+id)?.value)||0);const note=(document.getElementById('followNote_'+id)?.value||'').trim();a.followUpStatus=status;a.followUpDate=date;a.followUpAttempts=attempts;a.followUpNotes=note;if(!Array.isArray(a.followUpHistory))a.followUpHistory=[];a.followUpHistory.push({status,date,attempts,note,savedAt:new Date().toISOString()});save();renderAppointments();alert('Follow-up details saved. This does not change the appointment attendance status.');}
-function followUpLabel(status){return ({'not-called':'NOT CALLED YET','interested':'WANTS TO COME','call-back':'CALL BACK LATER','no-answer':'NO ANSWER','declined':'DECLINED'})[status]||'NOT CALLED YET'}
-function followUpClass(status){return ({'not-called':'fu-not-called','interested':'fu-interested','call-back':'fu-call-back','no-answer':'fu-no-answer','declined':'fu-declined'})[status]||'fu-not-called'}
-function renderAppointmentList(){const list=document.getElementById('appointmentList'),title=document.getElementById('appointmentListTitle'),sub=document.getElementById('appointmentListSub');if(!list)return;const ad=appointmentSelectedAD,bs=apptBsFromAd(ad),items=appointmentPatientsForAD(ad);title.textContent=ad===apptIsoDate(new Date())?'Today\'s Appointments':'Appointments';sub.textContent=(appointmentMode==='BS'&&bs?bs+' BS':'AD '+ad)+' • '+items.length+' appointment'+(items.length===1?'':'s');list.innerHTML=items.length?items.map(p=>{const a=p.Appointment,status=appointmentStatusFor(p),label=status==='attended'?'ARRIVED':status==='no-show'?'DID NOT COME':'SCHEDULED',fs=a.followUpStatus||'not-called',hist=Array.isArray(a.followUpHistory)?a.followUpHistory:[],recent=hist.slice(-2).reverse();return `<div class="appt-row appt-${status}"><div class="appt-main"><div class="appt-name">${esc(p.Name)} <span class="appt-status">${label}</span> <span class="follow-status ${followUpClass(fs)}">CALL: ${followUpLabel(fs)}</span></div><div class="appt-meta">${p.AppointmentOnly?'Not registered':('OPD '+pad(p.OPDNumber))} • ${esc(p.Contact||'')} • ${esc(a.time||'')}</div><div class="followup-panel"><div class="followup-heading">Follow-up call tracking</div><div class="followup-fields"><label>Call outcome<select id="followStatus_${p.id}"><option value="not-called" ${fs==='not-called'?'selected':''}>Not called yet</option><option value="interested" ${fs==='interested'?'selected':''}>Wants to come / interested</option><option value="call-back" ${fs==='call-back'?'selected':''}>Call back later</option><option value="no-answer" ${fs==='no-answer'?'selected':''}>No answer</option><option value="declined" ${fs==='declined'?'selected':''}>Declined / not interested</option></select></label><label>Call date<input id="followDate_${p.id}" type="date" value="${esc(a.followUpDate||apptIsoDate(new Date()))}"></label><label>Call attempts<input id="followAttempts_${p.id}" type="number" min="0" max="999" step="1" value="${Number(a.followUpAttempts)||0}"></label><label class="follow-note-field">Notes<textarea id="followNote_${p.id}" rows="2" placeholder="e.g. Try calling again in the evening.">${esc(a.followUpNotes||'')}</textarea></label></div><div class="followup-actions"><button class="btn secondary" onclick="saveAppointmentFollowUp('${p.id}')">SAVE FOLLOW-UP</button>${hist.length?`<span class="muted">${hist.length} saved update${hist.length===1?'':'s'}</span>`:''}</div>${recent.length?`<details class="followup-history"><summary>Previous follow-up history (${hist.length})</summary>${recent.map(h=>`<div class="followup-history-item"><strong>${esc(h.date||'')}</strong> · ${esc(followUpLabel(h.status))} · ${Number(h.attempts)||0} attempts${h.note?' — '+esc(h.note):''}</div>`).join('')}</details>`:''}</div></div><div class="appt-actions">${p.AppointmentOnly?`<button class="btn secondary" onclick="registerAppointmentGuest('${p.id}')">REGISTER & ARRIVED</button>`:status!=='attended'?`<button class="btn secondary" onclick="markAppointmentArrived('${p.id}')">MARK ARRIVED</button><button class="btn secondary" onclick="openProfile('${p.id}')">OPEN</button>`:`<button class="btn secondary" onclick="openProfile('${p.id}')">OPEN</button>`}</div></div>`}).join(''):'<div class="appointment-empty">No appointments scheduled for this date.</div>'}
-function renderAppointmentCalendar(){const wrap=document.getElementById('appointmentCalendar'),title=document.getElementById('appointmentMonthTitle'),sub=document.getElementById('appointmentMonthSub');if(!wrap)return;let y=appointmentView.y,m=appointmentView.m;if(appointmentMode==='BS'){const lens=APPT_BS_LENGTHS[y];if(!lens)return;title.textContent=APPT_BS_MONTHS_NP[m-1]+' '+y;sub.textContent=APPT_BS_MONTHS[m-1]+' • '+m+'th month';const firstAd=apptAdFromBs(y+'-'+apptPad(m)+'-01'),first=apptParseIso(firstAd);const start=first.getDay();const days=lens[m-1];let cells='';for(let i=0;i<start;i++)cells+='<td></td>';for(let d=1;d<=days;d++){const bs=y+'-'+apptPad(m)+'-'+apptPad(d),ad=apptAdFromBs(bs),selected=ad===appointmentSelectedAD?' selected':'',today=ad===apptIsoDate(new Date())?' today':'',count=appointmentPatientsForAD(ad).length;cells+=`<td><button class="cal-day${selected}${today}" onclick="selectAppointmentBS('${bs}')"><div class="daynum">${d}</div>${count?`<div class="appt-dot">${count} appt</div>`:''}</button></td>`;if((start+d)%7===0){cells+='</tr><tr>'}}wrap.innerHTML=`<table class="bs-cal"><thead><tr>${APPT_BS_DAYS.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`}else{const first=new Date(y,m-1,1),start=first.getDay(),days=new Date(y,m,0).getDate();title.textContent=first.toLocaleString(undefined,{month:'long',year:'numeric'});sub.textContent='Gregorian / AD';let cells='';for(let i=0;i<start;i++)cells+='<td></td>';for(let d=1;d<=days;d++){const ad=y+'-'+apptPad(m)+'-'+apptPad(d),selected=ad===appointmentSelectedAD?' selected':'',today=ad===apptIsoDate(new Date())?' today':'',count=appointmentPatientsForAD(ad).length;cells+=`<td><button class="cal-day${selected}${today}" onclick="selectAppointmentAD('${ad}')"><div class="daynum">${d}</div>${count?`<div class="appt-dot">${count} appt</div>`:''}</button></td>`;if((start+d)%7===0)cells+='</tr><tr>'}wrap.innerHTML=`<table class="bs-cal"><thead><tr>${APPT_BS_DAYS.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`}}
-function selectAppointmentBS(bs){const ad=apptAdFromBs(bs);if(!ad)return;appointmentSelectedAD=ad;appointmentSetViewForAD(ad);renderAppointments()}
-function selectAppointmentAD(ad){if(!apptParseIso(ad))return;appointmentSelectedAD=ad;appointmentSetViewForAD(ad);renderAppointments()}
-function renderAppointments(){const p=document.getElementById('appointments');if(!p)return;document.getElementById('appointmentModeAD')?.classList.toggle('primary',appointmentMode==='AD');document.getElementById('appointmentModeBS')?.classList.toggle('primary',appointmentMode==='BS');document.getElementById('appointmentModeAD')?.classList.toggle('secondary',appointmentMode!=='AD');document.getElementById('appointmentModeBS')?.classList.toggle('secondary',appointmentMode!=='BS');renderAppointmentCalendar();renderAppointmentList()}
-const originalShowPage=showPage;
-showPage=function(id){
+const APPT_BS_START_YEAR = 2080;
+const APPT_BS_ANCHOR = { y: 2083, m: 5, d: 27, ad: '2026-09-12' };
+let appointmentMode = 'BS';
+let appointmentSelectedAD = '2026-09-12';
+let appointmentView = { y: 2083, m: 5 };
+function apptPad(n) { return String(n).padStart(2, '0') }
+function apptIsoDate(d) { return d.getFullYear() + '-' + apptPad(d.getMonth() + 1) + '-' + apptPad(d.getDate()) }
+function apptParseIso(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); if (!m) return null; const d = new Date(+m[1], +m[2] - 1, +m[3]); return d.getFullYear() == +m[1] && d.getMonth() == +m[2] - 1 && d.getDate() == +m[3] ? d : null }
+function apptBsToIndex(y, m, d) { let idx = 0; for (let yy = APPT_BS_START_YEAR; yy < y; yy++) { const lens = APPT_BS_LENGTHS[yy]; if (!lens) return null; idx += lens.reduce((x, v) => x + v, 0) } for (let mm = 1; mm < m; mm++)idx += APPT_BS_LENGTHS[y]?.[mm - 1] || 0; return idx + (d - 1) }
+function apptAdFromBs(bs) { const parts = String(bs).split('-').map(Number); if (parts.length !== 3) return null; const [y, m, d] = parts, lens = APPT_BS_LENGTHS[y]; if (!lens || m < 1 || m > 12 || d < 1 || d > lens[m - 1]) return null; const anchorBs = apptBsToIndex(2083, 5, 27), target = apptBsToIndex(y, m, d); if (anchorBs == null || target == null) return null; const base = new Date(2026, 8, 12); base.setDate(base.getDate() + target - anchorBs); return apptIsoDate(base) }
+function apptBsFromAd(ad) { const date = apptParseIso(ad); if (!date) return null; const base = new Date(2026, 8, 12); const diff = Math.round((date - base) / 86400000); let target = apptBsToIndex(2083, 5, 27) + diff, y = APPT_BS_START_YEAR, m = 1; while (true) { const lens = APPT_BS_LENGTHS[y]; if (!lens) return null; const total = lens.reduce((x, v) => x + v, 0); if (target < total) break; target -= total; y++; } while (target >= APPT_BS_LENGTHS[y][m - 1]) { target -= APPT_BS_LENGTHS[y][m - 1]; m++; if (m > 12) return null } return y + '-' + apptPad(m) + '-' + apptPad(target + 1) }
+function apptBsValid(bs) { return !!apptAdFromBs(bs) }
+function appointmentToday() { const d = new Date(); appointmentSelectedAD = apptIsoDate(d); appointmentSetViewForAD(appointmentSelectedAD); renderAppointments() }
+function appointmentTomorrow() { const d = new Date(); d.setDate(d.getDate() + 1); appointmentSelectedAD = apptIsoDate(d); appointmentSetViewForAD(appointmentSelectedAD); renderAppointments() }
+function appointmentSetViewForAD(ad) { const bs = apptBsFromAd(ad); if (appointmentMode === 'BS' && bs) { const [y, m] = bs.split('-').map(Number); appointmentView = { y, m } } else { const d = apptParseIso(ad); appointmentView = { y: d.getFullYear(), m: d.getMonth() + 1 } } }
+function setAppointmentCalendarMode(mode) { appointmentMode = mode; appointmentSetViewForAD(appointmentSelectedAD); renderAppointments() }
+function toggleAppointmentGoto() { const el = document.getElementById('appointmentGoto'); if (!el) return; el.style.display = el.style.display === 'none' ? 'flex' : 'none'; const input = document.getElementById('appointmentGotoInput'); if (input) { input.placeholder = appointmentMode === 'BS' ? '2083-05-27' : '2026-09-12'; input.focus() } }
+function goAppointmentTypedDate() { const input = document.getElementById('appointmentGotoInput'); const value = (input?.value || '').trim(); let ad = null; if (appointmentMode === 'BS') ad = apptAdFromBs(value); else if (apptParseIso(value)) ad = value; if (!ad) { alert('Invalid date. Please use YYYY-MM-DD.'); return } appointmentSelectedAD = ad; appointmentSetViewForAD(ad); const box = document.getElementById('appointmentGoto'); if (box) box.style.display = 'none'; renderAppointments() }
+function appointmentPrevMonth() { if (appointmentMode === 'BS') { let { y, m } = appointmentView; m--; if (m < 1) { m = 12; y-- } if (!APPT_BS_LENGTHS[y]) return; appointmentView = { y, m } } else { let { y, m } = appointmentView; m--; if (m < 1) { m = 12; y-- } appointmentView = { y, m } } renderAppointments() }
+function appointmentNextMonth() { if (appointmentMode === 'BS') { let { y, m } = appointmentView; m++; if (m > 12) { m = 1; y++ } if (!APPT_BS_LENGTHS[y]) return; appointmentView = { y, m } } else { let { y, m } = appointmentView; m++; if (m > 12) { m = 1; y++ } appointmentView = { y, m } } renderAppointments() }
+function appointmentPatientsForAD(ad) { return patients.filter(p => p.Appointment && p.Appointment.adDate === ad).sort((a, b) => String(a.Appointment.time || '').localeCompare(String(b.Appointment.time || ''))) }
+function toggleNewAppointmentForm(show) { const form = document.getElementById('newAppointmentForm'); if (!form) return; const opening = show === undefined ? form.style.display === 'none' : !!show; form.style.display = opening ? 'block' : 'none'; if (opening) { document.getElementById('newApptDate').value = appointmentSelectedAD || apptIsoDate(new Date()); document.getElementById('newApptName').focus() } }
+function addAppointmentFromSection() { const name = document.getElementById('newApptName').value.trim(), phone = document.getElementById('newApptPhone').value.trim(), ad = document.getElementById('newApptDate').value, time = document.getElementById('newApptTime').value; if (!name) { alert('Please enter the patient name.'); document.getElementById('newApptName').focus(); return } if (!phone) { alert('Please enter the phone number.'); document.getElementById('newApptPhone').focus(); return } if (!apptParseIso(ad)) { alert('Please select a valid appointment date.'); return } if (!time) { alert('Please select an appointment time.'); document.getElementById('newApptTime').focus(); return } const existing = registeredPatients().find(p => String(p.Contact || '').replace(/\D/g, '') === phone.replace(/\D/g, '') && String(p.Name || '').trim().toLowerCase() === name.toLowerCase()); const record = existing || { id: crypto.randomUUID(), AppointmentOnly: true, Name: name, Contact: phone, Appointment: null }; record.Name = name; record.Contact = phone; record.Appointment = { adDate: ad, bsDate: apptBsFromAd(ad) || '', time, status: 'scheduled' }; if (!existing) patients.push(record); save(); appointmentSelectedAD = ad; appointmentSetViewForAD(ad); document.getElementById('newApptName').value = ''; document.getElementById('newApptPhone').value = ''; document.getElementById('newApptTime').value = ''; toggleNewAppointmentForm(false); renderAppointments(); alert('Appointment saved for ' + name + '. ' + (existing ? 'Linked to the existing registered patient.' : 'This person remains unregistered and has not been assigned an OPD number.')) }
+function registerAppointmentGuest(id) { const p = patients.find(x => x.id === id && x.AppointmentOnly); if (!p) return; const now = new Date(); p.AppointmentOnly = false; if (p.Appointment) p.Appointment.status = 'attended'; p.OPDNumber = nextNumber(); p.Address = ''; p.Age = ''; p.Gender = ''; p.Date = now.toISOString().slice(0, 10); p.Time = now.toTimeString().slice(0, 8); p.Treatments = []; p.Subtotal = 0; p.DiscountPercent = 0; p.DiscountAmount = 0; p.FinalAmount = 0; p.PaymentStatus = 'Pending'; p.PaymentMethod = ''; p.BillNumber = ''; p.Documents = []; p.VisitHistory = []; p.PaymentHistory = []; save(); selectedId = p.id; showPage('profile'); renderProfile(); alert('Patient registered successfully. OPD Number: ' + pad(p.OPDNumber)) }
+function appointmentStatusFor(p) { const a = p && p.Appointment; if (!a) return 'scheduled'; if (a.status === 'attended') return 'attended'; if (a.adDate < apptIsoDate(new Date())) return 'no-show'; return 'scheduled' }
+function markAppointmentArrived(id) { const p = patients.find(x => x.id === id && x.Appointment); if (!p) return; p.Appointment.status = 'attended'; p.Appointment.arrivedAt = new Date().toISOString(); save(); renderAppointments(); alert('Appointment marked as arrived for ' + p.Name + '.') }
+function saveAppointmentFollowUp(id) { const p = patients.find(x => x.id === id && x.Appointment); if (!p) return; const a = p.Appointment; const status = document.getElementById('followStatus_' + id)?.value || 'not-called'; const date = document.getElementById('followDate_' + id)?.value || apptIsoDate(new Date()); const attempts = Math.max(0, Number(document.getElementById('followAttempts_' + id)?.value) || 0); const note = (document.getElementById('followNote_' + id)?.value || '').trim(); a.followUpStatus = status; a.followUpDate = date; a.followUpAttempts = attempts; a.followUpNotes = note; if (!Array.isArray(a.followUpHistory)) a.followUpHistory = []; a.followUpHistory.push({ status, date, attempts, note, savedAt: new Date().toISOString() }); save(); renderAppointments(); alert('Follow-up details saved. This does not change the appointment attendance status.'); }
+function followUpLabel(status) { return ({ 'not-called': 'NOT CALLED YET', 'interested': 'WANTS TO COME', 'call-back': 'CALL BACK LATER', 'no-answer': 'NO ANSWER', 'declined': 'DECLINED' })[status] || 'NOT CALLED YET' }
+function followUpClass(status) { return ({ 'not-called': 'fu-not-called', 'interested': 'fu-interested', 'call-back': 'fu-call-back', 'no-answer': 'fu-no-answer', 'declined': 'fu-declined' })[status] || 'fu-not-called' }
+function renderAppointmentList() { const list = document.getElementById('appointmentList'), title = document.getElementById('appointmentListTitle'), sub = document.getElementById('appointmentListSub'); if (!list) return; const ad = appointmentSelectedAD, bs = apptBsFromAd(ad), items = appointmentPatientsForAD(ad); title.textContent = ad === apptIsoDate(new Date()) ? 'Today\'s Appointments' : 'Appointments'; sub.textContent = (appointmentMode === 'BS' && bs ? bs + ' BS' : 'AD ' + ad) + ' • ' + items.length + ' appointment' + (items.length === 1 ? '' : 's'); list.innerHTML = items.length ? items.map(p => { const a = p.Appointment, status = appointmentStatusFor(p), label = status === 'attended' ? 'ARRIVED' : status === 'no-show' ? 'DID NOT COME' : 'SCHEDULED', fs = a.followUpStatus || 'not-called', hist = Array.isArray(a.followUpHistory) ? a.followUpHistory : [], recent = hist.slice(-2).reverse(); return `<div class="appt-row appt-${status}"><div class="appt-main"><div class="appt-name">${esc(p.Name)} <span class="appt-status">${label}</span> <span class="follow-status ${followUpClass(fs)}">CALL: ${followUpLabel(fs)}</span></div><div class="appt-meta">${p.AppointmentOnly ? 'Not registered' : ('OPD ' + pad(p.OPDNumber))} • ${esc(p.Contact || '')} • ${esc(a.time || '')}</div><div class="followup-panel"><div class="followup-heading">Follow-up call tracking</div><div class="followup-fields"><label>Call outcome<select id="followStatus_${p.id}"><option value="not-called" ${fs === 'not-called' ? 'selected' : ''}>Not called yet</option><option value="interested" ${fs === 'interested' ? 'selected' : ''}>Wants to come / interested</option><option value="call-back" ${fs === 'call-back' ? 'selected' : ''}>Call back later</option><option value="no-answer" ${fs === 'no-answer' ? 'selected' : ''}>No answer</option><option value="declined" ${fs === 'declined' ? 'selected' : ''}>Declined / not interested</option></select></label><label>Call date<input id="followDate_${p.id}" type="date" value="${esc(a.followUpDate || apptIsoDate(new Date()))}"></label><label>Call attempts<input id="followAttempts_${p.id}" type="number" min="0" max="999" step="1" value="${Number(a.followUpAttempts) || 0}"></label><label class="follow-note-field">Notes<textarea id="followNote_${p.id}" rows="2" placeholder="e.g. Try calling again in the evening.">${esc(a.followUpNotes || '')}</textarea></label></div><div class="followup-actions"><button class="btn secondary" onclick="saveAppointmentFollowUp('${p.id}')">SAVE FOLLOW-UP</button>${hist.length ? `<span class="muted">${hist.length} saved update${hist.length === 1 ? '' : 's'}</span>` : ''}</div>${recent.length ? `<details class="followup-history"><summary>Previous follow-up history (${hist.length})</summary>${recent.map(h => `<div class="followup-history-item"><strong>${esc(h.date || '')}</strong> · ${esc(followUpLabel(h.status))} · ${Number(h.attempts) || 0} attempts${h.note ? ' — ' + esc(h.note) : ''}</div>`).join('')}</details>` : ''}</div></div><div class="appt-actions">${p.AppointmentOnly ? `<button class="btn secondary" onclick="registerAppointmentGuest('${p.id}')">REGISTER & ARRIVED</button>` : status !== 'attended' ? `<button class="btn secondary" onclick="markAppointmentArrived('${p.id}')">MARK ARRIVED</button><button class="btn secondary" onclick="openProfile('${p.id}')">OPEN</button>` : `<button class="btn secondary" onclick="openProfile('${p.id}')">OPEN</button>`}</div></div>` }).join('') : '<div class="appointment-empty">No appointments scheduled for this date.</div>' }
+function renderAppointmentCalendar() { const wrap = document.getElementById('appointmentCalendar'), title = document.getElementById('appointmentMonthTitle'), sub = document.getElementById('appointmentMonthSub'); if (!wrap) return; let y = appointmentView.y, m = appointmentView.m; if (appointmentMode === 'BS') { const lens = APPT_BS_LENGTHS[y]; if (!lens) return; title.textContent = APPT_BS_MONTHS_NP[m - 1] + ' ' + y; sub.textContent = APPT_BS_MONTHS[m - 1] + ' • ' + m + 'th month'; const firstAd = apptAdFromBs(y + '-' + apptPad(m) + '-01'), first = apptParseIso(firstAd); const start = first.getDay(); const days = lens[m - 1]; let cells = ''; for (let i = 0; i < start; i++)cells += '<td></td>'; for (let d = 1; d <= days; d++) { const bs = y + '-' + apptPad(m) + '-' + apptPad(d), ad = apptAdFromBs(bs), selected = ad === appointmentSelectedAD ? ' selected' : '', today = ad === apptIsoDate(new Date()) ? ' today' : '', count = appointmentPatientsForAD(ad).length; cells += `<td><button class="cal-day${selected}${today}" onclick="selectAppointmentBS('${bs}')"><div class="daynum">${d}</div>${count ? `<div class="appt-dot">${count} appt</div>` : ''}</button></td>`; if ((start + d) % 7 === 0) { cells += '</tr><tr>' } } wrap.innerHTML = `<table class="bs-cal"><thead><tr>${APPT_BS_DAYS.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody><tr>${cells}</tr></tbody></table>` } else { const first = new Date(y, m - 1, 1), start = first.getDay(), days = new Date(y, m, 0).getDate(); title.textContent = first.toLocaleString(undefined, { month: 'long', year: 'numeric' }); sub.textContent = 'Gregorian / AD'; let cells = ''; for (let i = 0; i < start; i++)cells += '<td></td>'; for (let d = 1; d <= days; d++) { const ad = y + '-' + apptPad(m) + '-' + apptPad(d), selected = ad === appointmentSelectedAD ? ' selected' : '', today = ad === apptIsoDate(new Date()) ? ' today' : '', count = appointmentPatientsForAD(ad).length; cells += `<td><button class="cal-day${selected}${today}" onclick="selectAppointmentAD('${ad}')"><div class="daynum">${d}</div>${count ? `<div class="appt-dot">${count} appt</div>` : ''}</button></td>`; if ((start + d) % 7 === 0) cells += '</tr><tr>' } wrap.innerHTML = `<table class="bs-cal"><thead><tr>${APPT_BS_DAYS.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody><tr>${cells}</tr></tbody></table>` } }
+function selectAppointmentBS(bs) { const ad = apptAdFromBs(bs); if (!ad) return; appointmentSelectedAD = ad; appointmentSetViewForAD(ad); renderAppointments() }
+function selectAppointmentAD(ad) { if (!apptParseIso(ad)) return; appointmentSelectedAD = ad; appointmentSetViewForAD(ad); renderAppointments() }
+function renderAppointments() { const p = document.getElementById('appointments'); if (!p) return; document.getElementById('appointmentModeAD')?.classList.toggle('primary', appointmentMode === 'AD'); document.getElementById('appointmentModeBS')?.classList.toggle('primary', appointmentMode === 'BS'); document.getElementById('appointmentModeAD')?.classList.toggle('secondary', appointmentMode !== 'AD'); document.getElementById('appointmentModeBS')?.classList.toggle('secondary', appointmentMode !== 'BS'); renderAppointmentCalendar(); renderAppointmentList() }
+const originalShowPage = showPage;
+showPage = function (id) {
   originalShowPage(id);
-  if(id==='appointments'){
-    if(!appointmentSelectedAD)appointmentSelectedAD=apptIsoDate(new Date());
+  if (id === 'appointments') {
+    if (!appointmentSelectedAD) appointmentSelectedAD = apptIsoDate(new Date());
     appointmentSetViewForAD(appointmentSelectedAD);
     renderAppointments();
   }
-  if(id==='nepalpay'){
+  if (id === 'nepalpay') {
     renderNepalPayTxnTable();
     updateNiziClock();
     setTimeout(testNiziQr, 50);
@@ -1872,7 +2382,7 @@ function playPosChime() {
     osc2.start(audioCtx.currentTime + 0.12);
     osc1.stop(audioCtx.currentTime + 0.6);
     osc2.stop(audioCtx.currentTime + 0.6);
-  } catch(e) {
+  } catch (e) {
     console.warn('Audio chime failed:', e);
   }
 }
@@ -1889,7 +2399,7 @@ function speakVoicePayment(amount) {
         window.speechSynthesis.speak(utterance);
       }, 400);
     }
-  } catch(e) {
+  } catch (e) {
     console.warn('Voice speak failed:', e);
   }
 }
@@ -2006,7 +2516,7 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
         try {
           await port.setSignals({ dataTerminalReady: false, requestToSend: false });
           console.log('[NiZi USB] Handshake signals set: DTR=false, RTS=false');
-        } catch (_) {}
+        } catch (_) { }
       }
     } catch (openErr) {
       console.warn('[NiZi USB] Port open result:', openErr.message);
@@ -2038,7 +2548,7 @@ async function autoConnectNiziUsb(silent = false, specificPort = null) {
     if (!silent) {
       alert('✓ NiZi POS B33 connected successfully via USB!');
     }
-  } catch(e) {
+  } catch (e) {
     console.error('NiZi USB connection error:', e);
     if (!silent && e.name !== 'AbortError') {
       alert('NiZi POS connection note: ' + e.message);
@@ -2314,10 +2824,10 @@ function handleNiziUsbDisconnect() {
       niziSerialWriter = null;
     }
     if (niziSerialPort) {
-      niziSerialPort.close().catch(() => {});
+      niziSerialPort.close().catch(() => { });
       niziSerialPort = null;
     }
-  } catch(e) {}
+  } catch (e) { }
 
   const statusPill = document.getElementById('niziHardwareStatusPill');
   if (statusPill) {
@@ -2346,11 +2856,11 @@ async function readNiziSerialLoop(port) {
           console.log('[NiZi USB Rx]:', text);
         }
       }
-    } catch(err) {
+    } catch (err) {
       break;
     } finally {
       if (niziSerialReader) {
-        try { niziSerialReader.releaseLock(); } catch(e) {}
+        try { niziSerialReader.releaseLock(); } catch (e) { }
         niziSerialReader = null;
       }
     }
@@ -2534,7 +3044,7 @@ function niziCommand(type) {
   const msgEl = document.getElementById('niziMessageInput');
   const m = niziClean(msgEl?.value) || 'Infinity Dental';
 
-  switch(type) {
+  switch (type) {
     case 'idle': return 'IDLE';
     case 'text': return `TEXT**Infinity Dental**Welcome**${m}`;
     case 'qr': {
@@ -2634,14 +3144,59 @@ async function sendNiziCommand(cmd) {
   // 2. Transmit via direct USB Web Serial if port open in browser
   if (niziSerialWriter) {
     try {
+      // Official NiZi B30/B33 Command Framing (per B30Sdk.py & dynamic_qr_commands.html)
+      let officialStr = '';
+      if (cmd.command === 'show_qr' || cmd.command === 'qr') {
+        const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
+        const msg = cmd.message || 'SCAN TO PAY';
+        officialStr = `QR**Rs. ${amtStr}**${msg}**${cmd.payload || ''}\n`;
+      } else if (cmd.command === 'success' || cmd.command === 'payment_success') {
+        const title = cmd.title || 'SUCCESS!';
+        const msg = cmd.message || (cmd.amount ? `Rs. ${cmd.amount} received` : 'Payment successful');
+        officialStr = `PASS**${title}**${msg}\n`;
+      } else if (cmd.command === 'show_wifi') {
+        officialStr = `QR**FREE WI-FI**${cmd.ssid || 'Scan to Connect'}**${cmd.payload || ''}\n`;
+      } else if (cmd.command === 'idle' || cmd.command === 'display_logo') {
+        officialStr = 'IDLE\n';
+      } else if (cmd.command === 'wake') {
+        officialStr = 'WAKE\n';
+      } else if (cmd.command === 'reset') {
+        officialStr = 'RESET\n';
+      } else if (cmd.command === 'clear') {
+        officialStr = 'CLEAR\n';
+      }
+
+      if (officialStr) {
+        await niziSerialWriter.write(new TextEncoder().encode(officialStr));
+        console.log('[NiZi USB Tx Official Protocol]:', officialStr.trim());
+      }
       await niziSerialWriter.write(new TextEncoder().encode(formattedCmd + '\n'));
       console.log('[NiZi USB Tx Official Protocol]:', formattedCmd);
-    } catch(e) {
+    } catch (e) {
       console.warn('[NiZi USB] Serial write warning:', e.message);
     }
   }
 
+  // Forward directly to local NiZi POS Connector application on port 9121 if running
   // 3. Transmit via NiZi Bridge (proxy + direct fetch fallback)
+  try {
+    fetch('http://127.0.0.1:9121/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmd),
+      mode: 'no-cors'
+    }).catch(() => { });
+  } catch (e) { }
+
+  // Forward via localhost backend proxy
+  try {
+    fetch('/api/nizi/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmd)
+    }).catch(() => { });
+  } catch (e) { }
+
   try {
     await niziSend(formattedCmd);
   } catch (bridgeErr) {
@@ -2689,9 +3244,9 @@ function updateNiziDeviceDisplay(cmd) {
     screen.className = 'nizi-screen';
     screen.innerHTML = `
       <div class="nizi-qr" id="niziDeviceQrWrap"></div>
-      <div class="nizi-price">Rs. ${Number(cmd.amount||0).toLocaleString()}</div>
-      <div class="nizi-sub">${esc(cmd.title||'Infinity Dental')}</div>
-      <div class="nizi-sub" style="font-size:9px;color:#38bdf8">${esc(cmd.billNumber||'Scan & Pay')}</div>
+      <div class="nizi-price">Rs. ${Number(cmd.amount || 0).toLocaleString()}</div>
+      <div class="nizi-sub">${esc(cmd.title || 'Infinity Dental')}</div>
+      <div class="nizi-sub" style="font-size:9px;color:#38bdf8">${esc(cmd.billNumber || 'Scan & Pay')}</div>
     `;
     const wrap = document.getElementById('niziDeviceQrWrap');
     if (wrap) {
@@ -2702,7 +3257,7 @@ function updateNiziDeviceDisplay(cmd) {
     screen.innerHTML = `
       <div style="font-size:54px;margin-bottom:6px">✓</div>
       <div style="font-size:16px;font-weight:800;letter-spacing:.5px">PAYMENT RECEIVED</div>
-      <div class="nizi-price" style="color:#86efac;font-size:22px">Rs. ${Number(cmd.amount||0).toLocaleString()}</div>
+      <div class="nizi-price" style="color:#86efac;font-size:22px">Rs. ${Number(cmd.amount || 0).toLocaleString()}</div>
       <div class="nizi-sub" style="color:#d1fae5">Thank You!</div>
       <div class="nizi-sub" style="font-size:9px;margin-top:6px;color:#a7f3d0">Infinity Dental Clinic</div>
     `;
@@ -2781,7 +3336,7 @@ async function loadClinicWifiConfig() {
     try {
       const local = localStorage.getItem('infinity_dental_wifi_config');
       if (local) currentWifiConfig = JSON.parse(local);
-    } catch (_) {}
+    } catch (_) { }
   }
   updateWifiModalFormValues();
 }
@@ -2888,7 +3443,7 @@ async function saveWifiConfigFromModal() {
 
     try {
       localStorage.setItem('infinity_dental_wifi_config', JSON.stringify(newConfig));
-    } catch (_) {}
+    } catch (_) { }
 
     currentWifiConfig = newConfig;
     updateWifiModalFormValues();
@@ -2940,7 +3495,7 @@ async function showWifiOnNiziBox() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(currentWifiConfig)
     });
-  } catch (_) {}
+  } catch (_) { }
 
   // Update NiZi status pill
   const pill = document.getElementById('niziHardwareStatusPill');
@@ -2957,7 +3512,7 @@ async function resetNiziScreenFromWifi() {
   sendNiziCommand({ command: 'display_logo', title: 'Infinity Dental' });
   try {
     await fetch('/api/wifi/reset-nizi', { method: 'POST' });
-  } catch (_) {}
+  } catch (_) { }
 }
 
 function printWifiStandCard() {
@@ -3092,27 +3647,27 @@ function buildClientNepalPayQr({ amount, billNumber, remarks }) {
   // Tag 29: Official NepalQR Guid & Merchant Details
   const nchlGuid = 'NCHL' + NPI_CLIENT_CONFIG.acquirerId + NPI_CLIENT_CONFIG.merchantId;
   const tag29Val = tlv('00', nchlGuid) +
-                   tlv('01', NPI_CLIENT_CONFIG.merchantId) +
-                   tlv('02', NPI_CLIENT_CONFIG.storeLabel || 'Store1') +
-                   tlv('03', NPI_CLIENT_CONFIG.terminalLabel || 'Terminal1');
+    tlv('01', NPI_CLIENT_CONFIG.merchantId) +
+    tlv('02', NPI_CLIENT_CONFIG.storeLabel || 'Store1') +
+    tlv('03', NPI_CLIENT_CONFIG.terminalLabel || 'Terminal1');
 
   const tag62Val = tlv('01', billNumber || ('B-' + Date.now())) +
-                   tlv('05', remarks || 'DentalBill') +
-                   tlv('07', NPI_CLIENT_CONFIG.terminalLabel || 'Terminal1') +
-                   tlv('08', NPI_CLIENT_CONFIG.storeLabel || 'Store1');
+    tlv('05', remarks || 'DentalBill') +
+    tlv('07', NPI_CLIENT_CONFIG.terminalLabel || 'Terminal1') +
+    tlv('08', NPI_CLIENT_CONFIG.storeLabel || 'Store1');
   const formattedAmount = Number(amount || 0).toFixed(2);
   const raw = tlv('00', '01') +
-              tlv('01', '12') +
-              tlv('26', tag26Val) +
-              tlv('29', tag29Val) +
-              tlv('52', String(NPI_CLIENT_CONFIG.merchantCategoryCode)) +
-              tlv('53', '524') +
-              tlv('54', formattedAmount) +
-              tlv('58', 'NP') +
-              tlv('59', NPI_CLIENT_CONFIG.merchantName) +
-              tlv('60', 'Kathmandu') +
-              tlv('62', tag62Val) +
-              '6304';
+    tlv('01', '12') +
+    tlv('26', tag26Val) +
+    tlv('29', tag29Val) +
+    tlv('52', String(NPI_CLIENT_CONFIG.merchantCategoryCode)) +
+    tlv('53', '524') +
+    tlv('54', formattedAmount) +
+    tlv('58', 'NP') +
+    tlv('59', NPI_CLIENT_CONFIG.merchantName) +
+    tlv('60', 'Kathmandu') +
+    tlv('62', tag62Val) +
+    '6304';
   return raw + crc16CcittClient(raw);
 }
 
@@ -3246,7 +3801,7 @@ async function openNepalPayModal({ amount, billNumber, remarks, patientName, pat
       } else {
         const m = Math.floor(remainingSec / 60);
         const s = remainingSec % 60;
-        if (countdownEl) countdownEl.textContent = `Expires in: ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        if (countdownEl) countdownEl.textContent = `Expires in: ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
       }
     }, 1000);
 
@@ -3271,7 +3826,7 @@ async function openNepalPayModal({ amount, billNumber, remarks, patientName, pat
         const traceId = activeQrTransaction.validationTraceId || '';
         const billNo = activeQrTransaction.billNumber || '';
         const pollUrl = `/api/nepalpay/status/${encodeURIComponent(traceId)}?billNumber=${encodeURIComponent(billNo)}`;
-        
+
         let data = null;
         if (window.dentalNpi && window.dentalNpi.checkPaymentStatus) {
           data = await window.dentalNpi.checkPaymentStatus({ validationTraceId: traceId, billNumber: billNo });
@@ -3302,7 +3857,7 @@ async function openNepalPayModal({ amount, billNumber, remarks, patientName, pat
       }
     }, 3000);
 
-  } catch(e) {
+  } catch (e) {
     console.error('Error generating QR:', e);
     const fallback = buildClientNepalPayQr({ amount: parsedAmount, billNumber, remarks });
     renderQrToElement(canvasWrap, fallback, 190, 190);
@@ -3341,7 +3896,7 @@ async function simulateActiveQrPayment() {
     if (window.dentalNpi && window.dentalNpi.simulatePayment) {
       await window.dentalNpi.simulatePayment(traceId);
     }
-  } catch (_) {}
+  } catch (_) { }
 
   try {
     await fetch('/api/nepalpay/simulate-payment', {
@@ -3363,8 +3918,8 @@ async function simulateActiveQrPayment() {
 }
 
 function handlePaymentReceivedEvent(eventData) {
-  const found = recentNepalPayTransactions.find(t => 
-    (eventData.traceId && t.traceId === eventData.traceId) || 
+  const found = recentNepalPayTransactions.find(t =>
+    (eventData.traceId && t.traceId === eventData.traceId) ||
     (eventData.billNumber && t.billNumber === eventData.billNumber)
   );
   if (found) {
@@ -3400,7 +3955,7 @@ function handlePaymentReceivedEvent(eventData) {
       closeNepalPayModal();
       if (cb) cb(eventData);
       else {
-        alert(`🎉 Payment of Rs. ${Number(eventData.amount||0).toLocaleString()} confirmed successfully!\nTxn ID: ${eventData.txnId}\nPayer: ${eventData.payerName || 'connectIPS Customer'}`);
+        alert(`🎉 Payment of Rs. ${Number(eventData.amount || 0).toLocaleString()} confirmed successfully!\nTxn ID: ${eventData.txnId}\nPayer: ${eventData.payerName || 'connectIPS Customer'}`);
       }
     }, 1200);
   }
@@ -3411,7 +3966,7 @@ function setupRealtimeWebsocket() {
   if (typeof WebSocket === 'undefined') return;
   try {
     const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProto}//${location.host}/ws`;
+    const wsUrl = (location.protocol === 'file:') ? 'ws://localhost:3000/ws' : `${wsProto}//${location.host}/ws`;
     localFrontendWs = new WebSocket(wsUrl);
 
     localFrontendWs.onmessage = (e) => {
@@ -3424,7 +3979,7 @@ function setupRealtimeWebsocket() {
         } else if (data.type === 'soundbox_status') {
           applySoundboxStatusToUi(data.status);
         }
-      } catch (_) {}
+      } catch (_) { }
     };
 
     localFrontendWs.onclose = () => {
@@ -3432,7 +3987,7 @@ function setupRealtimeWebsocket() {
     };
 
     localFrontendWs.onerror = () => {
-      try { localFrontendWs.close(); } catch (_) {}
+      try { localFrontendWs.close(); } catch (_) { }
     };
   } catch (err) {
     console.warn('Realtime WS setup warning:', err);
@@ -3442,7 +3997,8 @@ function setupRealtimeWebsocket() {
 function setupSseListener() {
   setupRealtimeWebsocket();
   try {
-    const sse = new EventSource('/api/events');
+    const sseUrl = (location.protocol === 'file:') ? 'http://localhost:3000/api/events' : '/api/events';
+    const sse = new EventSource(sseUrl);
     sse.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
@@ -3453,9 +4009,9 @@ function setupSseListener() {
         } else if (data.type === 'soundbox_status') {
           applySoundboxStatusToUi(data.status);
         }
-      } catch(err) {}
+      } catch (err) { }
     };
-  } catch(e) {
+  } catch (e) {
     console.warn('SSE setup warning:', e);
   }
 }
@@ -3476,13 +4032,13 @@ function renderNepalPayTxnTable() {
   tbody.innerHTML = recentNepalPayTransactions.map(t => `
     <tr>
       <td><strong>${esc(t.txnId || t.traceId)}</strong></td>
-      <td>${esc(t.billNumber||'—')}</td>
-      <td>${esc(t.patientName||'Walk-in')}</td>
-      <td>Rs. ${Number(t.amount||0).toLocaleString()}</td>
+      <td>${esc(t.billNumber || '—')}</td>
+      <td>${esc(t.patientName || 'Walk-in')}</td>
+      <td>Rs. ${Number(t.amount || 0).toLocaleString()}</td>
       <td>NepalPay QR</td>
-      <td><span class="status-pill ${t.status==='SUCCESS'?'live':'simulated'}">${esc(t.status)}</span></td>
+      <td><span class="status-pill ${t.status === 'SUCCESS' ? 'live' : 'simulated'}">${esc(t.status)}</span></td>
       <td>
-        ${t.status==='PENDING' ? `<button class="btn secondary" style="font-size:10px;padding:4px 8px" onclick="simulateSpecificPayment('${t.traceId}')">Simulate Pay</button>` : `<span class="muted" style="font-size:11px">Completed</span>`}
+        ${t.status === 'PENDING' ? `<button class="btn secondary" style="font-size:10px;padding:4px 8px" onclick="simulateSpecificPayment('${t.traceId}')">Simulate Pay</button>` : `<span class="muted" style="font-size:11px">Completed</span>`}
       </td>
     </tr>
   `).join('');
@@ -3500,7 +4056,7 @@ async function simulateSpecificPayment(traceId) {
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
-  } catch(e) {
+  } catch (e) {
     alert('Simulation error: ' + e.message);
   }
 }
@@ -3513,7 +4069,7 @@ function generateDynamicQrFromConsole() {
     return;
   }
   const patient = (document.getElementById('testQrPatient')?.value || 'Walk-in').trim();
-  
+
   // Always generate a fresh unique bill number for every dynamic QR session
   const billInput = document.getElementById('testQrBillNo');
   const bill = 'B-' + Date.now();
@@ -3546,7 +4102,7 @@ setInterval(updateNiziClock, 10000);
 setTimeout(() => {
   try {
     testNiziQr();
-  } catch(_) {}
+  } catch (_) { }
 }, 250);
 
 
@@ -3709,7 +4265,7 @@ async function fetchPat() {
         return;
       }
     }
-  } catch (_) {}
+  } catch (_) { }
 
   // Fallback to local memory patients
   const localMatch = patients.find(p => ('OPD-' + p.OPDNumber).toUpperCase() === val || String(p.OPDNumber) === val.replace(/^OPD-?/i, ''));
@@ -3943,7 +4499,7 @@ async function renderHist() {
           </tr>
         `;
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 }
 
@@ -4765,7 +5321,7 @@ async function refreshPhoneNetworkQr() {
         return;
       }
     }
-  } catch (_) {}
+  } catch (_) { }
   // Default to current location
   if (f('qr-addr') && !f('qr-addr').value) {
     f('qr-addr').value = location.origin;
@@ -5154,7 +5710,7 @@ function closeSettingsMenu() {
 }
 
 // Global click listener to close settings flyout when clicking outside
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
   const flyout = document.getElementById('settingsFlyout');
   const btn = document.getElementById('sidebarSettingsBtn');
   if (flyout && flyout.style.display !== 'none') {
@@ -5165,7 +5721,7 @@ document.addEventListener('click', function(e) {
 });
 
 // Escape key listener to close settings flyout
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
     closeSettingsMenu();
   }

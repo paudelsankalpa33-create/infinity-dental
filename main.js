@@ -7,6 +7,11 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { DatabaseSync } = require('node:sqlite');
 
+// Performance switches: prevent timer throttling and background rendering delay
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+
 const AUTH_SALT = 'infinity_dental_salt_2026';
 function hashPassword(pwd) {
   return crypto.createHash('sha256').update(AUTH_SALT + ':' + String(pwd || '').trim()).digest('hex');
