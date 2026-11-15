@@ -132,7 +132,10 @@ function nextNumber() { return Math.max(1000, patients.filter(p => !p.Appointmen
 function registeredPatients() { return patients.filter(p => !p.AppointmentOnly) }
 function pad(n) { return String(n).padStart(4, '0') }
 function esc(s) { return String(s ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])) }
+let isRegisteringPatient = false;
 function registerPatient() {
+  if (isRegisteringPatient) return;
+  const regBtn = document.getElementById('btnRegisterPatient');
   const nameEl = document.getElementById('name');
   const contactEl = document.getElementById('contact');
   const genderEl = document.getElementById('gender');
@@ -146,6 +149,9 @@ function registerPatient() {
   if (!name) { showToast('Please enter the patient name.', 'warn'); nameEl?.focus(); return; }
   if (!contact) { showToast('Please enter the contact number.', 'warn'); contactEl?.focus(); return; }
   if (!gender) { showToast('Please select gender.', 'warn'); genderEl?.focus(); return; }
+
+  isRegisteringPatient = true;
+  if (regBtn) regBtn.disabled = true;
 
   const now = new Date();
   const opd = nextNumber();
@@ -172,14 +178,22 @@ function registerPatient() {
     PaymentHistory: []
   };
 
-  patients.push(p);
-  save();
-  clearForm();
-  selectedId = p.id;
-  showPage('profile');
-  renderProfile();
-  try { localStorage.removeItem('infinity_dental_registration_draft_v1'); } catch (_) { }
-  showToast('✓ Patient registered successfully! OPD Number: ' + pad(opd), 'success');
+  try {
+    pendingProcedures = [];
+    patients.push(p);
+    save();
+    clearForm();
+    selectedId = p.id;
+    showPage('profile');
+    renderProfile();
+    try { localStorage.removeItem('infinity_dental_registration_draft_v1'); } catch (_) { }
+    showToast('✓ Patient registered successfully! OPD Number: ' + pad(opd), 'success');
+  } finally {
+    setTimeout(() => {
+      isRegisteringPatient = false;
+      if (regBtn) regBtn.disabled = false;
+    }, 400);
+  }
 }
 function clearForm() {
   ['name', 'contact', 'address', 'age'].forEach(id => {
@@ -195,7 +209,7 @@ function savePageInputs() { }
 function saveVisitInputs() { }
 function loadVisitDraft() { }
 function renderPatients() { const q = (document.getElementById('search')?.value || '').trim().toLowerCase(); const list = registeredPatients().filter(p => !q || [p.OPDNumber, p.Name, p.Contact].some(v => String(v || '').toLowerCase().includes(q))).sort((a, b) => b.OPDNumber - a.OPDNumber); document.getElementById('patientRows').innerHTML = list.length ? list.map(p => `<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact)}</td><td>${esc(p.Date)}</td><td>${esc(p.PaymentStatus || 'Pending')}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">No patients found.</td></tr>` }
-function openProfile(id) { selectedId = id; const recent = JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1') || '[]').filter(x => x !== id); recent.unshift(id); localStorage.setItem('infinity_dental_recent_patients_v1', JSON.stringify(recent.slice(0, 8))); showPage('profile'); renderProfile() }
+function openProfile(id) { pendingProcedures = []; selectedId = id; const recent = JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1') || '[]').filter(x => x !== id); recent.unshift(id); localStorage.setItem('infinity_dental_recent_patients_v1', JSON.stringify(recent.slice(0, 8))); showPage('profile'); renderProfile() }
 let PROCEDURES = [];
 function priceText(x) {
   if (x.price != null) return 'Rs. ' + Number(x.price).toLocaleString() + (x.unit ? ' ' + x.unit : '');
@@ -238,7 +252,7 @@ function applyQuickProcedure(name, cost) {
     }
     if (!matched) sel.value = '';
   }
-  updateVisitCost();
+  updatePaymentChoice();
   showToast(`Selected: ${name} (Rs. ${cost})`, 'info');
 }
 
@@ -548,7 +562,7 @@ function printBill(billNo) {
  <div class="thank">Thank You!<small>Endless Care, Beautiful Smiles</small></div><div class="print-actions"><button onclick="window.print()">PRINT</button></div></div></body></html>`); billWindow.document.close(); billWindow.focus(); setTimeout(() => billWindow.print(), 400);
 }
 
-function updateVisitCost() { const sel = document.getElementById('visitProcedure'), opt = sel?.options[sel.selectedIndex], cost = document.getElementById('visitCost'); if (!cost) return; if (!opt || !opt.value) { cost.value = '0'; cost.placeholder = 'Enter amount'; return } cost.value = opt.dataset.cost || 0; cost.placeholder = 'Actual amount charged' }
+// duplicate updateVisitCost removed
 function updateAppointmentAd() { const out = document.getElementById('appointmentAdDate'), ad = document.getElementById('appointmentAdDateHidden')?.value || ''; if (!out) return; if (ad) { out.textContent = 'English (AD): ' + ad } else { out.textContent = 'English date will appear here' } }
 function initNepaliAppointmentPicker(p) { const el = document.getElementById('appointmentBsDate'); if (!el || !window.NepaliFunctions) return; try { if (el._ndpReady) return; el.nepaliDatePicker({ dateFormat: 'YYYY-MM-DD', unicodeDate: false, readOnlyInput: true, ndpEnglishInput: 'appointmentAdDateHidden', ndpTriggerButton: true, ndpTriggerButtonText: '📅', ndpYear: true, ndpMonth: true, onChange: function () { updateAppointmentAd() } }); el._ndpReady = true; if (p && p.Appointment && p.Appointment.bsDate) { el.value = p.Appointment.bsDate; try { document.getElementById('appointmentAdDateHidden').value = p.Appointment.adDate || NepaliFunctions.BS2AD(p.Appointment.bsDate) } catch (e) { } } updateAppointmentAd() } catch (e) { console.warn('Nepali datepicker init failed', e) } }
 function setTodayBsAppointment() { if (window.NepaliFunctions) { const x = NepaliFunctions.GetCurrentBsDate(); document.getElementById('appointmentBsDate').value = x.year + '-' + String(x.month).padStart(2, '0') + '-' + String(x.date).padStart(2, '0'); try { document.getElementById('appointmentAdDateHidden').value = NepaliFunctions.BS2AD(document.getElementById('appointmentBsDate').value) } catch (e) { } updateAppointmentAd() } else { alert('Nepali calendar could not be loaded.') } }
@@ -1008,7 +1022,7 @@ function setQuickTime(val) {
 }
 
 function selectVisitPaymentMode(mode) { const hidden = document.getElementById('visitPaymentMode'); if (hidden) hidden.value = mode; document.querySelectorAll('.payment-mode').forEach(b => b.classList.toggle('selected', b.dataset.mode === mode)); }
-function updateVisitCost() { const sel = document.getElementById('visitProcedure'), opt = sel?.options[sel.selectedIndex], cost = document.getElementById('visitCost'); if (!cost) return; if (!opt || !opt.value) { cost.value = '0'; cost.placeholder = 'Enter amount'; return } cost.value = opt.dataset.cost || 0; cost.placeholder = 'Actual amount charged' }
+// duplicate updateVisitCost removed
 function updateAppointmentAd() { }
 function initNepaliAppointmentPicker() { }
 function setTodayBsAppointment() { setQuickAppointment(0, null) }
@@ -1026,13 +1040,13 @@ function saveAppointment() {
     bs = apptBsFromAd(ad) || '';
   }
   if (!ad) {
-    alert('Please choose or enter an appointment date.');
+    showToast('Please choose or enter an appointment date.', 'warn');
     return;
   }
   p.Appointment = { adDate: ad, bsDate: bs, time: t, status: 'scheduled', date: ad };
   save();
   updateAll();
-  alert('Appointment saved for ' + (bs ? 'BS ' + bs + ' (' + ad + ')' : ad) + ' at ' + t);
+  showToast('✓ Appointment saved for ' + (bs ? 'BS ' + bs + ' (' + ad + ')' : ad) + ' at ' + t, 'success');
   renderProfile();
 }
 function printLatestBill() { const p = patients.find(x => x.id === selectedId); if (!p || !p.VisitHistory?.length) { alert('No saved bill/visit found for this patient yet.'); return } printBill(p.VisitHistory[0].billNumber) }
