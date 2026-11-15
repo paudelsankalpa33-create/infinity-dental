@@ -2324,10 +2324,22 @@ body.dark .pill {
   color: #38bdf8;
 }
 
-body.dark .dashboard-page .card[style*="background:#eef8fb"],
-body.dark .card[style*="background:#f8fafb"] {
-  background: #142235 !important;
-  border-color: #27374d !important;
+body.dark .card[style*="background:#eef8fb"],
+body.dark .card[style*="background: #eef8fb"],
+body.dark .card[style*="background:#f8fafb"],
+body.dark .card[style*="background: #f8fafb"],
+body.dark .card[style*="background:#f0f9ff"],
+body.dark .card[style*="background: #f0f9ff"],
+body.dark .next-opd-card {
+  background: #090f19 !important;
+  border: 1px solid #1e2e46 !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark .next-opd-card b,
+body.dark .card[style*="background:#eef8fb"] b,
+body.dark .card[style*="background: #eef8fb"] b {
+  color: #38bdf8 !important;
 }
 
 body.dark .modal-box {
