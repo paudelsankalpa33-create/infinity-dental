@@ -239,7 +239,10 @@ function renderProcedureOptions() {
 
 function applyQuickProcedure(name, cost) {
   const costEl = document.getElementById('visitCost');
-  if (costEl) costEl.value = cost;
+  if (costEl) {
+    costEl.value = cost;
+    delete costEl.dataset.syncedWithPaid;
+  }
   const sel = document.getElementById('visitProcedure');
   if (sel) {
     let matched = false;
@@ -261,11 +264,18 @@ function onVisitCostInput(val) {
 }
 
 function onVisitPaidInput(val) {
-  const raw = Number(val) || 0;
+  const clean = String(val ?? '').trim();
+  const raw = clean === '' ? 0 : (Number(clean) || 0);
   const costEl = document.getElementById('visitCost');
   const currentCost = Number(costEl?.value) || 0;
-  if (costEl && currentCost === 0 && pendingProcedures.length === 0 && raw > 0) {
-    costEl.value = raw;
+  if (costEl && pendingProcedures.length === 0 && (currentCost === 0 || costEl.dataset.syncedWithPaid === '1')) {
+    if (raw > 0) {
+      costEl.value = raw;
+      costEl.dataset.syncedWithPaid = '1';
+    } else {
+      costEl.value = '0';
+      delete costEl.dataset.syncedWithPaid;
+    }
   }
   updatePaymentChoice();
 }
@@ -391,20 +401,24 @@ function updatePaymentChoice() {
   if (totalEl) totalEl.textContent = 'Rs. ' + total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   if (paidEl) {
     if (choice === 'total') {
-      if (total > 0 || !paidEl.value || paidEl.value === '0.00' || paidEl.value === '0') {
-        paidEl.value = total > 0 ? total.toFixed(2) : '0.00';
+      paidEl.placeholder = total > 0 ? `e.g. ${total.toLocaleString()} (Full Amount)` : 'Enter amount (Rs. 1 to 1,00,000)';
+      if (hint) {
+        hint.textContent = total > 0
+          ? `Total payment: Enter amount paid (Rs. 1 to 1,00,000) or leave blank for full bill (Rs. ${total.toLocaleString()}).`
+          : 'Enter amount paid (Rs. 1 to 1,00,000).';
       }
-      paidEl.placeholder = total > 0 ? total.toFixed(2) : 'Total amount';
-      if (hint) hint.textContent = 'Total payment selected — auto-filled with final amount (Rs. ' + total.toLocaleString() + '). You can adjust if needed.';
     } else {
-      paidEl.placeholder = 'Enter partial amount';
-      if (hint) hint.textContent = 'Partial payment selected — enter amount received today (up to Rs. ' + total.toLocaleString() + ').';
+      paidEl.placeholder = 'Enter partial amount (Rs. 1 to 1,00,000)';
+      if (hint) {
+        hint.textContent = 'Partial payment: Enter amount received today (Rs. 1 to 1,00,000). Remaining balance will be recorded as due.';
+      }
     }
   }
 
   const costElVal = Number(document.getElementById('visitCost')?.value) || 0;
-  const paidElVal = Number(paidEl?.value) || 0;
-  const hasAmount = total > 0 || costElVal > 0 || paidElVal > 0 || pendingProcedures.length > 0;
+  const rawPaidVal = (paidEl?.value ?? '').trim();
+  const paidElVal = Number(rawPaidVal) || 0;
+  const hasAmount = total > 0 || costElVal > 0 || (rawPaidVal !== '' && paidElVal > 0) || pendingProcedures.length > 0;
   if (addBtn) addBtn.disabled = !hasAmount;
   if (visitHint) {
     visitHint.textContent = hasAmount ? '✓ Ready to save visit & print bill.' : 'Select a procedure or enter an amount to enable Add Visit.';
@@ -445,12 +459,17 @@ function addVisit() {
   const choice = document.querySelector('input[name=paymentType]:checked')?.value || 'total';
 
   const paidEl = document.getElementById('visitPaid');
-  const paidVal = Number(paidEl?.value);
-  const paid = (!isNaN(paidVal) && paidVal >= 0) ? paidVal : total;
-
-  if (paid < 0) {
-    showToast('Payment amount cannot be negative.', 'warn');
-    return;
+  const rawPaid = (paidEl?.value ?? '').trim();
+  let paid;
+  if (rawPaid !== '') {
+    paid = Number(rawPaid);
+    if (isNaN(paid) || paid < 0) {
+      showToast('Please enter a valid payment amount (Rs. 1 to 1,00,000).', 'warn');
+      paidEl?.focus();
+      return;
+    }
+  } else {
+    paid = (choice === 'total') ? total : 0;
   }
 
   let mode = document.getElementById('visitPaymentMode')?.value || 'Cash';
@@ -563,10 +582,7 @@ function printBill(billNo) {
 }
 
 // duplicate updateVisitCost removed
-function updateAppointmentAd() { const out = document.getElementById('appointmentAdDate'), ad = document.getElementById('appointmentAdDateHidden')?.value || ''; if (!out) return; if (ad) { out.textContent = 'English (AD): ' + ad } else { out.textContent = 'English date will appear here' } }
-function initNepaliAppointmentPicker(p) { const el = document.getElementById('appointmentBsDate'); if (!el || !window.NepaliFunctions) return; try { if (el._ndpReady) return; el.nepaliDatePicker({ dateFormat: 'YYYY-MM-DD', unicodeDate: false, readOnlyInput: true, ndpEnglishInput: 'appointmentAdDateHidden', ndpTriggerButton: true, ndpTriggerButtonText: '📅', ndpYear: true, ndpMonth: true, onChange: function () { updateAppointmentAd() } }); el._ndpReady = true; if (p && p.Appointment && p.Appointment.bsDate) { el.value = p.Appointment.bsDate; try { document.getElementById('appointmentAdDateHidden').value = p.Appointment.adDate || NepaliFunctions.BS2AD(p.Appointment.bsDate) } catch (e) { } } updateAppointmentAd() } catch (e) { console.warn('Nepali datepicker init failed', e) } }
-function setTodayBsAppointment() { if (window.NepaliFunctions) { const x = NepaliFunctions.GetCurrentBsDate(); document.getElementById('appointmentBsDate').value = x.year + '-' + String(x.month).padStart(2, '0') + '-' + String(x.date).padStart(2, '0'); try { document.getElementById('appointmentAdDateHidden').value = NepaliFunctions.BS2AD(document.getElementById('appointmentBsDate').value) } catch (e) { } updateAppointmentAd() } else { alert('Nepali calendar could not be loaded.') } }
-function saveAppointment() { const p = patients.find(x => x.id === selectedId); if (!p) return; const bs = (document.getElementById('appointmentBsDate').value || '').trim(), ad = (document.getElementById('appointmentAdDateHidden')?.value || '').trim(), t = document.getElementById('appointmentTime').value; if (!bs || !t) { alert('Please select appointment date and time.'); return } if (!ad) { alert('Please select the appointment date from the Nepali calendar.'); return } p.Appointment = { bsDate: bs, adDate: ad, time: t, status: 'scheduled' }; save(); alert('Appointment saved for BS ' + bs + ' (' + ad + ') at ' + t); renderProfile() }
+// legacy appointment pickers cleaned up
 // --- Patient Pictures, Photos, Dental X-Rays & Scanned Documents ---
 function uploadPatientDocument(input) {
   const p = patients.find(x => x.id === selectedId);
@@ -866,7 +882,7 @@ function renderProfile() {
        <div class="formgrid">
          <div class="field">
            <label>Amount Paid (Rs.)</label>
-           <input id="visitPaid" type="number" min="0" step="1" placeholder="Enter amount paid" oninput="onVisitPaidInput(this.value)">
+           <input id="visitPaid" type="number" min="0" max="1000000" step="any" placeholder="Enter amount (Rs. 1 to 1,00,000)" oninput="onVisitPaidInput(this.value)">
          </div>
          <div class="field">
            <label>Payment Method</label>
@@ -878,7 +894,7 @@ function renderProfile() {
            <input id="visitPaymentMode" type="hidden" value="Cash">
          </div>
        </div>
-       <div id="paymentHint" class="muted" style="margin-top:8px;font-size:11.5px">Total payment selected — auto-filled with final amount. You can also adjust it directly.</div>
+       <div id="paymentHint" class="muted" style="margin-top:8px;font-size:11.5px">Enter amount paid (Rs. 1 to 1,00,000) or leave blank for full bill amount.</div>
      </div>
 
      <!-- Next Appointment Card -->
@@ -1933,6 +1949,12 @@ function showPage(id) {
   if (p) p.classList.add('active');
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.page === id));
   if (id === 'register') {
+    isRegisteringPatient = false;
+    const regBtn = document.getElementById('btnRegisterPatient');
+    if (regBtn) {
+      regBtn.disabled = false;
+      regBtn.innerHTML = 'REGISTER PATIENT';
+    }
     const el = document.getElementById('nextOpd');
     if (el) el.textContent = pad(nextNumber());
     setTimeout(() => document.getElementById('name')?.focus(), 40);
