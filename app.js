@@ -561,24 +561,549 @@ async function printSticker() {
  @media print{.print{display:none!important}html,body{width:100mm!important;height:50mm!important;overflow:hidden!important}.sticker{width:100mm!important;height:50mm!important;overflow:hidden!important}}
  </style></head><body><div class="sticker"><div class="head"><img class="logo" src="${logoUrl}" onerror="this.style.display='none'"><div class="clinic">INFINITY DENTAL CLINIC<br><small>Endless Care, Beautiful Smiles</small></div></div><div class="details"><div><b>Name</b><span>: ${esc(p.Name)}</span></div><div><b>Age/Gender</b><span>: ${esc(p.Age || '—')} / ${esc(p.Gender || '—')}</span></div><div><b>Address</b><span>: ${esc(p.Address || '—')}</span></div><div><b>Phone</b><span>: ${esc(p.Contact || '—')}</span></div><div><b>OPD No.</b><span>: OPD-${pad(p.OPDNumber)}</span></div></div><div class="barcode">${code39Svg('OPD-' + pad(p.OPDNumber))}</div></div><button class="print" onclick="window.print()">PRINT STICKER</button></body></html>`); w.document.close(); w.focus();
 }
+function numberToWords(n) {
+  const num = Math.round(Number(n) || 0);
+  if (num === 0) return 'Rupees Zero Only';
+  if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
+
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function toWords(x) {
+    if (x === 0) return '';
+    if (x < 20) return a[x] + ' ';
+    if (x < 100) return b[Math.floor(x / 10)] + (x % 10 !== 0 ? ' ' + a[x % 10] : '') + ' ';
+    if (x < 1000) return a[Math.floor(x / 100)] + ' Hundred ' + toWords(x % 100);
+    if (x < 100000) return toWords(Math.floor(x / 1000)) + 'Thousand ' + toWords(x % 1000);
+    if (x < 10000000) return toWords(Math.floor(x / 100000)) + 'Lakh ' + toWords(x % 100000);
+    return toWords(Math.floor(x / 10000000)) + 'Crore ' + toWords(x % 10000000);
+  }
+
+  return 'Rupees ' + toWords(num).trim() + ' Only';
+}
+
 function printBill(billNo) {
-  const found = findBillForPatient(billNo); if (!found) { alert('No bill found for this patient.'); return }
-  const { p, v } = found, items = v.procedureItems || String(v.procedures || '').split(', ').map(name => ({ procedure: name, cost: 0 }));
+  const found = findBillForPatient(billNo);
+  if (!found) { showToast('No bill found for this patient.', 'warn'); return; }
+  const { p, v } = found;
+  const items = (Array.isArray(v.procedureItems) && v.procedureItems.length)
+    ? v.procedureItems
+    : String(v.procedures || '').split(', ').map(name => ({ procedure: name, cost: Number(v.cost || 0) }));
+
   const subtotal = Number(v.subtotal || v.cost || items.reduce((a, x) => a + Number(x.cost || 0), 0));
-  const discountAmount = Number(v.discountAmount || 0), discountPercent = Number(v.discountPercent || 0);
+  const discountAmount = Number(v.discountAmount || 0);
+  const discountPercent = Number(v.discountPercent || (subtotal > 0 ? (discountAmount / subtotal * 100) : 0));
   const showDiscount = discountAmount > 0;
   const total = Math.max(0, subtotal - discountAmount);
-  const paid = Number(v.paymentDone || v.amount || 0), due = Math.max(0, total - paid);
-  const billWindow = window.open('', '_blank', 'width=820,height=1000'); if (!billWindow) { alert('Please allow pop-ups to print the bill.'); return }
-  const rows = items.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.procedure)}</td><td>1</td><td>${Number(x.cost || 0).toLocaleString()}</td><td>${Number(x.cost || 0).toLocaleString()}</td></tr>`).join('');
+  const paid = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+  const due = Math.max(0, total - paid);
+
+  const bsDate = (window.NepaliFunctions ? NepaliFunctions.AD2BS(v.date) : apptBsFromAd(v.date)) || '';
   const billLogoUrl = clinicLogoDataUrl || (location.href.substring(0, location.href.lastIndexOf('/') + 1) + 'assets/clinic-logo.png');
-  billWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Patient Bill - ${esc(v.billNumber || '')}</title><style>
- @page{size:A5 portrait;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;font-size:10.5pt;line-height:1.35}.bill{width:100%}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:1.5px solid #111;padding-bottom:8px}.logo{width:120px;height:auto;filter:grayscale(1)}.clinic{text-align:right}.clinic h1{font-size:19pt;margin:0 0 2px;letter-spacing:.5px}.clinic .slogan{font-size:9.5pt}.bill-title{text-align:center;font-size:17pt;font-weight:700;margin:12px 0 9px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.box{border:1px solid #222;padding:7px}.line{display:flex;justify-content:space-between;gap:10px;margin:2px 0}.label{font-weight:700}.table{width:100%;border-collapse:collapse;margin-top:8px}.table th,.table td{border:1px solid #222;padding:5px 4px}.table th{font-weight:700;text-align:center}.table td:nth-child(1),.table td:nth-child(3){text-align:center}.table td:nth-child(4),.table td:nth-child(5){text-align:right}.total td{font-weight:700}.payment{margin-top:10px;border-top:1px solid #111;padding-top:8px}.payment-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 20px}.thank{text-align:center;border-top:1px solid #111;margin-top:14px;padding-top:10px;font-size:13pt;font-weight:700}.thank small{display:block;font-size:9.5pt;font-weight:400;margin-top:2px}.print-actions{text-align:center;margin:10px 0}@media print{.print-actions{display:none}}
- </style></head><body><div class="bill"><div class="top"><img class="logo" src="${billLogoUrl}"><div class="clinic"><h1>INFINITY DENTAL CLINIC</h1><div class="slogan">Endless Care, Beautiful Smiles</div></div></div>
- <div class="bill-title">PATIENT BILL</div><div class="meta"><div class="box"><div class="line"><span class="label">Patient Name</span><span>${esc(p.Name)}</span></div><div class="line"><span class="label">Contact</span><span>${esc(p.Contact || '—')}</span></div><div class="line"><span class="label">Age / Gender</span><span>${esc(p.Age || '—')} / ${esc(p.Gender || '—')}</span></div></div><div class="box"><div class="line"><span class="label">Bill No.</span><span>${esc(v.billNumber || '—')}</span></div><div class="line"><span class="label">OPD No.</span><span>OPD-${pad(p.OPDNumber)}</span></div><div class="line"><span class="label">Date</span><span>${esc(v.date || '—')}</span></div><div class="line"><span class="label">Time</span><span>${esc(v.time || '—')}</span></div></div></div>
- <table class="table"><thead><tr><th>S.N.</th><th>Procedure / Treatment</th><th>Qty</th><th>Rate (NPR)</th><th>Amount (NPR)</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right">Subtotal (NPR)</td><td>${subtotal.toLocaleString()}</td></tr>${showDiscount ? `<tr><td colspan="4" style="text-align:right">Discount ${discountPercent ? `(${discountPercent.toFixed(2)}%)` : ``}</td><td>- ${discountAmount.toLocaleString()}</td></tr>` : ``}<tr class="total"><td colspan="4" style="text-align:right">${showDiscount ? 'Total After Discount' : 'Total'} (NPR)</td><td>${total.toLocaleString()}</td></tr></tfoot></table>
- <div class="payment"><div class="payment-grid"><div><span class="label">Payment Method:</span> ${esc(v.paymentMethod || '—')}</div><div><span class="label">Amount Paid:</span> NPR ${paid.toLocaleString()}</div><div><span class="label">Payment Status:</span> ${paid >= total ? 'Paid' : paid > 0 ? 'Partial' : 'Pending'}</div><div><span class="label">Balance Due:</span> NPR ${due.toLocaleString()}</div></div></div>
- <div class="thank">Thank You!<small>Endless Care, Beautiful Smiles</small></div><div class="print-actions"><button onclick="window.print()">PRINT</button></div></div></body></html>`); billWindow.document.close(); billWindow.focus(); setTimeout(() => billWindow.print(), 400);
+  const barcodeSvg = code39Svg(v.billNumber || ('OPD-' + pad(p.OPDNumber)));
+  const wordsAmount = numberToWords(paid > 0 ? paid : total);
+
+  const billWindow = window.open('', '_blank', 'width=780,height=960');
+  if (!billWindow) {
+    showToast('Please allow pop-ups to print the bill.', 'warn');
+    return;
+  }
+
+  const rows = items.map((x, i) => `
+    <tr>
+      <td style="text-align:center;color:#64748b">${i + 1}</td>
+      <td style="font-weight:600;color:#0f172a">${esc(x.procedure || 'Dental Consultation / Treatment')}</td>
+      <td style="text-align:center">1</td>
+      <td style="text-align:right">Rs. ${Number(x.cost || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+      <td style="text-align:right;font-weight:700;color:#0f172a">Rs. ${Number(x.cost || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+    </tr>
+  `).join('');
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Patient Bill - ${esc(v.billNumber || '')}</title>
+  <style>
+    @page {
+      size: A5 portrait;
+      margin: 8mm 10mm;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      font-size: 11pt;
+      line-height: 1.4;
+      padding: 24px 16px 40px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .no-print-toolbar {
+      max-width: 620px;
+      margin: 0 auto 16px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+    .btn-print {
+      background: #0284c7;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+    }
+    .btn-print:hover { background: #0369a1; }
+    .btn-close {
+      background: #e2e8f0;
+      color: #334155;
+    }
+    .btn-close:hover { background: #cbd5e1; }
+
+    .invoice-card {
+      max-width: 620px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+      padding: 28px 32px;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* Clinic Header */
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 2.5px solid #0284c7;
+    }
+    .header-logo-cell {
+      width: 140px;
+      vertical-align: middle;
+    }
+    .clinic-logo-img {
+      max-width: 130px;
+      max-height: 70px;
+      object-fit: contain;
+      display: block;
+    }
+    .header-info-cell {
+      text-align: right;
+      vertical-align: middle;
+    }
+    .clinic-main-title {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0.6px;
+      color: #0f172a;
+      line-height: 1.15;
+    }
+    .clinic-slogan-text {
+      font-size: 11px;
+      font-weight: 600;
+      color: #0284c7;
+      margin-top: 2px;
+      letter-spacing: 0.3px;
+    }
+    .clinic-address-meta {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    /* Invoice Title Banner */
+    .invoice-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 12px 0 14px 0;
+      padding: 6px 12px;
+      background: #f8fafc;
+      border-radius: 6px;
+      border-left: 4px solid #0284c7;
+    }
+    .banner-title {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+    .status-badge {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+    }
+    .badge-paid {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+    .badge-partial {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+    .badge-due {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    /* Meta Info Grid */
+    .meta-box-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .meta-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 10.5px;
+      line-height: 1.5;
+    }
+    .meta-card-title {
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      margin-bottom: 6px;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 3px;
+    }
+    .meta-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 2px 0;
+    }
+    .meta-lbl {
+      color: #64748b;
+      font-weight: 600;
+    }
+    .meta-val {
+      color: #0f172a;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    /* Treatment Table */
+    .table-wrap {
+      margin-bottom: 14px;
+    }
+    .bill-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10.5px;
+    }
+    .bill-table th {
+      background: #0f172a;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 7px 8px;
+      border: none;
+    }
+    .bill-table th:first-child { border-top-left-radius: 4px; }
+    .bill-table th:last-child { border-top-right-radius: 4px; }
+    .bill-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+    }
+    .bill-table tbody tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    /* Financial Summary */
+    .financial-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 10px;
+      align-items: start;
+    }
+    .words-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 10px;
+      color: #334155;
+      line-height: 1.4;
+    }
+    .words-box b {
+      color: #0f172a;
+      display: block;
+      margin-bottom: 2px;
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .barcode-wrap {
+      margin-top: 8px;
+      text-align: left;
+    }
+    .barcode-wrap svg {
+      max-width: 160px;
+      height: 38px;
+    }
+
+    .totals-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+    }
+    .calc-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 3px 0;
+      color: #475569;
+    }
+    .calc-row.discount-row {
+      color: #059669;
+      font-weight: 600;
+    }
+    .calc-row.grand-total {
+      border-top: 1.5px solid #cbd5e1;
+      border-bottom: 1.5px solid #cbd5e1;
+      margin: 4px 0;
+      padding: 5px 0;
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .calc-row.paid-row {
+      font-weight: 700;
+      color: #0284c7;
+    }
+    .calc-row.due-row {
+      font-weight: 700;
+      color: #dc2626;
+    }
+
+    /* Footer & Signatures */
+    .bill-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 1px dashed #cbd5e1;
+    }
+    .terms-text {
+      font-size: 9px;
+      color: #64748b;
+      line-height: 1.4;
+      max-width: 320px;
+    }
+    .terms-text b { color: #334155; }
+    .sign-box {
+      text-align: center;
+      width: 170px;
+    }
+    .sign-line {
+      border-top: 1.2px solid #0f172a;
+      margin-bottom: 4px;
+    }
+    .sign-title {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .sign-sub {
+      font-size: 8.5px;
+      color: #64748b;
+    }
+
+    .thank-banner {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #0284c7;
+      letter-spacing: 0.3px;
+    }
+
+    @media print {
+      body {
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .no-print-toolbar {
+        display: none !important;
+      }
+      .invoice-card {
+        max-width: 100% !important;
+        width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print-toolbar">
+    <button class="toolbar-btn btn-print" onclick="window.print()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+      PRINT BILL (A5 / A4)
+    </button>
+    <button class="toolbar-btn btn-close" onclick="window.close()">✕ Close</button>
+  </div>
+
+  <div class="invoice-card">
+    <table class="header-table">
+      <tr>
+        <td class="header-logo-cell">
+          <img class="clinic-logo-img" src="${billLogoUrl}" alt="Infinity Dental Clinic" onerror="this.style.display='none'">
+        </td>
+        <td class="header-info-cell">
+          <div class="clinic-main-title">INFINITY DENTAL CLINIC</div>
+          <div class="clinic-slogan-text">Endless Care, Beautiful Smiles</div>
+          <div class="clinic-address-meta">
+            📍 Pokhara-08, New Road, Kaski, Nepal &nbsp;•&nbsp; 📞 +977-9846000000<br>
+            ✉️ info@infinitydental.com.np &nbsp;•&nbsp; PAN: 600000000
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="invoice-banner">
+      <div class="banner-title">PATIENT TAX INVOICE &amp; RECEIPT</div>
+      <div class="status-badge ${paid >= total ? 'badge-paid' : (paid > 0 ? 'badge-partial' : 'badge-due')}">
+        ${paid >= total ? 'PAID' : (paid > 0 ? 'PARTIAL PAYMENT' : 'PAYMENT DUE')}
+      </div>
+    </div>
+
+    <div class="meta-box-grid">
+      <div class="meta-card">
+        <div class="meta-card-title">Patient Information</div>
+        <div class="meta-line"><span class="meta-lbl">Patient Name:</span> <span class="meta-val" style="font-size:11.5px;color:#0284c7">${esc(p.Name)}</span></div>
+        <div class="meta-line"><span class="meta-lbl">OPD Number:</span> <span class="meta-val">OPD-${pad(p.OPDNumber)}</span></div>
+        <div class="meta-line"><span class="meta-lbl">Age / Gender:</span> <span class="meta-val">${esc(p.Age || '—')} Yrs / ${esc(p.Gender || '—')}</span></div>
+        <div class="meta-line"><span class="meta-lbl">Contact No:</span> <span class="meta-val">${esc(p.Contact || '—')}</span></div>
+        ${p.Address ? `<div class="meta-line"><span class="meta-lbl">Address:</span> <span class="meta-val">${esc(p.Address)}</span></div>` : ''}
+      </div>
+
+      <div class="meta-card">
+        <div class="meta-card-title">Bill &amp; Visit Details</div>
+        <div class="meta-line"><span class="meta-lbl">Bill Number:</span> <span class="meta-val" style="font-family:monospace;letter-spacing:0.3px">${esc(v.billNumber || '')}</span></div>
+        <div class="meta-line"><span class="meta-lbl">Date (AD):</span> <span class="meta-val">${esc(v.date || '')}</span></div>
+        <div class="meta-line"><span class="meta-lbl">Date (BS):</span> <span class="meta-val">${esc(bsDate || '—')}</span></div>
+        <div class="meta-line"><span class="meta-lbl">Time:</span> <span class="meta-val">${esc(v.time || '')}</span></div>
+        <div class="meta-line"><span class="meta-lbl">Payment Method:</span> <span class="meta-val">${esc(v.paymentMethod || 'Cash')}</span></div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="bill-table">
+        <thead>
+          <tr>
+            <th style="width:36px;text-align:center">S.N.</th>
+            <th style="text-align:left">Treatment / Procedure Description</th>
+            <th style="width:48px;text-align:center">Qty</th>
+            <th style="width:105px;text-align:right">Rate (NPR)</th>
+            <th style="width:115px;text-align:right">Amount (NPR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="financial-grid">
+      <div class="financial-left">
+        <div class="words-box">
+          <b>Amount in Words:</b>
+          <div>${wordsAmount}</div>
+        </div>
+        ${v.txnId ? `<div style="font-size:9.5px;color:#64748b;margin-top:5px">Transaction ID: <code style="font-family:monospace;color:#0f172a;background:#e2e8f0;padding:1px 4px;border-radius:3px">${esc(v.txnId)}</code></div>` : ''}
+        <div class="barcode-wrap">
+          ${barcodeSvg}
+        </div>
+      </div>
+
+      <div class="totals-card">
+        <div class="calc-row">
+          <span>Subtotal:</span>
+          <span>NPR ${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+        </div>
+        ${showDiscount ? `
+        <div class="calc-row discount-row">
+          <span>Discount ${discountPercent ? `(${discountPercent.toFixed(1)}%)` : ''}:</span>
+          <span>- NPR ${discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+        </div>` : ''}
+        <div class="calc-row grand-total">
+          <span>${showDiscount ? 'Total After Discount:' : 'Total Amount:'}</span>
+          <span>NPR ${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+        </div>
+        <div class="calc-row paid-row">
+          <span>Amount Paid:</span>
+          <span>NPR ${paid.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+        </div>
+        <div class="calc-row ${due > 0 ? 'due-row' : ''}">
+          <span>Balance Due:</span>
+          <span>NPR ${due.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bill-footer">
+      <div class="terms-text">
+        <b>Terms &amp; Instructions:</b><br>
+        • Please bring this bill for dental check-up &amp; follow-up visits.<br>
+        • Valid for 15 days from the date of issue.<br>
+        • For clinical appointments &amp; queries: 📞 +977-9846000000
+      </div>
+      <div class="sign-box">
+        <div class="sign-line"></div>
+        <div class="sign-title">Authorized Signatory</div>
+        <div class="sign-sub">Infinity Dental Clinic</div>
+      </div>
+    </div>
+
+    <div class="thank-banner">
+      Thank You for Choosing Infinity Dental Clinic! • Endless Care, Beautiful Smiles
+    </div>
+  </div>
+</body>
+</html>`;
+
+  billWindow.document.open();
+  billWindow.document.write(html);
+  billWindow.document.close();
+  billWindow.focus();
 }
 
 // duplicate updateVisitCost removed

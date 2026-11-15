@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -6,6 +6,18 @@ const http = require('http');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { DatabaseSync } = require('node:sqlite');
+
+// Remove application menus across all windows (main + popups)
+if (Menu && typeof Menu.setApplicationMenu === 'function') {
+  Menu.setApplicationMenu(null);
+}
+if (app && typeof app.on === 'function') {
+  app.on('browser-window-created', (event, window) => {
+    if (window && typeof window.setMenu === 'function') {
+      window.setMenu(null);
+    }
+  });
+}
 
 // Performance switches: prevent timer throttling and background rendering delay
 if (app && app.commandLine) {
@@ -238,6 +250,23 @@ function createWindow(){
 
   win.setMenu(null);
   mainWindow = win;
+
+  // Window open handler: ensures clean bill print windows with no menus and optimal size
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        width: 780,
+        height: 960,
+        minWidth: 620,
+        minHeight: 700,
+        autoHideMenuBar: true,
+        menuBarVisible: false,
+        backgroundColor: '#f1f5f9',
+        title: 'Infinity Dental Clinic - Patient Bill'
+      }
+    };
+  });
 
   // --- Web Serial API Support for NiZi POS B33 and USB Soundboxes ---
   registerSerialPortHandler(win.webContents.session);
