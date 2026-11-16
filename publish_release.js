@@ -122,6 +122,7 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
+- **Operations & Inventory Layout Fix**: Fixed premature DOM closure tag that previously pushed Purchases & Inventory, Stocks, and Staff sections into the bottom footer row. All operation pages now render right at the top of the main workspace alongside the navigation sidebar.
 - **Patient Profile Add Visit & Save Fix**: Ensured the ADD VISIT & SAVE button is always active and enabled. Auto-stages general dental consultation/visit even if no procedure was pre-selected, syncs Next Appointment in one click, and opens the A5 bill immediately without native modal lockups.
 - **Official Clinic Contact Numbers & Email Everywhere**: Added phone numbers **9768592344, 01-4514888** and official email **The.infinity.dental@gmail.com** across printed A5 bills, OPD stickers, PDF reports, settings, login screen, and billing header.
 - **Official Clinic Website Promotion**: Added clickable clinic website promotion (**www.infinitydentalclinic.com.np**) in the navigation sidebar, login page, A5 invoice header & footer, and settings modal.
