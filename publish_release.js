@@ -84,13 +84,20 @@ async function publishRelease() {
 
   // Check if binaries exist
   const releaseDir = path.join(__dirname, 'release');
-  const setupFile = path.join(releaseDir, `Infinity Dental Clinic Setup ${version}.exe`);
+  const fullSetupFile = path.join(releaseDir, `Infinity Dental Clinic Setup ${version}.exe`);
   const portableFile = path.join(releaseDir, `Infinity Dental Clinic ${version}.exe`);
+  const fastPatchFile = path.join(releaseDir, `Infinity.Dental.Clinic.FastPatch.${version}.exe`);
 
-  if (!fs.existsSync(setupFile)) {
-    console.log(`Installer binary not found at: ${setupFile}`);
-    console.log('Building Windows distribution (npm run dist)...');
+  if (!fs.existsSync(fullSetupFile) || !fs.existsSync(portableFile)) {
+    console.log(`Building Windows distribution (npm run dist)...`);
     execSync('npm run dist', { stdio: 'inherit', cwd: __dirname });
+  }
+
+  // Compile FastPatch installer with NSIS
+  const makensisExe = 'C:\\Users\\user\\AppData\\Local\\electron-builder\\Cache\\nsis-3.0.4.1\\nsis-3.0.4.1-1mx3n\\Bin\\makensis.exe';
+  if (fs.existsSync(makensisExe)) {
+    console.log(`Compiling FastPatch installer with NSIS: ${fastPatchFile}...`);
+    execSync(`"${makensisExe}" build_fast_patch.nsi`, { stdio: 'inherit', cwd: __dirname });
   }
 
   // Ensure git commits & tag are pushed
@@ -109,6 +116,20 @@ async function publishRelease() {
   const releases = await listRes.json();
   let release = Array.isArray(releases) ? releases.find(r => r.tag_name === tag) : null;
 
+  const releaseNotes = `## Infinity Dental Clinic Update ${tag}
+
+Official client release. Fast in-app updater compatible.
+Patient database in C:\\Infiinity Dental Clinic is preserved.
+
+### What's New in ${tag}:
+- **Transactions & Financial Records**: Daily, Weekly, Monthly, Yearly, and All-Time revenue tracking and filtering.
+- **Appointments Dark Theme**: Dark slate cards and high-contrast typography in follow-up call tracking and no-show statuses.
+- **Form Controls & Dropdowns**: System-wide dark palette for native <select>, <option>, and <input> elements.
+- **NiZi POS B33 Hardware Simulator**: Wired simulator buttons directly via Node.js backend (/api/command) with automatic COM4 reconnect and duplicate panel removal.
+- **Billing & Discounts**: Fixed mutual percentage/amount discount calculations and procedure additions.
+- **AD/BS Date Selectors**: High-precision date parsing with Bikram Sambat synchronization.
+- **Instant In-App Updater**: Fast 1.5MB patch with zero permission errors and automatic restart.`;
+
   if (!release) {
     console.log(`Creating new GitHub Release for ${tag}...`);
     const createRes = await fetch(`https://api.github.com/repos/${repo}/releases`, {
@@ -121,7 +142,7 @@ async function publishRelease() {
       body: JSON.stringify({
         tag_name: tag,
         name: `Infinity Dental Clinic ${tag}`,
-        body: `## Infinity Dental Clinic Update ${tag}\r\n\r\nOfficial client release. In-app updater compatible.\r\nPatient database in C:\\Infiinity Dental Clinic is preserved.`,
+        body: releaseNotes,
         draft: false,
         prerelease: false
       })
@@ -134,17 +155,36 @@ async function publishRelease() {
 
   const existingAssets = release.assets || [];
   const setupAssetName = `Infinity.Dental.Clinic.Setup.${version}.exe`;
+  const fastPatchAssetName = `Infinity.Dental.Clinic.FastPatch.${version}.exe`;
+  const fullSetupAssetName = `Infinity.Dental.Clinic.Full.Setup.${version}.exe`;
   const portableAssetName = `Infinity.Dental.Clinic.Standalone.Portable.${version}.exe`;
 
-  // 1. Upload Setup installer
+  // 1. Upload Setup installer (FastPatch as primary Setup for ultra-fast, zero-error updates)
+  const installerToUse = fs.existsSync(fastPatchFile) ? fastPatchFile : fullSetupFile;
   const hasSetup = existingAssets.some(a => a.name === setupAssetName);
-  if (!hasSetup && fs.existsSync(setupFile)) {
-    await uploadAsset(token, repo, release.id, setupFile, setupAssetName);
+  if (!hasSetup && fs.existsSync(installerToUse)) {
+    await uploadAsset(token, repo, release.id, installerToUse, setupAssetName);
   } else if (hasSetup) {
     console.log(`Setup asset ${setupAssetName} already present.`);
   }
 
-  // 2. Upload Portable exe
+  // 2. Upload FastPatch asset
+  const hasFastPatch = existingAssets.some(a => a.name === fastPatchAssetName);
+  if (!hasFastPatch && fs.existsSync(fastPatchFile)) {
+    await uploadAsset(token, repo, release.id, fastPatchFile, fastPatchAssetName);
+  } else if (hasFastPatch) {
+    console.log(`FastPatch asset ${fastPatchAssetName} already present.`);
+  }
+
+  // 3. Upload Full Setup installer (if different from FastPatch)
+  const hasFullSetup = existingAssets.some(a => a.name === fullSetupAssetName);
+  if (!hasFullSetup && fs.existsSync(fullSetupFile) && fullSetupFile !== installerToUse) {
+    await uploadAsset(token, repo, release.id, fullSetupFile, fullSetupAssetName);
+  } else if (hasFullSetup) {
+    console.log(`Full Setup asset ${fullSetupAssetName} already present.`);
+  }
+
+  // 4. Upload Portable exe
   const hasPortable = existingAssets.some(a => a.name === portableAssetName);
   if (!hasPortable && fs.existsSync(portableFile)) {
     await uploadAsset(token, repo, release.id, portableFile, portableAssetName);

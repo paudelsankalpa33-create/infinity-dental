@@ -98,7 +98,7 @@ function buildWarnCommand(message = 'Please wait') {
 }
 
 function buildWifiCommand(ssid, payload = '') {
-  return `QR**Free Wi-Fi**Scan to pay**${payload}`;
+  return `QR**Guest Wi-Fi**Scan to Connect**${payload}`;
 }
 
 /**
@@ -142,7 +142,7 @@ function buildInfoPacket(title, message) {
 }
 
 function buildWifiQrPacket(ssid, payload) {
-  return packetToHex(`QR**Free Wi-Fi**Scan to pay**${payload}\n`);
+  return packetToHex(`QR**Guest Wi-Fi**Scan to Connect**${payload}\n`);
 }
 
 function buildWakePacket() {

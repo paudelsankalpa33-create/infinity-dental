@@ -4,6 +4,7 @@
    ========================================================================== */
 
 :root {
+  color-scheme: dark;
   /* Brand Luxury Palette */
   --navy: #091e36;
   --navy-deep: #051324;
@@ -71,6 +72,7 @@
 }
 
 body {
+  color-scheme: dark;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: var(--pale);
@@ -78,6 +80,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+select, option, input, textarea {
+  color-scheme: dark;
+  background-color: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
 }
 
 /* ==========================================================================
@@ -1190,7 +1199,9 @@ body.dark .cards .card {
   border-radius: 10px;
   margin: 6px 0;
   border-left: 5px solid transparent;
-  background: #ffffff;
+  background: #111827;
+  border: 1px solid #1e293b;
+  color: #f8fafc;
   box-shadow: var(--shadow-xs);
   transition: var(--transition-smooth);
 }
@@ -1201,18 +1212,24 @@ body.dark .cards .card {
 }
 
 .appt-row.appt-attended {
-  background: #ecfdf5;
-  border-left-color: #10b981;
+  background: #062b1e !important;
+  border: 1px solid #065f46 !important;
+  border-left: 5px solid #10b981 !important;
+  color: #f8fafc !important;
 }
 
 .appt-row.appt-scheduled {
-  background: #eff6ff;
-  border-left-color: #3b82f6;
+  background: #0c213d !important;
+  border: 1px solid #1e3a8a !important;
+  border-left: 5px solid #3b82f6 !important;
+  color: #f8fafc !important;
 }
 
 .appt-row.appt-no-show {
-  background: #fff1f2;
-  border-left-color: #f43f5e;
+  background: #2a0b12 !important;
+  border: 1px solid #881337 !important;
+  border-left: 5px solid #f43f5e !important;
+  color: #f8fafc !important;
 }
 
 .appt-main {
@@ -1223,11 +1240,12 @@ body.dark .cards .card {
 .appt-name {
   font-weight: 800;
   font-size: 13.5px;
+  color: #f8fafc !important;
 }
 
 .appt-meta {
   font-size: 12px;
-  color: var(--muted);
+  color: #94a3b8 !important;
   margin-top: 3px;
 }
 
@@ -1316,16 +1334,17 @@ body.dark .cards .card {
 .followup-panel {
   margin-top: 10px;
   padding: 12px;
-  border: 1px solid #dce5eb;
+  border: 1px solid #1e293b !important;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.85);
+  background: #0f172a !important;
+  color: #f8fafc !important;
 }
 
 .followup-heading {
   font-size: 12px;
   font-weight: 800;
   margin-bottom: 8px;
-  color: var(--text);
+  color: #38bdf8 !important;
 }
 
 .followup-fields {
@@ -1340,7 +1359,7 @@ body.dark .cards .card {
   gap: 4px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--muted);
+  color: #94a3b8 !important;
 }
 
 .followup-fields input,
@@ -1350,10 +1369,10 @@ body.dark .cards .card {
   width: 100%;
   min-width: 0;
   padding: 7px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid #334155 !important;
   border-radius: 7px;
-  background: #ffffff;
-  color: var(--text);
+  background: #090f1a !important;
+  color: #f8fafc !important;
   font: inherit;
   font-size: 12px;
 }

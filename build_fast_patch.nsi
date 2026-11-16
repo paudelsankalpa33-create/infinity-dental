@@ -5,13 +5,13 @@ Unicode true
 RequestExecutionLevel user
 
 Name "Infinity Dental Clinic Fast Patch"
-OutFile "release\Infinity.Dental.Clinic.FastPatch.1.0.16.exe"
+OutFile "release\Infinity.Dental.Clinic.FastPatch.1.0.17.exe"
 SetCompressor /SOLID lzma
 
 SilentInstall silent
 
 Section "Main"
-  Sleep 1500
+  Sleep 1000
 
   Var /GLOBAL TARGET_DIR
   StrCpy $TARGET_DIR ""
@@ -41,25 +41,38 @@ Section "Main"
     StrCpy $TARGET_DIR "$EXEDIR"
   ${EndIf}
 
-  InitPluginsDir
-  SetOutPath "$PLUGINSDIR"
-  File "release\win-unpacked\resources\app.asar"
+  StrCpy $1 "$TEMP\InfinityDentalPatch"
+  CreateDirectory "$1"
+  SetOutPath "$1"
+  File "/oname=app.asar" "release\win-unpacked\resources\app.asar"
 
-  FileOpen $0 "$PLUGINSDIR\apply.bat" w
+  FileOpen $0 "$1\apply.bat" w
   FileWrite $0 '@echo off$\r$\n'
-  FileWrite $0 'copy /y "$PLUGINSDIR\app.asar" "$TARGET_DIR\resources\app.asar" > nul 2>&1$\r$\n'
+  FileWrite $0 'taskkill /F /IM "Infinity Dental Clinic.exe" >nul 2>&1$\r$\n'
+  FileWrite $0 'timeout /t 1 /nobreak >nul$\r$\n'
+  FileWrite $0 ':retry$\r$\n'
+  FileWrite $0 'copy /Y "$1\app.asar" "$TARGET_DIR\resources\app.asar" >nul 2>&1$\r$\n'
+  FileWrite $0 'if errorlevel 1 ($\r$\n'
+  FileWrite $0 '  timeout /t 1 /nobreak >nul$\r$\n'
+  FileWrite $0 '  goto retry$\r$\n'
+  FileWrite $0 ')$\r$\n'
+  FileWrite $0 'reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.17" /f >nul 2>&1$\r$\n'
+  FileWrite $0 'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.17" /f >nul 2>&1$\r$\n'
+  FileWrite $0 'start "" "$TARGET_DIR\Infinity Dental Clinic.exe"$\r$\n'
+  FileWrite $0 'timeout /t 2 /nobreak >nul$\r$\n'
+  FileWrite $0 'rd /s /q "$1" >nul 2>&1$\r$\n'
+  FileWrite $0 'exit$\r$\n'
   FileClose $0
 
   ClearErrors
-  CopyFiles /SILENT "$PLUGINSDIR\app.asar" "$TARGET_DIR\resources\app.asar"
+  CopyFiles /SILENT "$1\app.asar" "$TARGET_DIR\resources\app.asar"
 
   ${If} ${Errors}
-    ExecShell "runas" "$PLUGINSDIR\apply.bat" "" SW_HIDE
-    Sleep 1000
+    ExecShell "runas" "$1\apply.bat" "" SW_HIDE
+  ${Else}
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.17"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.17"
+    Exec '"$TARGET_DIR\Infinity Dental Clinic.exe"'
+    RMDir /r "$1"
   ${EndIf}
-
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.16"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.16"
-
-  Exec '"$TARGET_DIR\Infinity Dental Clinic.exe"'
 SectionEnd

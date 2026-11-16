@@ -1527,7 +1527,17 @@ async function forwardToNiZiAgent(commandPayload, customBridgeUrl, customApiKey)
   const cmdStr = formatNiZiCommandString(commandPayload);
 
   // 3. Post to local NiZi Agent (default http://127.0.0.1:9121/api/command) with exact header X-API-Key
-  const result = await callNiZiBridgeApi('/api/command', 'POST', { command: cmdStr }, customBridgeUrl, customApiKey);
+  let result = await callNiZiBridgeApi('/api/command', 'POST', { command: cmdStr }, customBridgeUrl, customApiKey);
+
+  // If command failed because device is not connected to COM port, auto-connect and retry once
+  if (!result.ok && !result.bridgeOffline && result.statusCode !== 408) {
+    const errStr = JSON.stringify(result.data || '') + ' ' + (result.error || '');
+    if (/connect|port|not open|offline|closed/i.test(errStr) || result.statusCode === 400 || result.statusCode === 500) {
+      console.log(`[NiZi Bridge] Auto-connecting to ${NIZI_BRIDGE_CONFIG.defaultPort} before retrying command...`);
+      await callNiZiBridgeApi('/api/connect', 'POST', { port: NIZI_BRIDGE_CONFIG.defaultPort }, customBridgeUrl, customApiKey);
+      result = await callNiZiBridgeApi('/api/command', 'POST', { command: cmdStr }, customBridgeUrl, customApiKey);
+    }
+  }
 
   if (result.ok) {
     console.log(`[NiZi Bridge POST /api/command] Success: "${cmdStr}"`);

@@ -367,7 +367,10 @@ function getVisitSubtotal() {
   return paidVal;
 }
 
+let lastDiscountMode = 'amount';
+
 function updateDiscountFromPercent() {
+  lastDiscountMode = 'percent';
   const subtotal = getVisitSubtotal();
   const pct = Math.max(0, Math.min(100, Number(document.getElementById('discountPercent')?.value) || 0));
   const amt = (subtotal > 0) ? (subtotal * pct / 100) : 0;
@@ -377,6 +380,7 @@ function updateDiscountFromPercent() {
 }
 
 function updateDiscountFromAmount() {
+  lastDiscountMode = 'amount';
   const subtotal = getVisitSubtotal();
   const rawAmt = Number(document.getElementById('discountAmount')?.value) || 0;
   const amt = (subtotal > 0) ? Math.max(0, Math.min(subtotal, rawAmt)) : Math.max(0, rawAmt);
@@ -388,8 +392,22 @@ function updateDiscountFromAmount() {
 
 function updatePaymentChoice() {
   const subtotal = getVisitSubtotal();
-  const rawDisc = Number(document.getElementById('discountAmount')?.value) || 0;
-  const discount = Math.max(0, Math.min(subtotal, rawDisc));
+  const pctEl = document.getElementById('discountPercent');
+  const amtEl = document.getElementById('discountAmount');
+  let discount = 0;
+
+  if (lastDiscountMode === 'percent' && pctEl && subtotal > 0) {
+    const pct = Math.max(0, Math.min(100, Number(pctEl.value) || 0));
+    discount = subtotal * pct / 100;
+    if (amtEl) amtEl.value = discount.toFixed(2);
+  } else {
+    const rawDisc = Number(amtEl?.value) || 0;
+    discount = Math.max(0, Math.min(subtotal, rawDisc));
+    if (subtotal > 0 && pctEl) {
+      pctEl.value = (discount / subtotal * 100).toFixed(2);
+    }
+  }
+
   const total = Math.max(0, subtotal - discount);
   const choice = document.querySelector('input[name=paymentType]:checked')?.value || 'total';
   const paidEl = document.getElementById('visitPaid');
@@ -506,6 +524,9 @@ function addVisit() {
     p.FinalAmount = (Number(p.FinalAmount) || 0) + total;
     pendingProcedures = [];
     save();
+    if (payDone > 0) {
+      sendNiziCommand({ command: 'success', amount: payDone });
+    }
     renderProfile();
     showToast(`✓ Visit saved successfully! Bill No: ${billNo}`, 'success');
     if (confirm('Visit saved. Bill No. ' + billNo + '\n\nWould you like to print this bill now?')) {
@@ -1632,7 +1653,22 @@ function updateAll() {
 let transactionRange = 'today';
 function getTransactions() { const out = []; registeredPatients().forEach(p => { ensurePatientArrays(p); (p.PaymentHistory || []).forEach((tx, i) => { out.push({ id: p.id, date: tx.date || '', time: tx.time || '', opd: p.OPDNumber, name: p.Name, bill: tx.billNumber || ('VIS-' + pad(p.OPDNumber) + '-' + String(i + 1).padStart(3, '0')), amount: Number(tx.amount || 0), method: tx.method || p.PaymentMethod || '', status: tx.status || p.PaymentStatus || 'Pending' }); }); }); return out.sort((a, b) => (b.date + ' ' + b.time).localeCompare(a.date + ' ' + a.time)); }
 function dateOnly(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-function transactionMatches(tx) { if (transactionRange === 'all') return true; const now = dateOnly(new Date()), d = new Date(tx.date + 'T00:00:00'); if (transactionRange === 'today') return d.getTime() === now.getTime(); if (transactionRange === 'week') { const day = now.getDay(); const diff = day === 0 ? 6 : day - 1; const start = new Date(now); start.setDate(now.getDate() - diff); return d >= start && d <= now; } if (transactionRange === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); return true; }
+function transactionMatches(tx) {
+  if (transactionRange === 'all') return true;
+  const now = dateOnly(new Date()), d = new Date(tx.date + 'T00:00:00');
+  if (isNaN(d.getTime())) return false;
+  if (transactionRange === 'today') return d.getTime() === now.getTime();
+  if (transactionRange === 'week') {
+    const day = now.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    const start = new Date(now);
+    start.setDate(now.getDate() - diff);
+    return d >= start && d <= now;
+  }
+  if (transactionRange === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  if (transactionRange === 'year') return d.getFullYear() === now.getFullYear();
+  return true;
+}
 const TRANSACTION_PIN = '2468';
 let pendingSecureRange = null;
 
@@ -2440,12 +2476,23 @@ async function authorizeTransaction() {
   document.getElementById('adminPin').select();
 }
 
-function setTransactionRange(range) { transactionRange = range;['today', 'week', 'month', 'all'].forEach(x => { const b = document.getElementById('tx' + x.charAt(0).toUpperCase() + x.slice(1)); if (b) b.className = 'btn ' + (x === range ? 'primary' : 'secondary') }); renderTransactions(); }
+function setTransactionRange(range) {
+  transactionRange = range;
+  ['today', 'week', 'month', 'year', 'all'].forEach(x => {
+    const b = document.getElementById('tx' + x.charAt(0).toUpperCase() + x.slice(1));
+    if (b) b.className = 'btn ' + (x === range ? 'primary' : 'secondary');
+  });
+  renderTransactions();
+}
+
 function renderTransactions() {
   const all = getTransactions(), list = all.filter(transactionMatches);
   const total = list.reduce((a, x) => a + x.amount, 0),
-    cash = list.filter(x => x.method === 'Cash').reduce((a, x) => a + x.amount, 0),
-    digital = list.filter(x => x.method === 'Scan' || x.method === 'MPOS').reduce((a, x) => a + x.amount, 0);
+    cash = list.filter(x => String(x.method || '').toLowerCase() === 'cash').reduce((a, x) => a + x.amount, 0),
+    digital = list.filter(x => {
+      const m = String(x.method || '').toLowerCase();
+      return m === 'scan' || m === 'mpos' || m.includes('qr') || m.includes('nepalpay');
+    }).reduce((a, x) => a + x.amount, 0);
   const elCount = document.getElementById('txCount');
   if (elCount) elCount.textContent = list.length;
   const elTotal = document.getElementById('txTotal');
@@ -2455,7 +2502,12 @@ function renderTransactions() {
   const elDigital = document.getElementById('txDigital');
   if (elDigital) elDigital.textContent = 'Rs. ' + digital.toLocaleString();
   const elTitle = document.getElementById('txTitle');
-  if (elTitle) elTitle.textContent = transactionRange === 'today' ? "Today's Transactions" : transactionRange === 'week' ? "This Week's Transactions" : transactionRange === 'month' ? "This Month's Transactions" : "All Transactions";
+  if (elTitle) {
+    elTitle.textContent = transactionRange === 'today' ? "Today's Transactions" :
+      transactionRange === 'week' ? "This Week's Transactions" :
+      transactionRange === 'month' ? "This Month's Transactions" :
+      transactionRange === 'year' ? "This Year's Transactions (" + new Date().getFullYear() + ")" : "All Transactions";
+  }
   const elRows = document.getElementById('transactionRows');
   if (elRows) elRows.innerHTML = list.length ? list.map(x => `<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time || '—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method || '—')}</td><td>${esc(x.status)}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`;
 }
@@ -2482,7 +2534,14 @@ function showPage(id) {
     }
     const el = document.getElementById('nextOpd');
     if (el) el.textContent = pad(nextNumber());
-    setTimeout(() => document.getElementById('name')?.focus(), 40);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const nameInput = document.getElementById('name');
+        if (nameInput) {
+          nameInput.focus();
+        }
+      });
+    });
   }
   if (id === 'patients') renderPatients();
   if (id === 'profile') renderProfile();
@@ -2897,7 +2956,32 @@ function appointmentTomorrow() { const d = new Date(); d.setDate(d.getDate() + 1
 function appointmentSetViewForAD(ad) { const bs = apptBsFromAd(ad); if (appointmentMode === 'BS' && bs) { const [y, m] = bs.split('-').map(Number); appointmentView = { y, m } } else { const d = apptParseIso(ad); appointmentView = { y: d.getFullYear(), m: d.getMonth() + 1 } } }
 function setAppointmentCalendarMode(mode) { appointmentMode = mode; appointmentSetViewForAD(appointmentSelectedAD); renderAppointments() }
 function toggleAppointmentGoto() { const el = document.getElementById('appointmentGoto'); if (!el) return; el.style.display = el.style.display === 'none' ? 'flex' : 'none'; const input = document.getElementById('appointmentGotoInput'); if (input) { input.placeholder = appointmentMode === 'BS' ? '2083-05-27' : '2026-09-12'; input.focus() } }
-function goAppointmentTypedDate() { const input = document.getElementById('appointmentGotoInput'); const value = (input?.value || '').trim(); let ad = null; if (appointmentMode === 'BS') ad = apptAdFromBs(value); else if (apptParseIso(value)) ad = value; if (!ad) { alert('Invalid date. Please use YYYY-MM-DD.'); return } appointmentSelectedAD = ad; appointmentSetViewForAD(ad); const box = document.getElementById('appointmentGoto'); if (box) box.style.display = 'none'; renderAppointments() }
+function goAppointmentTypedDate() {
+  const input = document.getElementById('appointmentGotoInput');
+  const value = (input?.value || '').trim();
+  let ad = null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const y = Number(value.split('-')[0]);
+    if (y > 2050) {
+      ad = apptAdFromBs(value);
+    } else {
+      ad = value;
+    }
+  } else if (appointmentMode === 'BS') {
+    ad = apptAdFromBs(value);
+  } else if (apptParseIso(value)) {
+    ad = value;
+  }
+  if (!ad) {
+    showToast('Invalid date. Please use YYYY-MM-DD.', 'warn');
+    return;
+  }
+  appointmentSelectedAD = ad;
+  appointmentSetViewForAD(ad);
+  const box = document.getElementById('appointmentGoto');
+  if (box) box.style.display = 'none';
+  renderAppointments();
+}
 function appointmentPrevMonth() { if (appointmentMode === 'BS') { let { y, m } = appointmentView; m--; if (m < 1) { m = 12; y-- } if (!APPT_BS_LENGTHS[y]) return; appointmentView = { y, m } } else { let { y, m } = appointmentView; m--; if (m < 1) { m = 12; y-- } appointmentView = { y, m } } renderAppointments() }
 function appointmentNextMonth() { if (appointmentMode === 'BS') { let { y, m } = appointmentView; m++; if (m > 12) { m = 1; y++ } if (!APPT_BS_LENGTHS[y]) return; appointmentView = { y, m } } else { let { y, m } = appointmentView; m++; if (m > 12) { m = 1; y++ } appointmentView = { y, m } } renderAppointments() }
 function appointmentPatientsForAD(ad) { return patients.filter(p => p.Appointment && p.Appointment.adDate === ad).sort((a, b) => String(a.Appointment.time || '').localeCompare(String(b.Appointment.time || ''))) }
@@ -3686,19 +3770,19 @@ async function sendNiziCommand(cmd) {
       formattedCmd = c;
     } else if (c === 'show_qr' || c === 'qr') {
       const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
-      formattedCmd = `QR**Rs. ${amtStr}**Scan to pay**${cmd.payload || cmd.qrPayload || ''}`;
+      formattedCmd = `QR**Rs. ${amtStr}**Scan to pay**${cmd.payload || cmd.qrPayload || 'TEST-ONLY-NOT-PAYABLE'}`;
     } else if (c === 'success' || c === 'payment_success') {
       const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
       formattedCmd = `PASS**Rs. ${amtStr}**Payment successful`;
     } else if (c === 'show_wifi') {
-      formattedCmd = `QR**Free Wi-Fi**Scan to pay**${cmd.payload || ''}`;
+      formattedCmd = `QR**Guest Wi-Fi**Scan to Connect**${cmd.payload || ''}`;
     } else if (c === 'wait' || c === 'loading') {
       const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
       formattedCmd = `WAIT**Rs. ${amtStr}**Please wait`;
     } else if (c === 'fail' || c === 'failure') {
       const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
       formattedCmd = `FAIL**Rs. ${amtStr}**Payment failed`;
-    } else if (c === 'idle' || c === 'display_logo') {
+    } else if (c === 'idle' || c === 'display_logo' || c === 'reset') {
       formattedCmd = 'IDLE';
     } else if (c === 'text' || c === 'welcome') {
       formattedCmd = `TEXT**Infinity Dental**Welcome**${niziClean(cmd.message || 'Thank you for visiting')}`;
@@ -3710,37 +3794,11 @@ async function sendNiziCommand(cmd) {
   }
 
   // 1. Update on-screen simulator preview
-  updateNiziDeviceDisplay(cmd);
+  updateNiziDeviceDisplayFromRaw(formattedCmd);
 
   // 2. Transmit via direct USB Web Serial if port open in browser
   if (niziSerialWriter) {
     try {
-      // Official NiZi B30/B33 Command Framing (per B30Sdk.py & dynamic_qr_commands.html)
-      let officialStr = '';
-      if (cmd.command === 'show_qr' || cmd.command === 'qr') {
-        const amtStr = (cmd.amount != null && !isNaN(Number(cmd.amount))) ? Number(cmd.amount).toFixed(2) : '0.00';
-        const msg = cmd.message || 'SCAN TO PAY';
-        officialStr = `QR**Rs. ${amtStr}**${msg}**${cmd.payload || ''}\n`;
-      } else if (cmd.command === 'success' || cmd.command === 'payment_success') {
-        const title = cmd.title || 'SUCCESS!';
-        const msg = cmd.message || (cmd.amount ? `Rs. ${cmd.amount} received` : 'Payment successful');
-        officialStr = `PASS**${title}**${msg}\n`;
-      } else if (cmd.command === 'show_wifi') {
-        officialStr = `QR**FREE WI-FI**${cmd.ssid || 'Scan to Connect'}**${cmd.payload || ''}\n`;
-      } else if (cmd.command === 'idle' || cmd.command === 'display_logo') {
-        officialStr = 'IDLE\n';
-      } else if (cmd.command === 'wake') {
-        officialStr = 'WAKE\n';
-      } else if (cmd.command === 'reset') {
-        officialStr = 'RESET\n';
-      } else if (cmd.command === 'clear') {
-        officialStr = 'CLEAR\n';
-      }
-
-      if (officialStr) {
-        await niziSerialWriter.write(new TextEncoder().encode(officialStr));
-        console.log('[NiZi USB Tx Official Protocol]:', officialStr.trim());
-      }
       await niziSerialWriter.write(new TextEncoder().encode(formattedCmd + '\n'));
       console.log('[NiZi USB Tx Official Protocol]:', formattedCmd);
     } catch (e) {
@@ -3748,30 +3806,19 @@ async function sendNiziCommand(cmd) {
     }
   }
 
-  // Forward directly to local NiZi POS Connector application on port 9121 if running
-  // 3. Transmit via NiZi Bridge (proxy + direct fetch fallback)
+  // 3. Post to backend HTTP endpoint /api/command (Node.js backend forwards to 127.0.0.1:9121 with API key, 0 CORS issues)
   try {
-    fetch('http://127.0.0.1:9121/api/command', {
+    const res = await fetch('/api/command', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cmd),
-      mode: 'no-cors'
-    }).catch(() => { });
-  } catch (e) { }
-
-  // Forward via localhost backend proxy
-  try {
-    fetch('/api/nizi/command', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cmd)
-    }).catch(() => { });
-  } catch (e) { }
-
-  try {
-    await niziSend(formattedCmd);
-  } catch (bridgeErr) {
-    console.warn('[NiZi Bridge] Send warning:', bridgeErr.message);
+      body: JSON.stringify({ command: formattedCmd })
+    });
+    if (res.ok) {
+      const json = await res.json();
+      console.log('[NiZi Backend Response]:', json);
+    }
+  } catch (backendErr) {
+    console.warn('[NiZi Backend Command Warning]:', backendErr.message);
   }
 }
 
@@ -3849,22 +3896,26 @@ function updateNiziDeviceDisplay(cmd) {
       renderQrToElement(wrap, cmd.payload, 136, 136);
     }
   } else if (cmd.command === 'display_logo' || cmd.command === 'reset') {
-    resetNiziScreen();
+    resetNiziScreen(true);
   }
 }
 
-function resetNiziScreen() {
+function resetNiziScreen(skipSendCommand) {
   const screen = document.getElementById('niziScreen');
-  if (!screen) return;
-  screen.className = 'nizi-screen';
-  screen.innerHTML = `
-    <div class="nizi-logo-badge">
-      <img src="assets/clinic-logo.png" style="width:64px;height:64px;object-fit:contain;display:block" alt="Infinity Dental">
-    </div>
-    <div style="font-size:13px;font-weight:800;letter-spacing:.5px">INFINITY DENTAL</div>
-    <div class="nizi-sub">Welcome to Clinic</div>
-    <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment</div>
-  `;
+  if (screen) {
+    screen.className = 'nizi-screen';
+    screen.innerHTML = `
+      <div class="nizi-logo-badge">
+        <img src="assets/clinic-logo.png" style="width:64px;height:64px;object-fit:contain;display:block" alt="Infinity Dental">
+      </div>
+      <div style="font-size:13px;font-weight:800;letter-spacing:.5px">INFINITY DENTAL</div>
+      <div class="nizi-sub">Welcome to Clinic</div>
+      <div id="niziScreenMessage" class="nizi-sub" style="color:#38bdf8;margin-top:10px">Ready for payment</div>
+    `;
+  }
+  if (!skipSendCommand) {
+    sendNiziCommand('IDLE');
+  }
 }
 
 // --- Clinic Guest Wi-Fi & NiZi Soundbox Integration ---
@@ -4048,17 +4099,7 @@ async function showWifiOnNiziBox() {
   const password = currentWifiConfig.password || '';
   const payload = buildWifiPayload(currentWifiConfig);
 
-  const cmd = {
-    command: 'show_wifi',
-    payload,
-    ssid,
-    password,
-    security: currentWifiConfig.security || 'WPA',
-    title: 'Guest Wi-Fi',
-    subtitle: 'Scan to Connect'
-  };
-
-  sendNiziCommand(cmd);
+  sendNiziCommand(`QR**Guest Wi-Fi**Scan to Connect**${payload}`);
 
   try {
     await fetch('/api/wifi/show-on-nizi', {
@@ -4126,22 +4167,20 @@ function setQuickTestAmount(amount, remarks) {
 }
 
 function testNiziChime() {
-  const amt = getActiveTestQrAmount();
+  const amt = getActiveTestQrAmount() || 150;
   speakVoicePayment(amt);
+  sendNiziCommand('TEXT**Infinity Dental**Welcome**Thank you for visiting');
 }
 
 function testNiziSuccessScreen() {
-  const amt = getActiveTestQrAmount();
-  sendNiziCommand({
-    command: 'success',
-    amount: amt,
-    currency: 'NPR',
-    payload: `Payment of ${amt} rupees received successfully`
-  });
+  const amt = getActiveTestQrAmount() || 150;
+  const amtStr = Number(amt).toFixed(2);
+  sendNiziCommand(`PASS**Rs. ${amtStr}**Payment successful`);
 }
 
 function testNiziQr() {
-  const amt = getActiveTestQrAmount();
+  const amt = getActiveTestQrAmount() || 150;
+  const amtStr = Number(amt).toFixed(2);
   const billInput = document.getElementById('testQrBillNo');
   if (billInput && (!billInput.value || billInput.value === 'B-20261020-001')) {
     billInput.value = 'B-' + Date.now();
@@ -4153,16 +4192,9 @@ function testNiziQr() {
     amount: amt,
     billNumber: bill,
     remarks: rem
-  });
+  }) || 'TEST-ONLY-NOT-PAYABLE';
 
-  sendNiziCommand({
-    command: 'show_qr',
-    payload: qrString,
-    amount: amt,
-    currency: 'NPR',
-    billNumber: bill,
-    title: 'Infinity Dental'
-  });
+  sendNiziCommand(`QR**Rs. ${amtStr}**Scan to pay**${qrString}`);
 
   if (!activeQrTransaction || !document.getElementById('nepalPayQrModal')?.classList.contains('show')) {
     activeQrTransaction = {

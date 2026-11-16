@@ -224,7 +224,7 @@
             <button id="settingsUpdateBtn" class="settings-flyout-item"
               onclick="openUpdateModal(); closeSettingsMenu();">
               <span class="settings-item-title">Updates</span>
-              <span id="settingsVersionBadge" class="header-version-pill">v1.0.16</span>
+              <span id="settingsVersionBadge" class="header-version-pill">v1.0.17</span>
             </button>
             <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
               <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
@@ -437,6 +437,68 @@
           <div class="card empty">No patient selected.</div>
         </div>
       </section>
+
+      <!-- Transactions & Financial Records -->
+      <section id="transactions" class="page">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="title">Clinic Transactions &amp; Revenue</div>
+            <div class="muted">Review daily, weekly, monthly, and yearly transaction revenue and payment records.</div>
+          </div>
+          <div class="toolbar" style="margin:0;gap:8px">
+            <button id="txToday" class="btn primary" onclick="setTransactionRange('today')">Today</button>
+            <button id="txWeek" class="btn secondary" onclick="setTransactionRange('week')">This Week</button>
+            <button id="txMonth" class="btn secondary" onclick="setTransactionRange('month')">This Month</button>
+            <button id="txYear" class="btn secondary" onclick="setTransactionRange('year')">This Year</button>
+            <button id="txAll" class="btn secondary" onclick="setTransactionRange('all')">All Time</button>
+          </div>
+        </div>
+
+        <div class="cards" style="margin-top:18px;grid-template-columns:repeat(4,1fr)">
+          <div class="card">
+            <div class="muted">Total Transactions</div>
+            <div class="stat" id="txCount">0</div>
+          </div>
+          <div class="card">
+            <div class="muted">Total Revenue (NPR)</div>
+            <div class="stat" id="txTotal" style="color:#0284c7">Rs. 0</div>
+          </div>
+          <div class="card">
+            <div class="muted">Cash Payments</div>
+            <div class="stat" id="txCash" style="color:#10b981">Rs. 0</div>
+          </div>
+          <div class="card">
+            <div class="muted">Digital &amp; QR Payments</div>
+            <div class="stat" id="txDigital" style="color:#8b5cf6">Rs. 0</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+            <div class="section-title" id="txTitle" style="margin:0">Today's Transactions</div>
+            <div class="muted" style="font-size:12px">Click any row to open patient profile</div>
+          </div>
+          <div class="tablewrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>OPD No</th>
+                  <th>Patient Name</th>
+                  <th>Bill Number</th>
+                  <th>Amount (NPR)</th>
+                  <th>Payment Method</th>
+                  <th>Payment Status</th>
+                </tr>
+              </thead>
+              <tbody id="transactionRows">
+                <tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
       <section id="billing" class="page">
         <div class="title">Billing</div>
         <div class="muted">Print the latest saved patient bill in A5 black-and-white format.</div>
@@ -545,143 +607,9 @@
       </div>
     </div>
 
-    <div class="grid2" style="margin-top:18px;grid-template-columns:minmax(380px, 460px) 1fr;align-items:start">
-      <!-- LEFT: Exact NiZi B33 Controller from Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html -->
-      <div class="card" id="niziControllerCard"
-        style="background:#0e1726;border:1px solid #1e2e46;box-shadow:0 4px 20px rgba(0,0,0,0.25);border-radius:14px;padding:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <h3 style="margin:0;font-size:16px;font-weight:700;color:#f1f5f9">Infinity Dental · NiziPOS</h3>
-          <span id="niziB33StatusPill" class="status-pill checking" style="font-size:11px;padding:2px 8px">Not
-            Checked</span>
-        </div>
-        <div class="muted" style="font-size:11.5px;margin-bottom:14px">B33 local API controller · 127.0.0.1:9121</div>
-
-        <div style="margin-bottom:10px">
-          <label for="niziKeyInput"
-            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">API key (pre-filled
-            for local testing)</label>
-          <div style="display:flex;gap:6px">
-            <input id="niziKeyInput" type="password"
-              value="Z8uVovI2eftp65dO9JoxEstKcWggSlTAza4erAQhELmSC761rVtp5IIzaXOxWNw0ycPCICYCnJBCVPCzvdT8fbJvWIWm69fhHveZesIiDEIeI0BkdSspMPimWYNWs25D"
-              autocomplete="off"
-              style="flex:1;padding:8px 10px;font-family:monospace;font-size:11.5px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc">
-            <button type="button" class="btn secondary" style="padding:6px 10px;font-size:12px"
-              onclick="toggleNiziMainKeyVisibility()" id="niziKeyToggleBtn">👁️</button>
-          </div>
-        </div>
-
-        <div style="margin-bottom:12px">
-          <label for="niziComPortInput"
-            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Soundbox COM Port
-            (for connect)</label>
-          <div style="display:flex;gap:6px">
-            <input id="niziComPortInput" type="text" value="COM4" placeholder="COM4"
-              style="flex:1;padding:8px 10px;font-family:monospace;font-size:12px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc">
-            <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="detectNiZiSerialPorts()"
-              title="Detect Windows COM Ports">🔍 Scan</button>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:6px;margin:12px 0;flex-wrap:wrap">
-          <button id="niziCheckBtn" class="btn primary" style="flex:1;font-size:12px;padding:8px 10px"
-            onclick="niziRunCheck()">Check connection</button>
-          <button id="niziConnectBtn" class="btn secondary" style="flex:1;font-size:12px;padding:8px 10px"
-            onclick="niziRunConnect()">Connect device</button>
-          <button id="niziDisconnectBtn" class="btn secondary" style="flex:1;font-size:12px;padding:8px 10px"
-            onclick="niziRunDisconnect()">Disconnect</button>
-        </div>
-
-        <div id="niziB33StatusText" role="status"
-          style="padding:10px;background:#090f1a;border:1px solid #1e2e46;border-radius:8px;font-family:monospace;font-size:11.5px;color:#94a3b8;white-space:pre-wrap;max-height:80px;overflow:auto">
-          Not checked · Click Check connection.</div>
-
-        <div style="margin-top:12px">
-          <label for="niziAmountInput"
-            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Amount (NPR)</label>
-          <input id="niziAmountInput" value="150.00" inputmode="decimal"
-            style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:13px">
-        </div>
-
-        <div style="margin-top:10px">
-          <label for="niziMessageInput"
-            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Display message /
-            bill number</label>
-          <input id="niziMessageInput" value="Infinity Dental"
-            style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:13px">
-        </div>
-
-        <div style="margin-top:10px">
-          <label for="niziPayloadInput"
-            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">QR payload (from your
-            payment provider)</label>
-          <textarea id="niziPayloadInput" rows="2"
-            placeholder="Paste actual dynamic QR payload; test strings are NOT payable"
-            style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-family:monospace;font-size:11px"></textarea>
-        </div>
-
-        <!-- 8 Command Grid Buttons matching Infinity_NiziPOS_B33_HTML_v3_Key_Configured.html -->
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:14px 0">
-          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
-            onclick="niziExecCommand('idle')">Idle / Logo</button>
-          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
-            onclick="niziExecCommand('text')">Welcome Text</button>
-          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
-            onclick="niziExecCommand('qr')">Show QR</button>
-          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
-            onclick="niziExecCommand('wait')">Please Wait</button>
-          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
-            onclick="niziExecCommand('pass')">Success Display</button>
-          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
-            onclick="niziExecCommand('fail')">Failure Display</button>
-          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
-            onclick="niziExecCommand('info')">Information</button>
-          <button class="btn primary" style="min-height:38px;font-size:12px;font-weight:600"
-            onclick="niziExecCommand('warn')">Warning</button>
-        </div>
-
-        <div style="margin-top:10px">
-          <label for="niziSamplesSelect"
-            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Sample commands
-            (select to fill custom command)</label>
-          <select id="niziSamplesSelect" onchange="document.getElementById('niziRawInput').value=this.value"
-            style="box-sizing:border-box;width:100%;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-size:12px">
-            <option value="IDLE">Idle / Logo</option>
-            <option value="TEXT**Infinity Dental**Welcome**Thank you for visiting">Welcome text</option>
-            <option value="INFO**Infinity Dental**Please visit reception">Information</option>
-            <option value="WAIT**Rs. 150.00**Please wait">Waiting</option>
-            <option value="PASS**Rs. 150.00**Payment successful">Success display (test only)</option>
-            <option value="FAIL**Rs. 150.00**Payment failed">Failure display (test only)</option>
-            <option value="WARN**Device Not Ready**Please wait">Warning</option>
-            <option value="QR**Rs. 150.00**Scan to pay**TEST-ONLY-NOT-PAYABLE">QR display test (not payable)</option>
-          </select>
-        </div>
-
-        <div style="margin-top:10px">
-          <label for="niziRawInput"
-            style="display:block;margin-bottom:4px;font-size:11.5px;font-weight:600;color:#94a3b8">Advanced: custom
-            command</label>
-          <div style="display:flex;gap:6px">
-            <input id="niziRawInput"
-              style="flex:1;min-width:180px;padding:8px 10px;border-radius:6px;border:1px solid #22344d;background:#090f1a;color:#f8fafc;font-family:monospace;font-size:12px"
-              value="IDLE">
-            <button class="btn primary" style="padding:8px 14px;font-size:12px" onclick="niziSendRaw()">Send</button>
-          </div>
-        </div>
-
-        <div style="margin-top:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <label style="font-size:11.5px;font-weight:600;color:#94a3b8;margin:0">Activity log</label>
-            <button class="btn secondary" style="padding:2px 8px;font-size:10px"
-              onclick="document.getElementById('niziB33Log').textContent='Ready. Logs cleared.'">Clear</button>
-          </div>
-          <pre id="niziB33Log"
-            style="font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:120px;overflow:auto;background:#060a12;color:#e1ecfa;padding:8px 10px;border-radius:6px;border:1px solid #1a2538;margin:0">Ready. No device commands sent.</pre>
-        </div>
-      </div>
-
-      <!-- RIGHT: Simulator Preview, Wi-Fi Push & Dynamic QR Test Terminal -->
-      <div>
-        <div class="nizi-device-card" style="margin-bottom:16px">
+    <div class="grid2" style="margin-top:18px;grid-template-columns:360px 1fr;gap:20px;align-items:start">
+      <!-- LEFT: Simulator Preview & Clinic Guest Wi-Fi -->
+      <div class="nizi-device-card" style="margin-bottom:16px">
           <div
             style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
             <div class="section-title" style="margin:0">NiZi POS B33 Simulator Preview</div>
@@ -864,6 +792,8 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
   </section>
 
   <!-- Staff & Accounts Management Page (Super Admin Only) -->
@@ -1845,7 +1775,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:12px;font-weight:700;color:#000000">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.16</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.17</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:700;color:#000000">Update Server:</span>
