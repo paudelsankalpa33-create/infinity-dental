@@ -921,13 +921,22 @@ ipcMain.handle('app:install-and-restart', async (_event, customPath) => {
       }
     }
 
-    // Default: Full .exe installer
+    // Default: Full .exe installer (launch with cmd start to allow UAC elevation if needed)
     console.log('[Updater] Launching installer:', targetPath);
-    const child = spawn(targetPath, [], {
-      detached: true,
-      stdio: 'ignore'
-    });
-    child.unref();
+    try {
+      const child = spawn('cmd.exe', ['/c', 'start', '""', targetPath], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.on('error', (err) => {
+        console.warn('[Updater] Direct spawn notice, trying shell.openPath:', err.message);
+        shell.openPath(targetPath);
+      });
+      child.unref();
+    } catch (spawnErr) {
+      console.warn('[Updater] Fallback to shell.openPath:', spawnErr.message);
+      shell.openPath(targetPath);
+    }
 
     if (db) { try { db.close(); } catch (_) {} }
     app.isQuitting = true;
