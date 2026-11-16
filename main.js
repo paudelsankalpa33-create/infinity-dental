@@ -228,6 +228,24 @@ function openDb(){
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS nepalpay_audit_logs (
+    id TEXT PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    date TEXT NOT NULL,
+    time TEXT NOT NULL,
+    billNumber TEXT,
+    patientName TEXT,
+    opdNumber TEXT,
+    amount REAL NOT NULL,
+    validationTraceId TEXT,
+    txnId TEXT,
+    status TEXT NOT NULL DEFAULT 'SUCCESS',
+    method TEXT NOT NULL DEFAULT 'NepalPay QR',
+    source TEXT NOT NULL DEFAULT 'Billing Terminal',
+    remarks TEXT,
+    created_at TEXT NOT NULL
+  )`);
 }
 
 let mainWindow = null;
@@ -1419,6 +1437,50 @@ ipcMain.handle('clinic:stamp:save', async (_event, config) => {
     return { success: true, stamp: config };
   } catch (err) {
     return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('nepalpay:logs:list', async () => {
+  try {
+    if (!db) openDb();
+    const rows = db.prepare('SELECT * FROM nepalpay_audit_logs ORDER BY timestamp DESC').all();
+    return { success: true, logs: rows };
+  } catch (e) {
+    console.error('[nepalpay:logs:list]', e);
+    return { success: false, error: e.message, logs: [] };
+  }
+});
+
+ipcMain.handle('nepalpay:logs:add', async (_event, record) => {
+  try {
+    if (!db) openDb();
+    const id = record.id || ('NPI-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7));
+    const now = new Date();
+    const timestamp = record.timestamp || now.toISOString();
+    const date = record.date || now.toISOString().slice(0, 10);
+    const time = record.time || now.toLocaleTimeString();
+    const billNumber = record.billNumber || '';
+    const patientName = record.patientName || '';
+    const opdNumber = record.opdNumber || '';
+    const amount = Number(record.amount || 0);
+    const validationTraceId = record.validationTraceId || ('TXN-NPI-' + Date.now());
+    const txnId = record.txnId || validationTraceId;
+    const status = record.status || 'SUCCESS';
+    const method = record.method || 'NepalPay QR';
+    const source = record.source || 'Billing Terminal';
+    const remarks = record.remarks || '';
+    const created_at = new Date().toISOString();
+
+    db.prepare(`
+      INSERT OR REPLACE INTO nepalpay_audit_logs 
+      (id, timestamp, date, time, billNumber, patientName, opdNumber, amount, validationTraceId, txnId, status, method, source, remarks, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, timestamp, date, time, billNumber, patientName, opdNumber, amount, validationTraceId, txnId, status, method, source, remarks, created_at);
+
+    return { success: true, id };
+  } catch (e) {
+    console.error('[nepalpay:logs:add]', e);
+    return { success: false, error: e.message };
   }
 });
 

@@ -5,7 +5,7 @@ Unicode true
 RequestExecutionLevel user
 
 Name "Infinity Dental Clinic Fast Patch"
-OutFile "release\Infinity.Dental.Clinic.FastPatch.1.0.20.exe"
+OutFile "release\Infinity.Dental.Clinic.FastPatch.1.0.21.exe"
 SetCompressor /SOLID lzma
 
 SilentInstall silent

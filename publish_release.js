@@ -122,14 +122,13 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
-- **Operations & Inventory Layout Fix**: Fixed premature DOM closure tag that previously pushed Purchases & Inventory, Stocks, and Staff sections into the bottom footer row. All operation pages now render right at the top of the main workspace alongside the navigation sidebar.
-- **Patient Profile Add Visit & Save Fix**: Ensured the ADD VISIT & SAVE button is always active and enabled. Auto-stages general dental consultation/visit even if no procedure was pre-selected, syncs Next Appointment in one click, and opens the A5 bill immediately without native modal lockups.
-- **Official Clinic Contact Numbers & Email Everywhere**: Added phone numbers **9768592344, 01-4514888** and official email **The.infinity.dental@gmail.com** across printed A5 bills, OPD stickers, PDF reports, settings, login screen, and billing header.
-- **Official Clinic Website Promotion**: Added clickable clinic website promotion (**www.infinitydentalclinic.com.np**) in the navigation sidebar, login page, A5 invoice header & footer, and settings modal.
-- **Billing & POS Terminal Overhaul**: Comprehensive patient checkout workspace for managers and superadmins, displaying registered patient details (OPD, contact, address, visit count, balance due), quick procedure presets, staged treatment items, mutual % and amount discount calculation, full/partial/due recording, dynamic QR/Cash/Card payments, and invoice history with 1-click A5 reprint and due balance collection.
-- **Official Clinic PAN & Address**: Clinic PAN **125302054** and Address **Dhumbarahi, Kathmandu** integrated across all bills, stickers, PDF records, registration forms, and settings.
-- **Strict A5 Single-Page Bill Layout**: Standardized all patient bills to fit cleanly on a single sheet of A5 paper (148mm × 210mm) with compact proportions and zero multi-page spills.
-- **Official Clinic Stamp Feature in Settings**: Configure and toggle an official clinic stamp on all printed patient bills, with support for custom transparent PNG/JPG stamp uploads or the built-in circular clinic seal (INFINITY DENTAL CLINIC • DHUMBARAHI, KATHMANDU • PAN: 125302054).
+- **Official Clinic PAN in Red-Lined Logo Area**: Moved Clinic PAN **125302054** directly into the red-lined area under the clinic logo on all printed A5 patient bills, with a matching PAN badge on the Patient Tax Invoice header, and cleaned up address lines.
+- **Confidential NepalPay Financial Audit Logs in Settings**: Dedicated financial audit log for managers and superadmins, viewable strictly inside Settings (📋 NepalPay Financial Logs). Records all NepalPay dynamic QR collections, simulator payments, gateway trace IDs, OPD numbers, and patient names, with 1-click CSV export and printable audit sheets.
+- **Transaction & Revenue Count Metrics**: Real-time transaction counts displayed directly in the Total Revenue section and payment method cards (Total Transactions & Revenue, Cash Payments count, and NepalPay/Digital count) with dynamic daily, weekly, monthly, and yearly filtering.
+- **Operations & Inventory Workspace**: Verified full viewport grid layout so Purchases & Inventory, Stocks, and Staff & Accounts render cleanly at the top of the main workspace.
+- **Always-Active ADD VISIT & SAVE**: Staged visits can always be saved with automatic "General Dental Consultation & Checkup" fallback if empty, and syncs appointment and payments in one click.
+- **Official Clinic Details Everywhere**: Phone numbers **9768592344, 01-4514888**, email **The.infinity.dental@gmail.com**, and website **www.infinitydentalclinic.com.np** active across bills, OPD stickers, settings, and navigation.
+- **Single-Page A5 Patient Bills**: Standardized patient bills to fit cleanly on a single sheet of A5 paper (148mm × 210mm) with official clinic stamp seal.
 - **Instant In-App Updater**: Fast 0.6MB patch with zero permission errors and automatic restart.`;
 
   if (!release) {

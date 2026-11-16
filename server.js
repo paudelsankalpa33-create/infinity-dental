@@ -487,6 +487,24 @@ function initDatabase() {
       updated_at TEXT NOT NULL
     )`);
 
+    db.exec(`CREATE TABLE IF NOT EXISTS nepalpay_audit_logs (
+      id TEXT PRIMARY KEY,
+      timestamp TEXT NOT NULL,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      billNumber TEXT,
+      patientName TEXT,
+      opdNumber TEXT,
+      amount REAL NOT NULL,
+      validationTraceId TEXT,
+      txnId TEXT,
+      status TEXT NOT NULL DEFAULT 'SUCCESS',
+      method TEXT NOT NULL DEFAULT 'NepalPay QR',
+      source TEXT NOT NULL DEFAULT 'Billing Terminal',
+      remarks TEXT,
+      created_at TEXT NOT NULL
+    )`);
+
 
     // --- LAB, PURCHASES & STOCKS DATABASE TABLES ---
 
@@ -2540,6 +2558,54 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // NepalPay Financial Audit Logs Endpoints
+  if (pathname === '/api/nepalpay/logs' && req.method === 'GET') {
+    try {
+      const rows = db.prepare("SELECT * FROM nepalpay_audit_logs ORDER BY timestamp DESC").all();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, logs: rows }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message, logs: [] }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/nepalpay/logs' && req.method === 'POST') {
+    try {
+      const record = await parseJsonBody(req);
+      const id = record.id || ('NPI-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7));
+      const now = new Date();
+      const timestamp = record.timestamp || now.toISOString();
+      const date = record.date || now.toISOString().slice(0, 10);
+      const time = record.time || now.toLocaleTimeString();
+      const billNumber = record.billNumber || '';
+      const patientName = record.patientName || '';
+      const opdNumber = record.opdNumber || '';
+      const amount = Number(record.amount || 0);
+      const validationTraceId = record.validationTraceId || ('TXN-NPI-' + Date.now());
+      const txnId = record.txnId || validationTraceId;
+      const status = record.status || 'SUCCESS';
+      const method = record.method || 'NepalPay QR';
+      const source = record.source || 'Billing Terminal';
+      const remarks = record.remarks || '';
+      const created_at = new Date().toISOString();
+
+      db.prepare(`
+        INSERT OR REPLACE INTO nepalpay_audit_logs 
+        (id, timestamp, date, time, billNumber, patientName, opdNumber, amount, validationTraceId, txnId, status, method, source, remarks, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, timestamp, date, time, billNumber, patientName, opdNumber, amount, validationTraceId, txnId, status, method, source, remarks, created_at);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, id }));
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
     }
     return;
   }

@@ -238,10 +238,14 @@
             <button id="settingsStampBtn" class="settings-flyout-item" onclick="openClinicStampModal(); closeSettingsMenu();">
               <span class="settings-item-title">Official Clinic Stamp</span>
             </button>
+            <button id="settingsNepalPayLogsBtn" class="settings-flyout-item" onclick="openNepalPayLogsModal(); closeSettingsMenu();">
+              <span class="settings-item-title">📋 NepalPay Financial Logs</span>
+              <span class="status-badge" style="font-size:9px;background:#0284c7;color:#fff;padding:2px 6px;border-radius:4px">Audit</span>
+            </button>
             <button id="settingsUpdateBtn" class="settings-flyout-item"
               onclick="openUpdateModal(); closeSettingsMenu();">
               <span class="settings-item-title">Updates</span>
-              <span id="settingsVersionBadge" class="header-version-pill">v1.0.20</span>
+              <span id="settingsVersionBadge" class="header-version-pill">v1.0.21</span>
             </button>
             <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
               <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
@@ -475,18 +479,22 @@
           <div class="card">
             <div class="muted">Total Transactions</div>
             <div class="stat" id="txCount">0</div>
+            <div class="sub-stat" id="txCountBreakdown" style="font-size:11.5px;color:var(--muted);margin-top:4px">0 Cash · 0 Digital</div>
           </div>
           <div class="card">
             <div class="muted">Total Revenue (NPR)</div>
             <div class="stat" id="txTotal" style="color:#0284c7">Rs. 0</div>
+            <div class="sub-stat" id="txTotalCount" style="font-size:11.5px;color:var(--muted);margin-top:4px">0 payments completed</div>
           </div>
           <div class="card">
             <div class="muted">Cash Payments</div>
             <div class="stat" id="txCash" style="color:#10b981">Rs. 0</div>
+            <div class="sub-stat" id="txCashCount" style="font-size:11.5px;color:var(--muted);margin-top:4px">0 cash receipts</div>
           </div>
           <div class="card">
             <div class="muted">Digital &amp; QR Payments</div>
             <div class="stat" id="txDigital" style="color:#8b5cf6">Rs. 0</div>
+            <div class="sub-stat" id="txDigitalCount" style="font-size:11.5px;color:var(--muted);margin-top:4px">0 NepalPay &amp; QR bills</div>
           </div>
         </div>
 
@@ -2083,7 +2091,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:12px;font-weight:700;color:#000000">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.20</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.21</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:700;color:#000000">Update Server:</span>
@@ -2336,6 +2344,91 @@
       </div>
     </div>
   </div>
+
+  <!-- NepalPay Financial Audit Logs Modal (Confidential / Settings Only) -->
+  <div id="nepalPayLogsModal" class="modal" onclick="if(event.target===this)closeNepalPayLogsModal()">
+    <div class="modal-box" style="width:min(980px,96vw);max-height:90vh;display:flex;flex-direction:column;padding:24px;border-radius:12px">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(2,132,199,0.15);border:1px solid rgba(2,132,199,0.3);display:flex;align-items:center;justify-content:center;color:#38bdf8;font-size:20px">
+            📋
+          </div>
+          <div>
+            <div style="font-weight:800;font-size:16px;letter-spacing:-.2px;color:var(--text)">NepalPay Financial Audit &amp; Settlement Logs</div>
+            <div class="muted" style="font-size:11.5px">Confidential audit trail of all NepalPay dynamic QR payments, simulator collections &amp; settlements.</div>
+          </div>
+        </div>
+        <button class="btn secondary" style="padding:4px 10px;font-size:14px" onclick="closeNepalPayLogsModal()">✕</button>
+      </div>
+
+      <!-- Quick Metrics Grid -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+        <div style="background:var(--card);padding:12px 14px;border-radius:8px;border:1px solid var(--border)">
+          <div class="muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase">Total NepalPay Volume</div>
+          <div id="npiLogTotalVolume" style="font-size:17px;font-weight:900;color:#0284c7;margin-top:2px">Rs. 0</div>
+          <div id="npiLogTotalCount" style="font-size:11px;color:var(--muted);margin-top:2px">0 transactions</div>
+        </div>
+        <div style="background:var(--card);padding:12px 14px;border-radius:8px;border:1px solid var(--border)">
+          <div class="muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase">Today's Collections</div>
+          <div id="npiLogTodayVolume" style="font-size:17px;font-weight:900;color:#10b981;margin-top:2px">Rs. 0</div>
+          <div id="npiLogTodayCount" style="font-size:11px;color:var(--muted);margin-top:2px">0 today</div>
+        </div>
+        <div style="background:var(--card);padding:12px 14px;border-radius:8px;border:1px solid var(--border)">
+          <div class="muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase">Settlement Status</div>
+          <div id="npiLogSettledRate" style="font-size:17px;font-weight:900;color:#8b5cf6;margin-top:2px">100% SUCCESS</div>
+          <div style="font-size:11px;color:#10b981;margin-top:2px">● All verified</div>
+        </div>
+        <div style="background:var(--card);padding:12px 14px;border-radius:8px;border:1px solid var(--border)">
+          <div class="muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase">Connected Gateway</div>
+          <div style="font-size:14px;font-weight:800;color:var(--text);margin-top:3px">NCHL / NepalPay</div>
+          <div style="font-size:11px;color:#10b981;margin-top:2px">● NiZi Soundbox Sync</div>
+        </div>
+      </div>
+
+      <!-- Filter & Export Controls -->
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:260px">
+          <input id="npiLogSearchInput" type="text" placeholder="Search patient, OPD, bill #, txn ID..." 
+                 oninput="filterNepalPayLogs()" 
+                 style="padding:7px 12px;border-radius:6px;font-size:12px;flex:1;min-width:180px" />
+          <select id="npiLogFilterPeriod" onchange="filterNepalPayLogs()" 
+                  style="padding:7px 10px;border-radius:6px;font-size:12px;min-width:120px">
+            <option value="all">All Time Records</option>
+            <option value="today" selected>Today Only</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn secondary" onclick="exportNepalPayLogsCsv()" style="padding:6px 12px;font-size:12px">📥 Export CSV</button>
+          <button class="btn primary" onclick="printNepalPayLogsReport()" style="padding:6px 14px;font-size:12px">🖨️ Print Audit Sheet</button>
+        </div>
+      </div>
+
+      <!-- Logs Table -->
+      <div class="tablewrap" style="flex:1;max-height:50vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+        <table class="table" style="width:100%;font-size:12px;margin:0">
+          <thead style="position:sticky;top:0;background:var(--card);z-index:2">
+            <tr>
+              <th>Date &amp; Time</th>
+              <th>Bill No</th>
+              <th>OPD</th>
+              <th>Patient Name</th>
+              <th style="text-align:right">Amount (NPR)</th>
+              <th>Txn / Trace ID</th>
+              <th style="text-align:center">Source</th>
+              <th style="text-align:center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="npiLogTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Printable Reception Wi-Fi Desk Stand Card -->
   <div id="wifiPrintTentCard">

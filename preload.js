@@ -48,3 +48,8 @@ contextBridge.exposeInMainWorld('dentalStamp', {
   get: () => ipcRenderer.invoke('clinic:stamp:get'),
   save: (config) => ipcRenderer.invoke('clinic:stamp:save', config)
 });
+
+contextBridge.exposeInMainWorld('dentalNepalPayLogs', {
+  list: () => ipcRenderer.invoke('nepalpay:logs:list'),
+  add: (record) => ipcRenderer.invoke('nepalpay:logs:add', record)
+});
