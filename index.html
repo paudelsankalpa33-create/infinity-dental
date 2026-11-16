@@ -17,6 +17,9 @@
         <img src="assets/clinic-logo.png" alt="Infinity Dental Clinic logo" class="login-logo">
         <div class="login-clinic-title">INFINITY DENTAL CLINIC</div>
         <div class="login-clinic-sub">Endless Care, Beautiful Smiles</div>
+        <div style="font-size:11.5px;color:#38bdf8;margin-top:6px;cursor:pointer" onclick="openClinicWebsite()" title="Click to open website">🌐 www.infinitydentalclinic.com.np ↗</div>
+        <div style="font-size:10.5px;color:#94a3b8;margin-top:2px">📍 Dhumbarahi, Kathmandu &nbsp;•&nbsp; 📞 9768592344, 01-4514888</div>
+        <div style="font-size:10px;color:#64748b;margin-top:1px">✉️ The.infinity.dental@gmail.com &nbsp;•&nbsp; PAN: 125302054</div>
       </div>
 
       <div class="login-header-divider"></div>
@@ -201,6 +204,14 @@
 
       <div class="sidebar-spacer"></div>
 
+      <!-- Official Clinic Website & Contact Promotion -->
+      <div class="sidebar-clinic-promo" onclick="openClinicWebsite()" title="Click to visit official website: www.infinitydentalclinic.com.np">
+        <div class="promo-web-title">🌐 www.infinitydentalclinic.com.np ↗</div>
+        <div class="promo-meta-line">📍 Dhumbarahi, Kathmandu</div>
+        <div class="promo-meta-line">📞 9768592344, 01-4514888</div>
+        <div class="promo-meta-line" style="font-size:9.5px;color:#64748b">✉️ The.infinity.dental@gmail.com</div>
+      </div>
+
       <div class="sidebar-footer" id="sidebarFooter">
         <!-- Settings Dropup Flyout Panel holding all shifted items -->
         <div id="settingsFlyout" class="settings-flyout" style="display:none">
@@ -214,6 +225,9 @@
           </div>
           <div class="settings-flyout-divider"></div>
           <div class="settings-flyout-menu">
+            <button class="settings-flyout-item" onclick="openClinicWebsite(); closeSettingsMenu();">
+              <span class="settings-item-title">Clinic Website ↗</span>
+            </button>
             <button id="settingsStaffBtn" class="settings-flyout-item" style="display:none"
               onclick="showPage('staff'); closeSettingsMenu();">
               <span class="settings-item-title">Staff Accounts</span>
@@ -227,7 +241,7 @@
             <button id="settingsUpdateBtn" class="settings-flyout-item"
               onclick="openUpdateModal(); closeSettingsMenu();">
               <span class="settings-item-title">Updates</span>
-              <span id="settingsVersionBadge" class="header-version-pill">v1.0.18</span>
+              <span id="settingsVersionBadge" class="header-version-pill">v1.0.19</span>
             </button>
             <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
               <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
@@ -508,7 +522,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
           <div>
             <div class="title">Billing &amp; POS Terminal</div>
-            <div class="muted">Infinity Dental Clinic • Dhumbarahi, Kathmandu • PAN: 125302054</div>
+            <div class="muted">Infinity Dental Clinic • Dhumbarahi, Kathmandu • 📞 9768592344, 01-4514888 • ✉️ The.infinity.dental@gmail.com • PAN: 125302054</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="badge" style="background:#0284c7;color:#fff;font-weight:700;padding:5px 10px">
@@ -2070,7 +2084,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:12px;font-weight:700;color:#000000">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.18</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.19</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:700;color:#000000">Update Server:</span>
@@ -2311,6 +2325,9 @@
       <div style="background:#090f1a;padding:12px 14px;border-radius:10px;border:1px solid #1e2e46;font-size:11.5px;color:#94a3b8;line-height:1.6;margin-bottom:16px">
         <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Clinic Name:</b> <span>INFINITY DENTAL CLINIC</span></div>
         <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Clinic Address:</b> <span>Dhumbarahi, Kathmandu, Nepal</span></div>
+        <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Clinic Phone:</b> <span>9768592344, 01-4514888</span></div>
+        <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Clinic Email:</b> <span>The.infinity.dental@gmail.com</span></div>
+        <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Official Website:</b> <span style="color:#38bdf8;cursor:pointer" onclick="openClinicWebsite()">www.infinitydentalclinic.com.np ↗</span></div>
         <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Clinic PAN Number:</b> <span style="font-family:monospace;font-weight:700;color:#38bdf8">125302054</span></div>
       </div>
 

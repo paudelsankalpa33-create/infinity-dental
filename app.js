@@ -437,15 +437,33 @@ function updatePaymentChoice() {
   const rawPaidVal = (paidEl?.value ?? '').trim();
   const paidElVal = Number(rawPaidVal) || 0;
   const hasAmount = total > 0 || costElVal > 0 || (rawPaidVal !== '' && paidElVal > 0) || pendingProcedures.length > 0;
-  if (addBtn) addBtn.disabled = !hasAmount;
+  if (addBtn) addBtn.disabled = false;
   if (visitHint) {
-    visitHint.textContent = hasAmount ? '✓ Ready to save visit & print bill.' : 'Select a procedure or enter an amount to enable Add Visit.';
+    visitHint.textContent = hasAmount
+      ? '✓ Ready to save visit & print bill.'
+      : 'Click ADD VISIT & SAVE to record today’s visit.';
+  }
+}
+
+function openClinicWebsite() {
+  const url = 'https://www.infinitydentalclinic.com.np';
+  try {
+    if (window.dentalApp?.openExternal) {
+      window.dentalApp.openExternal(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  } catch (_) {
+    window.open(url, '_blank');
   }
 }
 
 function addVisit() {
   const p = patients.find(x => x.id === selectedId);
-  if (!p) return;
+  if (!p) {
+    showToast('Please select a patient first.', 'warn');
+    return;
+  }
   ensurePatientArrays(p);
 
   // Auto-stage procedure if none added to list yet
@@ -457,16 +475,8 @@ function addVisit() {
     const paidInput = Number(document.getElementById('visitPaid')?.value) || 0;
     const finalCost = directCost > 0 ? directCost : (paidInput > 0 ? paidInput : 0);
 
-    if (finalCost > 0) {
-      const procName = item ? item.name : (document.getElementById('customProcedureName')?.value?.trim() || 'General Dental Treatment / Consultation');
-      pendingProcedures.push({ procedure: procName, cost: finalCost });
-    }
-  }
-
-  if (!pendingProcedures.length) {
-    showToast('Please select a procedure or enter the treatment amount.', 'warn');
-    document.getElementById('visitCost')?.focus();
-    return;
+    const procName = item ? item.name : (document.getElementById('customProcedureName')?.value?.trim() || (finalCost > 0 ? 'General Dental Treatment' : 'General Dental Consultation & Checkup'));
+    pendingProcedures.push({ procedure: procName, cost: finalCost });
   }
 
   const subtotal = getVisitSubtotal();
@@ -499,6 +509,20 @@ function addVisit() {
   const procNames = pendingProcedures.map(x => x.procedure).join(', ');
 
   function completeSaveVisit(payMethod, payDone, txnId) {
+    // Auto-save Next Appointment if selected/typed on this screen
+    let apptAd = document.getElementById('appointmentAdDate')?.value || '';
+    let apptBs = (document.getElementById('appointmentBsDateInput')?.value || '').trim();
+    let apptT = document.getElementById('appointmentTime')?.value || '10:00';
+    if (!apptAd && apptBs && /^\d{4}-\d{2}-\d{2}$/.test(apptBs)) {
+      apptAd = apptAdFromBs(apptBs) || '';
+    }
+    if (!apptBs && apptAd) {
+      apptBs = apptBsFromAd(apptAd) || '';
+    }
+    if (apptAd) {
+      p.Appointment = { adDate: apptAd, bsDate: apptBs, time: apptT, status: 'scheduled', date: apptAd };
+    }
+
     const visit = {
       id: crypto.randomUUID(),
       date,
@@ -513,7 +537,8 @@ function addVisit() {
       discountAmount: Number(discountAmount.toFixed(2)),
       cost: total,
       billNumber: billNo,
-      procedureItems: pendingProcedures.map(x => ({ procedure: x.procedure, cost: x.cost }))
+      procedureItems: pendingProcedures.map(x => ({ procedure: x.procedure, cost: x.cost })),
+      nextAppointment: apptAd ? { adDate: apptAd, bsDate: apptBs, time: apptT } : null
     };
     p.VisitHistory.unshift(visit);
     pendingProcedures.forEach(x => p.Treatments.push({ procedure: x.procedure, cost: x.cost, date, time, billNumber: billNo }));
@@ -524,14 +549,13 @@ function addVisit() {
     p.FinalAmount = (Number(p.FinalAmount) || 0) + total;
     pendingProcedures = [];
     save();
+    updateAll();
     if (payDone > 0) {
       sendNiziCommand({ command: 'success', amount: payDone });
     }
     renderProfile();
-    showToast(`✓ Visit saved successfully! Bill No: ${billNo}`, 'success');
-    if (confirm('Visit saved. Bill No. ' + billNo + '\n\nWould you like to print this bill now?')) {
-      printBill(billNo);
-    }
+    showToast(`✓ Visit recorded successfully! Bill No: ${billNo}`, 'success');
+    printBill(billNo);
   }
 
   if ((mode === 'NepalPay QR' || mode === 'Scan') && paid > 0) {
@@ -592,7 +616,7 @@ async function printSticker() {
  .barcode svg{display:block;width:82mm;height:11mm;max-width:82mm}
  .print{position:fixed;top:8px;right:8px;padding:8px 14px;font-weight:700}
  @media print{.print{display:none!important}html,body{width:100mm!important;height:50mm!important;overflow:hidden!important}.sticker{width:100mm!important;height:50mm!important;overflow:hidden!important}}
- </style></head><body><div class="sticker"><div class="head"><img class="logo" src="${logoUrl}" onerror="this.style.display='none'"><div class="clinic">INFINITY DENTAL CLINIC<br><small>Dhumbarahi, Kathmandu • PAN: 125302054</small></div></div><div class="details"><div><b>Name</b><span>: ${esc(p.Name)}</span></div><div><b>Age/Gender</b><span>: ${esc(p.Age || '—')} / ${esc(p.Gender || '—')}</span></div><div><b>Address</b><span>: ${esc(p.Address || '—')}</span></div><div><b>Phone</b><span>: ${esc(p.Contact || '—')}</span></div><div><b>OPD No.</b><span>: OPD-${pad(p.OPDNumber)}</span></div></div><div class="barcode">${code39Svg('OPD-' + pad(p.OPDNumber))}</div></div><button class="print" onclick="window.print()">PRINT STICKER</button></body></html>`); w.document.close(); w.focus();
+ </style></head><body><div class="sticker"><div class="head"><img class="logo" src="${logoUrl}" onerror="this.style.display='none'"><div class="clinic">INFINITY DENTAL CLINIC<br><small>Dhumbarahi, Kathmandu • Tel: 9768592344, 01-4514888 • PAN: 125302054</small></div></div><div class="details"><div><b>Name</b><span>: ${esc(p.Name)}</span></div><div><b>Age/Gender</b><span>: ${esc(p.Age || '—')} / ${esc(p.Gender || '—')}</span></div><div><b>Address</b><span>: ${esc(p.Address || '—')}</span></div><div><b>Phone</b><span>: ${esc(p.Contact || '—')}</span></div><div><b>OPD No.</b><span>: OPD-${pad(p.OPDNumber)}</span></div></div><div class="barcode">${code39Svg('OPD-' + pad(p.OPDNumber))}</div></div><button class="print" onclick="window.print()">PRINT STICKER</button></body></html>`); w.document.close(); w.focus();
 }
 function numberToWords(n) {
   const num = Math.round(Number(n) || 0);
@@ -1036,8 +1060,8 @@ function printBill(billNo) {
           <div class="clinic-main-title">INFINITY DENTAL CLINIC</div>
           <div class="clinic-slogan-text">Endless Care, Beautiful Smiles</div>
           <div class="clinic-address-meta">
-            📍 Dhumbarahi, Kathmandu, Nepal &nbsp;•&nbsp; 📞 +977-9800000000<br>
-            ✉️ info@infinitydental.com.np &nbsp;•&nbsp; PAN: 125302054
+            📍 Dhumbarahi, Kathmandu, Nepal &nbsp;•&nbsp; 📞 9768592344, 01-4514888<br>
+            ✉️ The.infinity.dental@gmail.com &nbsp;•&nbsp; 🌐 www.infinitydentalclinic.com.np &nbsp;•&nbsp; PAN: 125302054
           </div>
         </td>
       </tr>
@@ -1129,7 +1153,8 @@ function printBill(billNo) {
         <b>Terms &amp; Instructions:</b><br>
         • Please bring this bill for dental check-up &amp; follow-up visits.<br>
         • Valid for 15 days from the date of issue.<br>
-        • Clinical queries: 📞 +977-9800000000 • Dhumbarahi, Kathmandu
+        • Clinical queries &amp; appointments: 📞 9768592344, 01-4514888 • ✉️ The.infinity.dental@gmail.com<br>
+        • Book appointments &amp; explore services online: 🌐 www.infinitydentalclinic.com.np
       </div>
       <div class="sign-box">
         ${getClinicStampHtmlForBill()}
@@ -1140,7 +1165,7 @@ function printBill(billNo) {
     </div>
 
     <div class="thank-banner">
-      Thank You for Choosing Infinity Dental Clinic! • Endless Care, Beautiful Smiles
+      Thank You for Choosing Infinity Dental Clinic! • 🌐 www.infinitydentalclinic.com.np • 📞 9768592344, 01-4514888
     </div>
   </div>
 </body>
@@ -1519,11 +1544,11 @@ function renderProfile() {
 
      <div style="margin-top:16px;display:flex;align-items:center;gap:12px">
        <button id="addVisitBtn" class="btn primary" onclick="addVisit()" style="font-size:14px;padding:10px 22px">ADD VISIT &amp; SAVE</button>
-       <span id="visitHint" class="muted" style="font-size:12.5px">Enter amount or select a procedure to add visit.</span>
+       <span id="visitHint" class="muted" style="font-size:12.5px">Click ADD VISIT &amp; SAVE to record today’s visit &amp; print A5 bill.</span>
      </div>
    </div>
  </div>
- <div class="grid2" style="margin-top:18px"><div class="card"><div class="section-title">Visit History</div>${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th></tr></thead><tbody>${visits.map(v => `<tr><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}</div><div class="card"><div class="section-title">Payment History</div>${pays.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>${pays.map(v => `<tr><td>${esc(v.date)}</td><td>${esc(v.billNumber)}</td><td>Rs. ${Number(v.amount || 0).toLocaleString()}</td><td>${esc(v.method)}</td><td>${esc(v.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No payments recorded yet.</div>'}</div></div>`;
+ <div class="grid2" style="margin-top:18px"><div class="card"><div class="section-title">Visit History</div>${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map(v => `<tr><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td><td><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}</div><div class="card"><div class="section-title">Payment History</div>${pays.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>${pays.map(v => `<tr><td>${esc(v.date)}</td><td>${esc(v.billNumber)}</td><td>Rs. ${Number(v.amount || 0).toLocaleString()}</td><td>${esc(v.method)}</td><td>${esc(v.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No payments recorded yet.</div>'}</div></div>`;
   restoreAppointmentFields(p); renderPendingProcedures(); updatePaymentChoice();
 }
 function restoreAppointmentFields(p) {
@@ -7067,7 +7092,7 @@ function printToPdf(title, sheets) {
   if (!pa) return;
   pa.innerHTML = `
     <h2>Infinity Dental Clinic — ${esc(title)}</h2>
-    <div style="font-size:12px;color:#64748b;margin-bottom:8px">Dhumbarahi, Kathmandu, Nepal • PAN: 125302054</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:8px">Dhumbarahi, Kathmandu, Nepal • Tel: 9768592344, 01-4514888 • Email: The.infinity.dental@gmail.com • Web: www.infinitydentalclinic.com.np • PAN: 125302054</div>
     <p class="foot">Export generated on ${new Date().toLocaleString()}</p>
     ${sheets.map(s => `
       <h3>${esc(s.name)}</h3>

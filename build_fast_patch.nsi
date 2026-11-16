@@ -5,7 +5,7 @@ Unicode true
 RequestExecutionLevel user
 
 Name "Infinity Dental Clinic Fast Patch"
-OutFile "release\Infinity.Dental.Clinic.FastPatch.1.0.18.exe"
+OutFile "release\Infinity.Dental.Clinic.FastPatch.1.0.19.exe"
 SetCompressor /SOLID lzma
 
 SilentInstall silent
@@ -56,8 +56,8 @@ Section "Main"
   FileWrite $0 '  timeout /t 1 /nobreak >nul$\r$\n'
   FileWrite $0 '  goto retry$\r$\n'
   FileWrite $0 ')$\r$\n'
-  FileWrite $0 'reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.18" /f >nul 2>&1$\r$\n'
-  FileWrite $0 'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.18" /f >nul 2>&1$\r$\n'
+  FileWrite $0 'reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.19" /f >nul 2>&1$\r$\n'
+  FileWrite $0 'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.19" /f >nul 2>&1$\r$\n'
   FileWrite $0 'start "" "$TARGET_DIR\Infinity Dental Clinic.exe"$\r$\n'
   FileWrite $0 'timeout /t 2 /nobreak >nul$\r$\n'
   FileWrite $0 'rd /s /q "$1" >nul 2>&1$\r$\n'
@@ -70,8 +70,8 @@ Section "Main"
   ${If} ${Errors}
     ExecShell "runas" "$1\apply.bat" "" SW_HIDE
   ${Else}
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.18"
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.18"
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.19"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.19"
     Exec '"$TARGET_DIR\Infinity Dental Clinic.exe"'
     RMDir /r "$1"
   ${EndIf}

@@ -122,15 +122,13 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
+- **Patient Profile "Add Visit & Save" Fix**: Ensured the `ADD VISIT & SAVE` button is always active and enabled. Auto-stages general dental consultation/visit even if no procedure was pre-selected, syncs Next Appointment in one click, and opens the A5 bill immediately without native modal lockups.
+- **Official Clinic Contact Numbers & Email Everywhere**: Added phone numbers **9768592344, 01-4514888** and official email **The.infinity.dental@gmail.com** across printed A5 bills, OPD stickers, PDF reports, settings, login screen, and billing header.
+- **Official Clinic Website Promotion**: Added clickable clinic website promotion (**www.infinitydentalclinic.com.np**) in the navigation sidebar, login page, A5 invoice header & footer, and settings modal.
 - **Billing & POS Terminal Overhaul**: Comprehensive patient checkout workspace for managers and superadmins, displaying registered patient details (OPD, contact, address, visit count, balance due), quick procedure presets, staged treatment items, mutual % and amount discount calculation, full/partial/due recording, dynamic QR/Cash/Card payments, and invoice history with 1-click A5 reprint and due balance collection.
-- **Official Clinic PAN & Address Everywhere**: Clinic PAN **125302054** and Address **Dhumbarahi, Kathmandu** integrated across all bills, stickers, PDF records, registration forms, and settings.
+- **Official Clinic PAN & Address**: Clinic PAN **125302054** and Address **Dhumbarahi, Kathmandu** integrated across all bills, stickers, PDF records, registration forms, and settings.
 - **Strict A5 Single-Page Bill Layout**: Standardized all patient bills to fit cleanly on a single sheet of A5 paper (148mm × 210mm) with compact proportions and zero multi-page spills.
 - **Official Clinic Stamp Feature in Settings**: Configure and toggle an official clinic stamp on all printed patient bills, with support for custom transparent PNG/JPG stamp uploads or the built-in circular clinic seal (INFINITY DENTAL CLINIC • DHUMBARAHI, KATHMANDU • PAN: 125302054).
-- **Transactions & Financial Records**: Daily, Weekly, Monthly, Yearly, and All-Time revenue tracking and filtering.
-- **Appointments Dark Theme**: Dark slate cards and high-contrast typography in follow-up call tracking and no-show statuses.
-- **Form Controls & Dropdowns**: System-wide dark palette for native <select>, <option>, and <input> elements.
-- **NiZi POS B33 Hardware Simulator**: Wired simulator buttons directly via Node.js backend (/api/command) with automatic COM4 reconnect.
-- **AD/BS Date Selectors**: High-precision date parsing with Bikram Sambat synchronization.
 - **Instant In-App Updater**: Fast 0.6MB patch with zero permission errors and automatic restart.`;
 
   if (!release) {
