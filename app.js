@@ -2651,7 +2651,7 @@ async function checkAppUpdates(manual = false) {
           ${result.releaseNotes ? `<div style="background:#fff;padding:8px 12px;border-radius:6px;font-size:12px;max-height:100px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px;border:1px solid #dcfce7">${esc(result.releaseNotes)}</div>` : ''}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button id="inAppDownloadBtn" class="btn primary" style="background:#16a34a;padding:9px 18px;font-weight:800" onclick="startInAppUpdate('${esc(result.downloadUrl || result.htmlUrl)}')">⬇ DOWNLOAD &amp; INSTALL UPDATE (IN-APP)</button>
-            <a href="${esc(result.downloadUrl || result.htmlUrl)}" target="_blank" download class="btn secondary" style="font-size:12px;padding:9px 14px;text-decoration:none;display:inline-flex;align-items:center">📥 Direct Setup (.exe)</a>
+            <a href="${esc(result.setupUrl || result.downloadUrl || result.htmlUrl)}" target="_blank" download class="btn secondary" style="font-size:12px;padding:9px 14px;text-decoration:none;display:inline-flex;align-items:center">📥 Direct Setup (.exe)</a>
             <button class="btn secondary" style="font-size:11px;padding:8px 12px" onclick="openExternalUrl('${esc(result.htmlUrl)}')">View Release Details</button>
           </div>
         `;
@@ -2728,7 +2728,17 @@ async function startInAppUpdate(downloadUrl) {
       if (bytesText && data.totalBytes > 0) {
         const dlMb = (data.downloadedBytes / 1024 / 1024).toFixed(1);
         const totalMb = (data.totalBytes / 1024 / 1024).toFixed(1);
-        bytesText.textContent = `${dlMb} MB / ${totalMb} MB`;
+        let extra = '';
+        if (data.speedMb && data.speedMb !== '0.0') {
+          extra += ` • ${data.speedMb} MB/s`;
+        }
+        if (data.etaSec && data.etaSec > 0) {
+          extra += ` (ETA: ${data.etaSec}s)`;
+        }
+        if (data.isResuming) {
+          extra += ` ⚡ Resuming...`;
+        }
+        bytesText.textContent = `${dlMb} MB / ${totalMb} MB${extra}`;
       }
     });
 

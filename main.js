@@ -539,12 +539,34 @@ function checkAppUpdatesInternal(repoSlug) {
             const latestVersion = latestTag.replace(/^[vV]/, '');
             const hasUpdate = compareSemver(latestVersion, currentVersion) > 0;
 
-            // Find Windows installer or portable exe asset if available
+            // Find Windows installer, fast patch, or portable exe asset if available
             let downloadUrl = release.html_url;
+            let setupUrl = null;
+            let fastUpdateUrl = null;
+            let fastUpdateSizeMb = null;
+            let setupSizeMb = null;
+
             if (Array.isArray(release.assets)) {
-              const exeAsset = release.assets.find(a => a.name && (a.name.endsWith('.exe') || a.name.endsWith('.zip')));
-              if (exeAsset && exeAsset.browser_download_url) {
-                downloadUrl = exeAsset.browser_download_url;
+              const fastAsset = release.assets.find(a => a.name && a.name.toLowerCase().includes('fastupdate'));
+              const setupAsset = release.assets.find(a => a.name && a.name.endsWith('.exe') && a.name.toLowerCase().includes('setup'));
+              const portableAsset = release.assets.find(a => a.name && a.name.endsWith('.exe'));
+
+              if (fastAsset && fastAsset.browser_download_url) {
+                fastUpdateUrl = fastAsset.browser_download_url;
+                fastUpdateSizeMb = (fastAsset.size / (1024 * 1024)).toFixed(1);
+              }
+              if (setupAsset && setupAsset.browser_download_url) {
+                setupUrl = setupAsset.browser_download_url;
+                setupSizeMb = (setupAsset.size / (1024 * 1024)).toFixed(1);
+              }
+
+              // Prefer 1MB FastUpdate zip for ultra-fast in-app updating!
+              if (fastUpdateUrl) {
+                downloadUrl = fastUpdateUrl;
+              } else if (setupUrl) {
+                downloadUrl = setupUrl;
+              } else if (portableAsset && portableAsset.browser_download_url) {
+                downloadUrl = portableAsset.browser_download_url;
               }
             }
 
@@ -558,6 +580,10 @@ function checkAppUpdatesInternal(repoSlug) {
               publishedAt: release.published_at || '',
               htmlUrl: release.html_url,
               downloadUrl,
+              setupUrl: setupUrl || downloadUrl,
+              fastUpdateUrl,
+              fastUpdateSizeMb,
+              setupSizeMb,
               repo
             });
           } else if (res.statusCode === 404) {
@@ -620,82 +646,208 @@ ipcMain.handle('app:check-updates', async (_event, repoSlug) => checkAppUpdatesI
 // --- In-App Update Downloader & Auto-Installer ---
 let downloadedInstallerPath = null;
 
-function downloadFileWithRedirects(fileUrl, destPath, onProgress, onDone, onError, redirectCount = 0) {
-  if (redirectCount > 8) {
-    return onError(new Error('Too many redirects while downloading update.'));
+const updateHttpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 8,
+  timeout: 30000
+});
+
+function downloadFileWithResume(fileUrl, destPath, onProgress, onDone, onError) {
+  let downloadedBytes = 0;
+  let totalBytes = 0;
+  let fileStream = null;
+  let currentReq = null;
+  let retryCount = 0;
+  const maxRetries = 6;
+  let lastSpeedCheck = Date.now();
+  let bytesSinceSpeedCheck = 0;
+  let currentSpeedMb = '0.0';
+  let stallTimer = null;
+  let isCompleted = false;
+
+  function resetStallTimer() {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => {
+      if (isCompleted) return;
+      console.warn(`[Updater] Connection stalled at ${downloadedBytes}/${totalBytes} bytes. Auto-resuming...`);
+      if (currentReq) {
+        try { currentReq.destroy(); } catch (_) {}
+      }
+      attemptDownload();
+    }, 12000);
   }
 
-  try {
-    const parsedUrl = new URL(fileUrl);
-    const client = parsedUrl.protocol === 'http:' ? http : https;
+  function attemptDownload() {
+    if (isCompleted) return;
+    if (retryCount >= maxRetries) {
+      if (stallTimer) clearTimeout(stallTimer);
+      return onError(new Error(`Download interrupted after ${maxRetries} retry attempts.`));
+    }
+    retryCount++;
 
-    const req = client.get(fileUrl, {
-      headers: {
-        'User-Agent': 'InfinityDentalClinic-Updater/' + app.getVersion(),
-        'Accept': 'application/octet-stream'
-      }
+    const isResume = downloadedBytes > 0 && fs.existsSync(destPath);
+    if (!isResume) {
+      downloadedBytes = 0;
+      fileStream = fs.createWriteStream(destPath, { flags: 'w', highWaterMark: 1024 * 1024 });
+    } else {
+      fileStream = fs.createWriteStream(destPath, { flags: 'a', highWaterMark: 1024 * 1024 });
+    }
+
+    const headers = {
+      'User-Agent': 'InfinityDentalClinic-Updater/' + app.getVersion(),
+      'Accept': 'application/octet-stream',
+      'Connection': 'keep-alive'
+    };
+    if (isResume) {
+      headers['Range'] = `bytes=${downloadedBytes}-`;
+      console.log(`[Updater] Resuming download via HTTP Range from byte: ${downloadedBytes}`);
+    }
+
+    resetStallTimer();
+
+    currentReq = https.get(fileUrl, {
+      agent: updateHttpsAgent,
+      headers
     }, (res) => {
-      // Follow HTTP redirects (GitHub asset downloads redirect to objects.githubusercontent.com)
+      // Follow HTTP redirects (GitHub to Azure Blob CDN)
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        const nextUrl = new URL(res.headers.location, fileUrl).toString();
-        return downloadFileWithRedirects(nextUrl, destPath, onProgress, onDone, onError, redirectCount + 1);
+        fileUrl = new URL(res.headers.location, fileUrl).toString();
+        if (fileStream) {
+          try { fileStream.close(); } catch (_) {}
+        }
+        return attemptDownload();
       }
 
-      if (res.statusCode !== 200) {
-        return onError(new Error(`Download failed with server status HTTP ${res.statusCode}`));
+      // Check HTTP Status
+      if (res.statusCode !== 200 && res.statusCode !== 206) {
+        if (stallTimer) clearTimeout(stallTimer);
+        return onError(new Error(`Server returned HTTP ${res.statusCode}`));
       }
 
-      const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
-      let downloadedBytes = 0;
-      const fileStream = fs.createWriteStream(destPath);
+      if (res.statusCode === 200 && isResume) {
+        downloadedBytes = 0;
+      }
+
+      if (totalBytes === 0) {
+        if (res.headers['content-range']) {
+          const match = res.headers['content-range'].match(/\/(\d+)/);
+          if (match) totalBytes = parseInt(match[1], 10);
+        } else if (res.headers['content-length']) {
+          totalBytes = downloadedBytes + parseInt(res.headers['content-length'], 10);
+        }
+      }
 
       let lastSend = 0;
       res.on('data', (chunk) => {
+        if (isCompleted) return;
+        resetStallTimer();
         downloadedBytes += chunk.length;
+        bytesSinceSpeedCheck += chunk.length;
+
         const now = Date.now();
-        if (now - lastSend > 120 || downloadedBytes === totalBytes) {
+        const elapsed = (now - lastSpeedCheck) / 1000;
+        if (elapsed >= 0.5) {
+          const speedBps = bytesSinceSpeedCheck / elapsed;
+          currentSpeedMb = (speedBps / (1024 * 1024)).toFixed(1);
+          lastSpeedCheck = now;
+          bytesSinceSpeedCheck = 0;
+        }
+
+        if (now - lastSend > 100 || downloadedBytes === totalBytes) {
           lastSend = now;
           const percent = totalBytes > 0 ? Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100)) : 0;
+          const remainingBytes = Math.max(0, totalBytes - downloadedBytes);
+          const speedNum = parseFloat(currentSpeedMb) || 0.1;
+          const etaSec = speedNum > 0 ? Math.ceil((remainingBytes / (1024 * 1024)) / speedNum) : 0;
+
           onProgress({
             percent,
             downloadedBytes,
-            totalBytes
+            totalBytes,
+            speedMb: currentSpeedMb,
+            etaSec,
+            isResuming: isResume
           });
+        }
+
+        if (!fileStream.write(chunk)) {
+          res.pause();
+          fileStream.once('drain', () => res.resume());
         }
       });
 
-      res.pipe(fileStream);
-
-      fileStream.on('finish', () => {
-        fileStream.close(() => {
+      res.on('end', () => {
+        if (isCompleted) return;
+        if (stallTimer) clearTimeout(stallTimer);
+        fileStream.end(() => {
+          if (totalBytes > 0 && downloadedBytes < totalBytes) {
+            console.warn(`[Updater] Stream ended prematurely (${downloadedBytes}/${totalBytes}). Resuming...`);
+            return attemptDownload();
+          }
+          isCompleted = true;
           onDone(destPath);
         });
       });
 
-      fileStream.on('error', (err) => {
-        fs.unlink(destPath, () => {});
-        onError(err);
+      res.on('error', (err) => {
+        console.warn('[Updater] Stream error:', err.message);
+        if (stallTimer) clearTimeout(stallTimer);
+        attemptDownload();
       });
     });
 
-    req.on('error', (err) => {
-      fs.unlink(destPath, () => {});
-      onError(err);
+    currentReq.on('error', (err) => {
+      console.warn('[Updater] Request error:', err.message);
+      if (stallTimer) clearTimeout(stallTimer);
+      attemptDownload();
     });
-  } catch (err) {
-    onError(err);
   }
+
+  attemptDownload();
 }
 
 ipcMain.handle('app:download-update', async (_event, downloadUrl) => {
   if (!downloadUrl) return { success: false, error: 'No download URL provided.' };
 
+  // 1. FAST LOCAL PATH: Check if a matching installer already exists locally on this machine
+  try {
+    const candidates = [
+      path.join('D:\\dental software', 'Infinity Dental Clinic Setup.exe'),
+      path.join(path.dirname(process.execPath), 'Infinity Dental Clinic Setup.exe'),
+      path.join(process.cwd(), 'release', 'Infinity Dental Clinic Setup.exe')
+    ];
+    for (const cand of candidates) {
+      if (fs.existsSync(cand)) {
+        const stat = fs.statSync(cand);
+        if (stat.size > 50 * 1024 * 1024) {
+          console.log('[Updater] Instant local installer detected:', cand);
+          downloadedInstallerPath = cand;
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update:download-progress', {
+              percent: 100,
+              downloadedBytes: stat.size,
+              totalBytes: stat.size,
+              speedMb: 'Local Fast-Path',
+              etaSec: 0
+            });
+          }
+          return { success: true, filePath: cand, isLocal: true };
+        }
+      }
+    }
+  } catch (localErr) {
+    console.warn('[Updater] Local check notice:', localErr.message);
+  }
+
+  // 2. High-speed network download with Range auto-resume
   const tempDir = app.getPath('temp');
-  const tempFile = path.join(tempDir, `InfinityDentalClinic_Update_${Date.now()}.exe`);
+  const isZip = downloadUrl.toLowerCase().includes('.zip');
+  const ext = isZip ? '.zip' : '.exe';
+  const tempFile = path.join(tempDir, `InfinityDentalClinic_Update_${Date.now()}${ext}`);
 
   return new Promise((resolve) => {
-    downloadFileWithRedirects(
+    downloadFileWithResume(
       downloadUrl,
       tempFile,
       (progress) => {
@@ -705,27 +857,9 @@ ipcMain.handle('app:download-update', async (_event, downloadUrl) => {
       },
       (savedPath) => {
         downloadedInstallerPath = savedPath;
-        resolve({ success: true, filePath: savedPath });
+        resolve({ success: true, filePath: savedPath, isZip });
       },
       (err) => {
-        // Fallback: If network download failed, check if a local installer exists
-        try {
-          const localReleaseDir = path.join(__dirname, 'release');
-          let localSetup = null;
-          if (fs.existsSync(localReleaseDir)) {
-            const files = fs.readdirSync(localReleaseDir);
-            const setups = files.filter(f => f.endsWith('.exe') && f.toLowerCase().includes('setup')).sort().reverse();
-            if (setups.length > 0) localSetup = path.join(localReleaseDir, setups[0]);
-          }
-          if (localSetup && fs.existsSync(localSetup)) {
-            fs.copyFileSync(localSetup, tempFile);
-            downloadedInstallerPath = tempFile;
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('update:download-progress', { percent: 100, downloadedBytes: 100, totalBytes: 100 });
-            }
-            return resolve({ success: true, filePath: tempFile });
-          }
-        } catch (_) {}
         resolve({ success: false, error: err.message });
       }
     );
@@ -733,29 +867,71 @@ ipcMain.handle('app:download-update', async (_event, downloadUrl) => {
 });
 
 ipcMain.handle('app:install-and-restart', async (_event, customPath) => {
-  const installerPath = customPath || downloadedInstallerPath;
-  if (!installerPath || !fs.existsSync(installerPath)) {
-    return { success: false, error: 'Downloaded installer file not found on disk.' };
+  const targetPath = customPath || downloadedInstallerPath;
+  if (!targetPath || !fs.existsSync(targetPath)) {
+    return { success: false, error: 'Update package not found on disk.' };
   }
 
   try {
-    console.log('[Updater] Launching installer:', installerPath);
-    // Launch installer detached from current Electron process
-    const child = spawn(installerPath, [], {
+    const isZip = targetPath.toLowerCase().endsWith('.zip');
+    if (isZip) {
+      console.log('[Updater] Applying Fast Update from zip archive:', targetPath);
+      const tempExtractDir = path.join(app.getPath('temp'), 'InfinityDentalUpdate_' + Date.now());
+      fs.mkdirSync(tempExtractDir, { recursive: true });
+
+      // Extract app.asar using built-in Windows tar or PowerShell
+      try {
+        const { execSync } = require('child_process');
+        execSync(`tar -xf "${targetPath}" -C "${tempExtractDir}"`, { stdio: 'ignore' });
+      } catch (tarErr) {
+        const { execSync } = require('child_process');
+        execSync(`powershell -NoProfile -Command "Expand-Archive -Path '${targetPath}' -DestinationPath '${tempExtractDir}' -Force"`, { stdio: 'ignore' });
+      }
+
+      const extractedAsar = path.join(tempExtractDir, 'app.asar');
+      const targetAsar = path.join(process.resourcesPath, 'app.asar');
+      const currentExe = process.execPath;
+
+      if (fs.existsSync(extractedAsar) && fs.existsSync(targetAsar)) {
+        // Create seamless batch restarter that waits for current process to exit, replaces app.asar, and relaunches
+        const batchFile = path.join(app.getPath('temp'), 'infinity_apply_patch.bat');
+        const batchContent = `@echo off\r\n` +
+          `timeout /t 1 /nobreak > nul\r\n` +
+          `:retry\r\n` +
+          `copy /y "${extractedAsar}" "${targetAsar}" > nul 2>&1\r\n` +
+          `if errorlevel 1 (\r\n` +
+          `  timeout /t 1 /nobreak > nul\r\n` +
+          `  goto retry\r\n` +
+          `)\r\n` +
+          `start "" "${currentExe}"\r\n` +
+          `exit\r\n`;
+        fs.writeFileSync(batchFile, batchContent);
+
+        console.log('[Updater] Launching fast patch restarter...');
+        const child = spawn('cmd.exe', ['/c', 'start', '""', batchFile], {
+          detached: true,
+          stdio: 'ignore'
+        });
+        child.unref();
+
+        if (db) { try { db.close(); } catch (_) {} }
+        app.isQuitting = true;
+        setTimeout(() => app.quit(), 200);
+        return { success: true };
+      }
+    }
+
+    // Default: Full .exe installer
+    console.log('[Updater] Launching installer:', targetPath);
+    const child = spawn(targetPath, [], {
       detached: true,
       stdio: 'ignore'
     });
     child.unref();
 
-    // Close SQLite db cleanly and quit
-    if (db) {
-      try { db.close(); } catch (_) {}
-    }
+    if (db) { try { db.close(); } catch (_) {} }
     app.isQuitting = true;
-    setTimeout(() => {
-      app.quit();
-    }, 250);
-
+    setTimeout(() => app.quit(), 250);
     return { success: true };
   } catch (err) {
     return { success: false, error: 'Failed to launch update installer: ' + err.message };
