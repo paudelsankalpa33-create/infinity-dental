@@ -42,3 +42,8 @@ contextBridge.exposeInMainWorld('dentalWifi', {
   showOnNizi: (config) => ipcRenderer.invoke('wifi:show-on-nizi', config),
   resetNizi: () => ipcRenderer.invoke('wifi:reset-nizi')
 });
+
+contextBridge.exposeInMainWorld('dentalStamp', {
+  get: () => ipcRenderer.invoke('clinic:stamp:get'),
+  save: (config) => ipcRenderer.invoke('clinic:stamp:save', config)
+});

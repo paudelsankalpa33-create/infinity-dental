@@ -1386,6 +1386,42 @@ ipcMain.handle('wifi:save', (_event, config) => {
   }
 });
 
+ipcMain.handle('clinic:stamp:get', async () => {
+  try {
+    const row = db.prepare("SELECT value FROM clinic_settings WHERE key = 'clinic_stamp'").get();
+    if (row && row.value) {
+      return { success: true, stamp: JSON.parse(row.value) };
+    }
+  } catch (err) {
+    console.warn('[Clinic Stamp IPC] Get error:', err.message);
+  }
+  return {
+    success: true,
+    stamp: {
+      enabled: true,
+      isDefault: true,
+      customDataUrl: null,
+      clinicName: 'INFINITY DENTAL CLINIC',
+      address: 'Dhumbarahi, Kathmandu',
+      pan: '125302054'
+    }
+  };
+});
+
+ipcMain.handle('clinic:stamp:save', async (_event, config) => {
+  try {
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO clinic_settings (key, value, updated_at)
+      VALUES ('clinic_stamp', ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(JSON.stringify(config), now);
+    return { success: true, stamp: config };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 app.whenReady().then(async ()=>{
   registerSerialPortHandler(session.defaultSession);
   openDb();

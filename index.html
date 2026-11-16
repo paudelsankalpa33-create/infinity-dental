@@ -221,10 +221,13 @@
             <button id="settingsWifiBtn" class="settings-flyout-item" onclick="openWifiModal(); closeSettingsMenu();">
               <span class="settings-item-title">Wi-Fi QR</span>
             </button>
+            <button id="settingsStampBtn" class="settings-flyout-item" onclick="openClinicStampModal(); closeSettingsMenu();">
+              <span class="settings-item-title">Official Clinic Stamp</span>
+            </button>
             <button id="settingsUpdateBtn" class="settings-flyout-item"
               onclick="openUpdateModal(); closeSettingsMenu();">
               <span class="settings-item-title">Updates</span>
-              <span id="settingsVersionBadge" class="header-version-pill">v1.0.17</span>
+              <span id="settingsVersionBadge" class="header-version-pill">v1.0.18</span>
             </button>
             <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
               <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
@@ -385,7 +388,7 @@
             <div class="formgrid">
               <div class="field"><label for="name">Patient name *</label><input id="name" required autocomplete="name" placeholder="Full name (e.g. Binod Sharma)"></div>
               <div class="field"><label for="contact">Contact number *</label><input id="contact" required inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number"></div>
-              <div class="field"><label for="address">Address</label><input id="address" placeholder="e.g. Pokhara-08, Srijana Chowk"></div>
+              <div class="field"><label for="address">Address</label><input id="address" placeholder="e.g. Dhumbarahi, Kathmandu"></div>
               <div class="field"><label for="age">Age</label><input id="age" type="number" min="1" max="120" placeholder="e.g. 29"></div>
               <div class="field"><label for="gender">Gender *</label><select id="gender" required>
                   <option value="">Select gender</option>
@@ -499,18 +502,310 @@
           </div>
         </div>
       </section>
+      <!-- Comprehensive Billing & POS Terminal -->
       <section id="billing" class="page">
-        <div class="title">Billing</div>
-        <div class="muted">Print the latest saved patient bill in A5 black-and-white format.</div>
-        <div class="card" style="margin-top:18px">
-          <div class="section-title">Select Patient</div>
-          <div class="toolbar"><select id="billingPatient" onchange="selectBillingPatient(this.value)"
-              style="min-width:280px">
-              <option value="">Select patient</option>
-            </select><button class="btn secondary" onclick="showPage('patients')">SEARCH PATIENTS</button></div>
-          <div id="billingSummary" class="muted" style="margin-top:14px">Select a patient to see their latest bill.
+        <!-- Top Title Bar -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="title">Billing &amp; POS Terminal</div>
+            <div class="muted">Infinity Dental Clinic • Dhumbarahi, Kathmandu • PAN: 125302054</div>
           </div>
-          <div id="billingBills" style="margin-top:14px"></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="badge" style="background:#0284c7;color:#fff;font-weight:700;padding:5px 10px">
+              📄 Official A5 Billing
+            </span>
+            <button class="btn secondary" onclick="openClinicStampModal()">
+              🔖 Clinic Stamp Settings
+            </button>
+            <button class="btn secondary" onclick="showPage('register')">
+              + New Patient Registration
+            </button>
+          </div>
+        </div>
+
+        <!-- Patient Selection & Fast Search -->
+        <div class="card" style="margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div class="section-title" style="margin:0">Select Patient for Billing &amp; Payment</div>
+            <div class="muted" style="font-size:12px">Search by Name, OPD Number, or Phone Number</div>
+          </div>
+          <div class="toolbar" style="gap:10px;flex-wrap:wrap">
+            <div style="flex:1;min-width:260px;position:relative">
+              <input type="text" id="billingSearchInput" placeholder="🔍 Type patient name, OPD, or phone to search..."
+                style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f8fafc"
+                oninput="onBillingSearchInput(this.value)">
+              <div id="billingSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:#0f172a;border:1px solid #334155;border-radius:8px;max-height:220px;overflow-y:auto;box-shadow:0 10px 25px rgba(0,0,0,0.5);margin-top:4px"></div>
+            </div>
+            <select id="billingPatient" onchange="selectBillingPatient(this.value)"
+              style="min-width:280px;padding:9px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f8fafc">
+              <option value="">-- Choose Registered Patient --</option>
+            </select>
+            <button class="btn secondary" onclick="showPage('patients')">Browse All Patients</button>
+          </div>
+        </div>
+
+        <!-- When a patient IS selected: Patient Details + Payment Collection POS -->
+        <div id="billingPatientWorkspace" style="display:none;margin-top:16px">
+          <!-- Patient Details Banner -->
+          <div class="card" style="margin-bottom:16px;background:#090f19;border:1px solid #1e2e46;border-radius:12px;padding:18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:48px;height:48px;border-radius:50%;background:#0284c7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px" id="billingPatientInitial">
+                  P
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:18px;font-weight:800;color:#f8fafc" id="billingPatientName">—</span>
+                    <span class="badge" id="billingPatientOpd" style="background:#0284c7;color:#fff">OPD 1001</span>
+                  </div>
+                  <div class="muted" style="font-size:12px;margin-top:3px" id="billingPatientMeta">
+                    Contact: — • Age/Gender: — • Address: Dhumbarahi, Kathmandu
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                <div style="text-align:right">
+                  <div class="muted" style="font-size:11px">Total Visits</div>
+                  <div style="font-size:16px;font-weight:800;color:#f8fafc" id="billingPatientVisitsCount">0</div>
+                </div>
+                <div style="height:30px;width:1px;background:#1e2e46"></div>
+                <div style="text-align:right">
+                  <div class="muted" style="font-size:11px">Total Paid</div>
+                  <div style="font-size:16px;font-weight:800;color:#10b981" id="billingPatientTotalPaid">Rs. 0</div>
+                </div>
+                <div style="height:30px;width:1px;background:#1e2e46"></div>
+                <div style="text-align:right">
+                  <div class="muted" style="font-size:11px">Balance Due</div>
+                  <div style="font-size:16px;font-weight:800;color:#ef4444" id="billingPatientDueBalance">Rs. 0</div>
+                </div>
+                <button class="btn secondary" style="font-size:11px;padding:6px 12px" onclick="openProfile(selectedId)">
+                  View Full Profile ↗
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- POS Payment Collection Section -->
+          <div class="grid2 profile-main-grid" style="grid-template-columns:1.2fr 0.8fr;gap:18px;align-items:start">
+            <!-- Left: Add Procedures / Treatments & Bill Calculation -->
+            <div class="card" style="background:#090f19;border:1px solid #1e2e46;border-radius:12px;padding:20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <div>
+                  <div class="section-title" style="margin:0">Collect Payment &amp; New Bill</div>
+                  <div class="muted" style="font-size:12px">Stage dental procedures and calculate bill</div>
+                </div>
+                <span class="badge" style="background:#10b981;color:#fff;font-size:11px">POS Active</span>
+              </div>
+
+              <!-- Quick One-Click Procedure Presets -->
+              <div style="margin-bottom:14px">
+                <div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">⚡ One-Click Presets:</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('Consultation', 500)">🩺 Consultation (Rs. 500)</button>
+                  <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('OPD Card', 100)">📋 OPD Card (Rs. 100)</button>
+                  <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('Scaling &amp; Polishing', 1500)">✨ Scaling (Rs. 1,500)</button>
+                  <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('Tooth Extraction', 1000)">🦷 Extraction (Rs. 1,000)</button>
+                  <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('Root Canal (RCT)', 5000)">💉 RCT (Rs. 5,000)</button>
+                  <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('Dental X-Ray', 300)">📸 X-Ray (Rs. 300)</button>
+                  <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('Ceramic Crown', 7000)">👑 Crown (Rs. 7,000)</button>
+                </div>
+              </div>
+
+              <!-- Custom Treatment & Price List Row -->
+              <div style="display:grid;grid-template-columns:1fr 140px auto;gap:8px;margin-bottom:14px;align-items:end">
+                <div class="field" style="margin:0">
+                  <label style="font-size:11px;font-weight:700;color:#94a3b8">Treatment / Procedure Description</label>
+                  <input type="text" id="billingProcName" list="billingPriceListOptions" placeholder="Type or select treatment..."
+                    style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc"
+                    onchange="onBillingProcSelect(this.value)">
+                  <datalist id="billingPriceListOptions"></datalist>
+                </div>
+                <div class="field" style="margin:0">
+                  <label style="font-size:11px;font-weight:700;color:#94a3b8">Rate (NPR)</label>
+                  <input type="number" id="billingProcCost" min="0" placeholder="0"
+                    style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc"
+                    onkeydown="if(event.key==='Enter')addBillingProcedureItem()">
+                </div>
+                <button type="button" class="btn primary" style="padding:9px 14px;font-weight:700;font-size:12px;height:38px" onclick="addBillingProcedureItem()">
+                  + Add
+                </button>
+              </div>
+
+              <!-- Staged Items Table -->
+              <div style="margin-bottom:14px">
+                <div class="tablewrap" style="border:1px solid #1e2e46;border-radius:8px">
+                  <table class="table" style="font-size:12px">
+                    <thead>
+                      <tr>
+                        <th style="width:36px;text-align:center">#</th>
+                        <th>Treatment</th>
+                        <th style="text-align:right">Rate (NPR)</th>
+                        <th style="width:50px;text-align:center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="billingStagedRows">
+                      <tr><td colspan="4" class="empty" style="padding:14px;text-align:center;color:#64748b">No treatments added to this bill yet. Click a preset or add above.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Totals, Discounts, Payment Collection & A5 Print -->
+            <div class="card" style="background:#090f19;border:1px solid #1e2e46;border-radius:12px;padding:20px">
+              <div class="section-title" style="margin:0 0 12px 0">Payment &amp; Invoice Summary</div>
+
+              <!-- Subtotal Display -->
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;color:#94a3b8">
+                <span>Subtotal:</span>
+                <span style="font-weight:700;color:#f8fafc" id="billingSubtotalLabel">Rs. 0.00</span>
+              </div>
+
+              <!-- Discount Inputs -->
+              <div style="margin:10px 0;padding:10px;background:#0f172a;border-radius:8px;border:1px solid #1e2e46">
+                <div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px">Apply Clinic Discount:</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <div>
+                    <label style="font-size:10.5px;color:#94a3b8">Discount %</label>
+                    <input type="number" id="billingDiscountPercent" min="0" max="100" placeholder="0" value="0"
+                      style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#090f1a;color:#f8fafc"
+                      oninput="onBillingDiscountPercentInput()">
+                  </div>
+                  <div>
+                    <label style="font-size:10.5px;color:#94a3b8">Discount Amount (Rs.)</label>
+                    <input type="number" id="billingDiscountAmount" min="0" placeholder="0" value="0"
+                      style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#090f1a;color:#f8fafc"
+                      oninput="onBillingDiscountAmountInput()">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Net Total Banner -->
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#0284c7;color:#fff;border-radius:8px;margin-bottom:12px">
+                <span style="font-weight:800;font-size:13px">NET TOTAL:</span>
+                <span style="font-weight:900;font-size:18px" id="billingNetTotalLabel">Rs. 0.00</span>
+              </div>
+
+              <!-- Payment Type: Full / Partial / Due -->
+              <div style="margin-bottom:12px">
+                <div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px">Payment Option:</div>
+                <div style="display:flex;gap:12px;font-size:12px;color:#f8fafc">
+                  <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+                    <input type="radio" name="billingPaymentChoice" value="full" checked onchange="updateBillingPaymentCalculations()"> Full Payment
+                  </label>
+                  <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+                    <input type="radio" name="billingPaymentChoice" value="partial" onchange="updateBillingPaymentCalculations()"> Partial Payment
+                  </label>
+                  <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+                    <input type="radio" name="billingPaymentChoice" value="due" onchange="updateBillingPaymentCalculations()"> Due / Credit
+                  </label>
+                </div>
+              </div>
+
+              <!-- Amount Paid Input & Balance Due -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+                <div>
+                  <label style="font-size:11px;font-weight:700;color:#94a3b8">Amount Paid (NPR)</label>
+                  <input type="number" id="billingAmountPaidInput" min="0" placeholder="0"
+                    style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#10b981;font-weight:800"
+                    oninput="updateBillingDueBalance()">
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:700;color:#94a3b8">Balance Due (NPR)</label>
+                  <div id="billingDueBalanceDisplay" style="padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#ef4444;font-weight:800;font-size:13px">
+                    Rs. 0.00
+                  </div>
+                </div>
+              </div>
+
+              <!-- Payment Method Selection -->
+              <div style="margin-bottom:16px">
+                <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px">Payment Method</label>
+                <select id="billingPaymentMethodSelect" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-weight:600"
+                  onchange="onBillingPaymentMethodChange(this.value)">
+                  <option value="Cash">💵 Cash</option>
+                  <option value="NepalPay QR">📱 NepalPay Dynamic QR / FonePay (Soundbox)</option>
+                  <option value="Card">💳 Card / POS Machine</option>
+                  <option value="Bank Transfer">🏦 Bank Transfer / ConnectIPS</option>
+                  <option value="Due">⏳ Due / Credit</option>
+                </select>
+              </div>
+
+              <!-- Actions -->
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <button type="button" class="btn primary" id="btnCollectAndPrintA5"
+                  style="width:100%;padding:12px;background:#16a34a;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px"
+                  onclick="collectBillingAndPrintA5()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                  COLLECT PAYMENT &amp; PRINT A5 BILL
+                </button>
+                <div style="display:flex;gap:8px">
+                  <button type="button" class="btn secondary" style="flex:1;font-size:11.5px;padding:8px" onclick="saveBillingVisitOnly()">
+                    💾 Save Visit Only
+                  </button>
+                  <button type="button" class="btn secondary" style="flex:1;font-size:11.5px;padding:8px" onclick="clearBillingForm()">
+                    🔄 Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Patient Invoices & Bill History Table -->
+          <div class="card" style="margin-top:18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <div>
+                <div class="section-title" style="margin:0" id="billingHistoryTitle">Patient Invoice &amp; Payment History</div>
+                <div class="muted" style="font-size:11.5px">All past bills issued to this patient in A5 format</div>
+              </div>
+              <button class="btn secondary" style="font-size:11px;padding:4px 10px" onclick="printBillingLatestBill()">
+                🖨️ Print Latest Bill
+              </button>
+            </div>
+            <div class="tablewrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Bill Number</th>
+                    <th>Date &amp; Time</th>
+                    <th>Treatments</th>
+                    <th style="text-align:right">Total (NPR)</th>
+                    <th style="text-align:right">Paid (NPR)</th>
+                    <th style="text-align:right">Due (NPR)</th>
+                    <th>Payment Method</th>
+                    <th>Status</th>
+                    <th style="text-align:center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="billingHistoryRows">
+                  <tr><td colspan="9" class="empty">No past bills found for this patient.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- When NO patient selected: Show Quick Patient Selection Dashboard -->
+        <div id="billingEmptyWorkspace" style="margin-top:16px">
+          <div class="grid2" style="grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+            <!-- Recent Patients -->
+            <div class="card">
+              <div class="section-title" style="margin-bottom:4px">Recent Registered Patients</div>
+              <div class="muted" style="font-size:12px;margin-bottom:12px">Click any patient to open their billing terminal</div>
+              <div id="billingRecentPatientsList">
+                <div class="empty">Loading patients...</div>
+              </div>
+            </div>
+
+            <!-- Patients with Outstanding Due Balance -->
+            <div class="card">
+              <div class="section-title" style="margin-bottom:4px;color:#f87171">Patients with Outstanding Due</div>
+              <div class="muted" style="font-size:12px;margin-bottom:12px">Patients with pending balances requiring collection</div>
+              <div id="billingDuePatientsList">
+                <div class="empty">Loading due balances...</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
   <section id="appointments" class="page">
@@ -1775,7 +2070,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:12px;font-weight:700;color:#000000">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.17</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.18</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:700;color:#000000">Update Server:</span>
@@ -1962,6 +2257,66 @@
           </button>
         </div>
         <button class="btn secondary" onclick="closeWifiModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clinic Official Stamp & Seal Modal -->
+  <div id="clinicStampModal" class="modal" onclick="if(event.target===this)closeClinicStampModal()">
+    <div class="modal-box" style="width:min(540px,96vw);padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">🔖</span>
+          <div>
+            <div style="font-weight:800;font-size:16px;letter-spacing:-.2px">Official Clinic Stamp &amp; Seal</div>
+            <div class="muted" style="font-size:11.5px">Configure clinic stamp &amp; signature for printed A5 patient bills</div>
+          </div>
+        </div>
+        <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeClinicStampModal()">✕</button>
+      </div>
+
+      <!-- Toggle: Enable/Disable Stamp on Bills -->
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#090f1a;padding:12px 14px;border-radius:10px;border:1px solid #1e2e46;margin-bottom:16px">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:#f8fafc">Include Stamp on Printed A5 Bills</div>
+          <div class="muted" style="font-size:11px">Stamp appears automatically over the Authorized Signatory line</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="stampEnabledToggle" checked onchange="toggleStampEnabled(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <!-- Live Stamp Preview Card -->
+      <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:12px;padding:20px;text-align:center;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">Active Stamp Preview (On Bill)</div>
+        <div id="stampPreviewContainer" style="display:inline-flex;align-items:center;justify-content:center;padding:12px;border:1.5px dashed #cbd5e1;border-radius:10px;background:#f8fafc;min-width:160px;min-height:160px">
+          <!-- Injected dynamically: default SVG seal or custom uploaded img -->
+        </div>
+        <div id="stampStatusLabel" style="font-size:12px;font-weight:800;color:#0284c7;margin-top:10px">Default Official Clinic Seal</div>
+      </div>
+
+      <!-- Stamp Option Buttons -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <button type="button" class="btn secondary" style="flex:1;min-width:180px;font-size:12px;padding:9px" onclick="useDefaultClinicStamp()">
+          🏛️ Use Official Dental Seal
+        </button>
+        <label class="btn primary" style="flex:1;min-width:180px;font-size:12px;padding:9px;text-align:center;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px">
+          📤 Upload Custom Rubber Stamp
+          <input type="file" id="stampFileInput" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="handleStampFileUpload(this)">
+        </label>
+      </div>
+
+      <!-- Legal Info Display -->
+      <div style="background:#090f1a;padding:12px 14px;border-radius:10px;border:1px solid #1e2e46;font-size:11.5px;color:#94a3b8;line-height:1.6;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Clinic Name:</b> <span>INFINITY DENTAL CLINIC</span></div>
+        <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Clinic Address:</b> <span>Dhumbarahi, Kathmandu, Nepal</span></div>
+        <div style="display:flex;justify-content:space-between"><b style="color:#f8fafc">Clinic PAN Number:</b> <span style="font-family:monospace;font-weight:700;color:#38bdf8">125302054</span></div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn secondary" onclick="closeClinicStampModal()">Close</button>
+        <button class="btn primary" onclick="saveClinicStampConfig()">💾 Save Stamp Settings</button>
       </div>
     </div>
   </div>

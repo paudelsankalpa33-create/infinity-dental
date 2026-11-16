@@ -552,9 +552,21 @@ function addVisit() {
 }
 
 function findBillForPatient(billNo) {
-  const p = patients.find(x => x.id === selectedId); if (!p) return null; ensurePatientArrays(p);
-  const v = p.VisitHistory.find(x => x.billNumber === billNo) || p.VisitHistory[0]; if (!v) return null;
-  return { p, v };
+  let p = patients.find(x => x.id === (typeof billingSelectedPatientId !== 'undefined' && billingSelectedPatientId ? billingSelectedPatientId : selectedId));
+  if (p && p.VisitHistory && p.VisitHistory.some(v => v.billNumber === billNo)) {
+    const v = p.VisitHistory.find(x => x.billNumber === billNo);
+    return { p, v };
+  }
+  for (const pat of patients) {
+    if (pat.VisitHistory && pat.VisitHistory.some(v => v.billNumber === billNo)) {
+      const v = pat.VisitHistory.find(x => x.billNumber === billNo);
+      return { p: pat, v };
+    }
+  }
+  if (p && p.VisitHistory && p.VisitHistory.length > 0) {
+    return { p, v: p.VisitHistory[0] };
+  }
+  return null;
 }
 function code39Svg(value) {
   const patterns = { "0": "nnnwwnwnn", "1": "wnnwnnnnw", "2": "nnwwnnnnw", "3": "wnwwnnnnn", "4": "nnnwwnnnw", "5": "wnnwwnnnn", "6": "nnwwwnnnn", "7": "nnnwnnwnw", "8": "wnnwnnwnn", "9": "nnwwnnwnn", "A": "wnnnnwnnw", "B": "nnwnnwnnw", "C": "wnwnnwnnn", "D": "nnnnwwnnw", "E": "wnnnwwnnn", "F": "nnwnwwnnn", "G": "nnnnnwwnw", "H": "wnnnnwwnn", "I": "nnwnnwwnn", "J": "nnnnwwwnn", "K": "wnnnnnnww", "L": "nnwnnnnww", "M": "wnwnnnnwn", "N": "nnnnwnnww", "O": "wnnnwnnwn", "P": "nnwnwnnwn", "Q": "nnnnnnwww", "R": "wnnnnnwwn", "S": "nnwnnnwwn", "T": "nnnnwnwwn", "U": "wwnnnnnnw", "V": "nwwnnnnnw", "W": "wwwnnnnnn", "X": "nwnnwnnnw", "Y": "wwnnwnnnn", "Z": "nwwnwnnnn", "-": "nwnnnnwnw", ".": "wwnnnnwnn", " ": "nwwnnnwnn", "$": "nwnwnwnnn", "/": "nwnwnnnwn", "+": "nwnnnwnwn", "%": "nnnwnwnwn", "*": "nwnnwnwnn" };
@@ -580,7 +592,7 @@ async function printSticker() {
  .barcode svg{display:block;width:82mm;height:11mm;max-width:82mm}
  .print{position:fixed;top:8px;right:8px;padding:8px 14px;font-weight:700}
  @media print{.print{display:none!important}html,body{width:100mm!important;height:50mm!important;overflow:hidden!important}.sticker{width:100mm!important;height:50mm!important;overflow:hidden!important}}
- </style></head><body><div class="sticker"><div class="head"><img class="logo" src="${logoUrl}" onerror="this.style.display='none'"><div class="clinic">INFINITY DENTAL CLINIC<br><small>Endless Care, Beautiful Smiles</small></div></div><div class="details"><div><b>Name</b><span>: ${esc(p.Name)}</span></div><div><b>Age/Gender</b><span>: ${esc(p.Age || '—')} / ${esc(p.Gender || '—')}</span></div><div><b>Address</b><span>: ${esc(p.Address || '—')}</span></div><div><b>Phone</b><span>: ${esc(p.Contact || '—')}</span></div><div><b>OPD No.</b><span>: OPD-${pad(p.OPDNumber)}</span></div></div><div class="barcode">${code39Svg('OPD-' + pad(p.OPDNumber))}</div></div><button class="print" onclick="window.print()">PRINT STICKER</button></body></html>`); w.document.close(); w.focus();
+ </style></head><body><div class="sticker"><div class="head"><img class="logo" src="${logoUrl}" onerror="this.style.display='none'"><div class="clinic">INFINITY DENTAL CLINIC<br><small>Dhumbarahi, Kathmandu • PAN: 125302054</small></div></div><div class="details"><div><b>Name</b><span>: ${esc(p.Name)}</span></div><div><b>Age/Gender</b><span>: ${esc(p.Age || '—')} / ${esc(p.Gender || '—')}</span></div><div><b>Address</b><span>: ${esc(p.Address || '—')}</span></div><div><b>Phone</b><span>: ${esc(p.Contact || '—')}</span></div><div><b>OPD No.</b><span>: OPD-${pad(p.OPDNumber)}</span></div></div><div class="barcode">${code39Svg('OPD-' + pad(p.OPDNumber))}</div></div><button class="print" onclick="window.print()">PRINT STICKER</button></body></html>`); w.document.close(); w.focus();
 }
 function numberToWords(n) {
   const num = Math.round(Number(n) || 0);
@@ -649,22 +661,23 @@ function printBill(billNo) {
   <style>
     @page {
       size: A5 portrait;
-      margin: 8mm 10mm;
+      size: 148mm 210mm;
+      margin: 6mm 8mm;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: #f1f5f9;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       color: #0f172a;
-      font-size: 11pt;
-      line-height: 1.4;
-      padding: 24px 16px 40px;
+      font-size: 10.5pt;
+      line-height: 1.35;
+      padding: 16px 12px 28px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
     .no-print-toolbar {
-      max-width: 620px;
-      margin: 0 auto 16px auto;
+      max-width: 580px;
+      margin: 0 auto 12px auto;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -674,8 +687,8 @@ function printBill(billNo) {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 10px 20px;
-      font-size: 13px;
+      padding: 8px 18px;
+      font-size: 12.5px;
       font-weight: 700;
       border-radius: 8px;
       cursor: pointer;
@@ -695,12 +708,12 @@ function printBill(billNo) {
     .btn-close:hover { background: #cbd5e1; }
 
     .invoice-card {
-      max-width: 620px;
+      max-width: 580px;
       margin: 0 auto;
       background: #ffffff;
-      border-radius: 10px;
-      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-      padding: 28px 32px;
+      border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+      padding: 20px 24px;
       border: 1px solid #e2e8f0;
     }
 
@@ -708,17 +721,17 @@ function printBill(billNo) {
     .header-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 14px;
-      padding-bottom: 12px;
-      border-bottom: 2.5px solid #0284c7;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #0284c7;
     }
     .header-logo-cell {
-      width: 140px;
+      width: 130px;
       vertical-align: middle;
     }
     .clinic-logo-img {
-      max-width: 130px;
-      max-height: 70px;
+      max-width: 120px;
+      max-height: 60px;
       object-fit: contain;
       display: block;
     }
@@ -727,23 +740,23 @@ function printBill(billNo) {
       vertical-align: middle;
     }
     .clinic-main-title {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 900;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.5px;
       color: #0f172a;
       line-height: 1.15;
     }
     .clinic-slogan-text {
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
       color: #0284c7;
-      margin-top: 2px;
+      margin-top: 1px;
       letter-spacing: 0.3px;
     }
     .clinic-address-meta {
       font-size: 10px;
-      color: #64748b;
-      margin-top: 4px;
+      color: #475569;
+      margin-top: 3px;
       line-height: 1.35;
     }
 
@@ -752,24 +765,24 @@ function printBill(billNo) {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 12px 0 14px 0;
-      padding: 6px 12px;
+      margin: 10px 0 12px 0;
+      padding: 5px 10px;
       background: #f8fafc;
       border-radius: 6px;
       border-left: 4px solid #0284c7;
     }
     .banner-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.6px;
       text-transform: uppercase;
       color: #0f172a;
     }
     .status-badge {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 800;
-      letter-spacing: 0.6px;
-      padding: 4px 10px;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
       border-radius: 9999px;
       text-transform: uppercase;
     }
@@ -793,32 +806,32 @@ function printBill(billNo) {
     .meta-box-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 10px;
+      margin-bottom: 12px;
     }
     .meta-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 10px 12px;
-      font-size: 10.5px;
-      line-height: 1.5;
+      padding: 8px 10px;
+      font-size: 10px;
+      line-height: 1.45;
     }
     .meta-card-title {
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: #64748b;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       border-bottom: 1px dashed #cbd5e1;
-      padding-bottom: 3px;
+      padding-bottom: 2px;
     }
     .meta-line {
       display: flex;
       justify-content: space-between;
-      gap: 8px;
-      margin: 2px 0;
+      gap: 6px;
+      margin: 1.5px 0;
     }
     .meta-lbl {
       color: #64748b;
@@ -832,27 +845,27 @@ function printBill(billNo) {
 
     /* Treatment Table */
     .table-wrap {
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     .bill-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10.5px;
+      font-size: 10px;
     }
     .bill-table th {
       background: #0f172a;
       color: #ffffff;
       font-weight: 700;
-      font-size: 10px;
+      font-size: 9.5px;
       letter-spacing: 0.4px;
       text-transform: uppercase;
-      padding: 7px 8px;
+      padding: 6px 8px;
       border: none;
     }
     .bill-table th:first-child { border-top-left-radius: 4px; }
     .bill-table th:last-child { border-top-right-radius: 4px; }
     .bill-table td {
-      padding: 7px 8px;
+      padding: 6px 8px;
       border-bottom: 1px solid #e2e8f0;
       color: #334155;
     }
@@ -864,48 +877,48 @@ function printBill(billNo) {
     .financial-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-top: 10px;
+      gap: 12px;
+      margin-top: 8px;
       align-items: start;
     }
     .words-box {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 10px;
+      padding: 7px 9px;
+      font-size: 9.5px;
       color: #334155;
-      line-height: 1.4;
+      line-height: 1.35;
     }
     .words-box b {
       color: #0f172a;
       display: block;
       margin-bottom: 2px;
-      font-size: 9.5px;
+      font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 0.4px;
     }
     .barcode-wrap {
-      margin-top: 8px;
+      margin-top: 6px;
       text-align: left;
     }
     .barcode-wrap svg {
-      max-width: 160px;
-      height: 38px;
+      max-width: 140px;
+      height: 34px;
     }
 
     .totals-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 11px;
+      padding: 6px 10px;
+      font-size: 10.5px;
     }
     .calc-row {
       display: flex;
       justify-content: space-between;
-      gap: 10px;
-      padding: 3px 0;
+      gap: 8px;
+      padding: 2px 0;
       color: #475569;
     }
     .calc-row.discount-row {
@@ -915,9 +928,9 @@ function printBill(billNo) {
     .calc-row.grand-total {
       border-top: 1.5px solid #cbd5e1;
       border-bottom: 1.5px solid #cbd5e1;
-      margin: 4px 0;
-      padding: 5px 0;
-      font-size: 13px;
+      margin: 3px 0;
+      padding: 4px 0;
+      font-size: 12px;
       font-weight: 800;
       color: #0f172a;
     }
@@ -935,39 +948,50 @@ function printBill(billNo) {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      margin-top: 28px;
-      padding-top: 14px;
+      margin-top: 18px;
+      padding-top: 10px;
       border-top: 1px dashed #cbd5e1;
     }
     .terms-text {
-      font-size: 9px;
+      font-size: 8.5px;
       color: #64748b;
-      line-height: 1.4;
-      max-width: 320px;
+      line-height: 1.35;
+      max-width: 300px;
     }
     .terms-text b { color: #334155; }
     .sign-box {
       text-align: center;
-      width: 170px;
+      width: 160px;
+      position: relative;
     }
     .sign-line {
       border-top: 1.2px solid #0f172a;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .sign-title {
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 700;
       color: #0f172a;
     }
     .sign-sub {
-      font-size: 8.5px;
+      font-size: 8px;
       color: #64748b;
+    }
+
+    /* Stamp SVG within Bill */
+    .clinic-stamp-seal-svg {
+      width: 95px;
+      height: 95px;
+      display: inline-block;
+      color: #1d4ed8;
+      opacity: 0.90;
+      transform: rotate(-3deg);
     }
 
     .thank-banner {
       text-align: center;
-      margin-top: 14px;
-      font-size: 11px;
+      margin-top: 10px;
+      font-size: 10px;
       font-weight: 700;
       color: #0284c7;
       letter-spacing: 0.3px;
@@ -997,7 +1021,7 @@ function printBill(billNo) {
   <div class="no-print-toolbar">
     <button class="toolbar-btn btn-print" onclick="window.print()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-      PRINT BILL (A5 / A4)
+      PRINT A5 BILL
     </button>
     <button class="toolbar-btn btn-close" onclick="window.close()">✕ Close</button>
   </div>
@@ -1012,8 +1036,8 @@ function printBill(billNo) {
           <div class="clinic-main-title">INFINITY DENTAL CLINIC</div>
           <div class="clinic-slogan-text">Endless Care, Beautiful Smiles</div>
           <div class="clinic-address-meta">
-            📍 Pokhara-08, New Road, Kaski, Nepal &nbsp;•&nbsp; 📞 +977-9846000000<br>
-            ✉️ info@infinitydental.com.np &nbsp;•&nbsp; PAN: 600000000
+            📍 Dhumbarahi, Kathmandu, Nepal &nbsp;•&nbsp; 📞 +977-9800000000<br>
+            ✉️ info@infinitydental.com.np &nbsp;•&nbsp; PAN: 125302054
           </div>
         </td>
       </tr>
@@ -1029,11 +1053,11 @@ function printBill(billNo) {
     <div class="meta-box-grid">
       <div class="meta-card">
         <div class="meta-card-title">Patient Information</div>
-        <div class="meta-line"><span class="meta-lbl">Patient Name:</span> <span class="meta-val" style="font-size:11.5px;color:#0284c7">${esc(p.Name)}</span></div>
+        <div class="meta-line"><span class="meta-lbl">Patient Name:</span> <span class="meta-val" style="font-size:11px;color:#0284c7">${esc(p.Name)}</span></div>
         <div class="meta-line"><span class="meta-lbl">OPD Number:</span> <span class="meta-val">OPD-${pad(p.OPDNumber)}</span></div>
         <div class="meta-line"><span class="meta-lbl">Age / Gender:</span> <span class="meta-val">${esc(p.Age || '—')} Yrs / ${esc(p.Gender || '—')}</span></div>
         <div class="meta-line"><span class="meta-lbl">Contact No:</span> <span class="meta-val">${esc(p.Contact || '—')}</span></div>
-        ${p.Address ? `<div class="meta-line"><span class="meta-lbl">Address:</span> <span class="meta-val">${esc(p.Address)}</span></div>` : ''}
+        <div class="meta-line"><span class="meta-lbl">Address:</span> <span class="meta-val">${esc(p.Address || 'Dhumbarahi, Kathmandu')}</span></div>
       </div>
 
       <div class="meta-card">
@@ -1050,11 +1074,11 @@ function printBill(billNo) {
       <table class="bill-table">
         <thead>
           <tr>
-            <th style="width:36px;text-align:center">S.N.</th>
+            <th style="width:32px;text-align:center">S.N.</th>
             <th style="text-align:left">Treatment / Procedure Description</th>
-            <th style="width:48px;text-align:center">Qty</th>
-            <th style="width:105px;text-align:right">Rate (NPR)</th>
-            <th style="width:115px;text-align:right">Amount (NPR)</th>
+            <th style="width:42px;text-align:center">Qty</th>
+            <th style="width:95px;text-align:right">Rate (NPR)</th>
+            <th style="width:105px;text-align:right">Amount (NPR)</th>
           </tr>
         </thead>
         <tbody>
@@ -1069,7 +1093,7 @@ function printBill(billNo) {
           <b>Amount in Words:</b>
           <div>${wordsAmount}</div>
         </div>
-        ${v.txnId ? `<div style="font-size:9.5px;color:#64748b;margin-top:5px">Transaction ID: <code style="font-family:monospace;color:#0f172a;background:#e2e8f0;padding:1px 4px;border-radius:3px">${esc(v.txnId)}</code></div>` : ''}
+        ${v.txnId ? `<div style="font-size:9px;color:#64748b;margin-top:4px">Txn ID: <code style="font-family:monospace;color:#0f172a;background:#e2e8f0;padding:1px 3px;border-radius:2px">${esc(v.txnId)}</code></div>` : ''}
         <div class="barcode-wrap">
           ${barcodeSvg}
         </div>
@@ -1105,12 +1129,13 @@ function printBill(billNo) {
         <b>Terms &amp; Instructions:</b><br>
         • Please bring this bill for dental check-up &amp; follow-up visits.<br>
         • Valid for 15 days from the date of issue.<br>
-        • For clinical appointments &amp; queries: 📞 +977-9846000000
+        • Clinical queries: 📞 +977-9800000000 • Dhumbarahi, Kathmandu
       </div>
       <div class="sign-box">
+        ${getClinicStampHtmlForBill()}
         <div class="sign-line"></div>
         <div class="sign-title">Authorized Signatory</div>
-        <div class="sign-sub">Infinity Dental Clinic</div>
+        <div class="sign-sub">Infinity Dental Clinic • Dhumbarahi</div>
       </div>
     </div>
 
@@ -2512,9 +2537,772 @@ function renderTransactions() {
   if (elRows) elRows.innerHTML = list.length ? list.map(x => `<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time || '—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method || '—')}</td><td>${esc(x.status)}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`;
 }
 function renderRecentPatients() { const el = document.getElementById('recentPatients'); if (!el) return; const ids = JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1') || '[]'); const list = ids.map(id => patients.find(p => p.id === id)).filter(p => p && !p.AppointmentOnly); el.innerHTML = list.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>OPD</th><th>Patient</th><th>Contact</th></tr></thead><tbody>${list.map(p => `<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact || '')}</td></tr>`).join('')}</tbody></table></div>` : `<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><div>No recently opened patients.</div></div>` }
-function populateBillingPatients() { const sel = document.getElementById('billingPatient'); if (!sel) return; const current = sel.value; sel.innerHTML = '<option value="">Select patient</option>' + registeredPatients().slice().sort((a, b) => b.OPDNumber - a.OPDNumber).map(p => `<option value="${p.id}">${pad(p.OPDNumber)} — ${esc(p.Name)}</option>`).join(''); if (current) sel.value = current; if (selectedId && patients.some(p => p.id === selectedId)) sel.value = selectedId; renderBillingForPatient() }
-function selectBillingPatient(id) { selectedId = id || selectedId; renderBillingForPatient() }
-function renderBillingForPatient() { const sel = document.getElementById('billingPatient'), sum = document.getElementById('billingSummary'), list = document.getElementById('billingBills'); if (!sum || !list) return; if (sel && selectedId && patients.some(p => p.id === selectedId)) sel.value = selectedId; const p = patients.find(x => x.id === (sel?.value || selectedId)); if (!p) { sum.textContent = 'Select a patient to see their latest bill.'; list.innerHTML = ''; return } ensurePatientArrays(p); const visits = p.VisitHistory || []; sum.innerHTML = `<b>${esc(p.Name)}</b> • OPD ${pad(p.OPDNumber)} • ${esc(p.Contact || '')}`; list.innerHTML = visits.length ? visits.map((v, i) => `<div class="card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><b>${esc(v.billNumber || 'Bill')}</b><div class="muted">${esc(v.date || '')} ${esc(v.time || '')} • Rs. ${Number(v.cost || 0).toLocaleString()} • ${esc(v.paymentMethod || '')}</div></div><button class="btn primary" onclick="printBill('${esc(v.billNumber || '')}')">PRINT A5 BILL</button></div></div>`).join('') : '<div class="empty">No saved visits/bills for this patient yet.</div>' }
+// ==========================================================================
+// CLINIC OFFICIAL STAMP & SEAL SETTINGS
+// ==========================================================================
+let clinicStampConfig = {
+  enabled: true,
+  isDefault: true,
+  customDataUrl: null,
+  clinicName: 'INFINITY DENTAL CLINIC',
+  address: 'Dhumbarahi, Kathmandu',
+  pan: '125302054'
+};
+
+function generateDefaultClinicStampSvg() {
+  return `<svg class="clinic-stamp-seal-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- Outer Double Border -->
+    <circle cx="100" cy="100" r="95" stroke="#1d4ed8" stroke-width="3" fill="none" stroke-dasharray="4,2"/>
+    <circle cx="100" cy="100" r="90" stroke="#1d4ed8" stroke-width="2.5" fill="none"/>
+    <circle cx="100" cy="100" r="62" stroke="#1d4ed8" stroke-width="1.8" fill="none"/>
+
+    <!-- Circular Text Path Definitions -->
+    <defs>
+      <path id="stampUpperArc" d="M 24,100 A 76,76 0 1,1 176,100" fill="none"/>
+      <path id="stampLowerArc" d="M 176,100 A 76,76 0 0,1 24,100" fill="none"/>
+    </defs>
+
+    <!-- Top Text: INFINITY DENTAL CLINIC -->
+    <text fill="#1d4ed8" font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-size="12" letter-spacing="1.2">
+      <textPath href="#stampUpperArc" startOffset="50%" text-anchor="middle">
+        ★ INFINITY DENTAL CLINIC ★
+      </textPath>
+    </text>
+
+    <!-- Bottom Text: DHUMBARAHI, KATHMANDU -->
+    <text fill="#1d4ed8" font-family="'Segoe UI', Arial, sans-serif" font-weight="800" font-size="10.5" letter-spacing="0.8">
+      <textPath href="#stampLowerArc" startOffset="50%" text-anchor="middle">
+        DHUMBARAHI, KATHMANDU
+      </textPath>
+    </text>
+
+    <!-- Center Stylized Tooth Emblem -->
+    <g transform="translate(86, 68) scale(1.1)">
+      <path d="M 12.5,2 C 7,2 3,5 3,11 C 3,16 6,19 7,24 C 8,28 9,30 11,30 C 12,30 12,27 12.5,23 C 13,27 13,30 14,30 C 16,30 17,28 18,24 C 19,19 22,16 22,11 C 22,5 18,2 12.5,2 Z"
+            fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Center PAN Badge -->
+    <rect x="36" y="106" width="128" height="18" rx="4" fill="#1d4ed8"/>
+    <text x="100" y="119" fill="#ffffff" font-family="'Segoe UI', Arial, sans-serif" font-weight="800" font-size="9" text-anchor="middle" letter-spacing="0.6">
+      PAN: 125302054
+    </text>
+
+    <!-- Center Text: OFFICIAL SEAL -->
+    <text x="100" y="137" fill="#1d4ed8" font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-size="8.5" text-anchor="middle" letter-spacing="1">
+      OFFICIAL SEAL
+    </text>
+  </svg>`;
+}
+
+function loadClinicStampConfig() {
+  try {
+    const raw = localStorage.getItem('infinity_dental_clinic_stamp');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      clinicStampConfig = { ...clinicStampConfig, ...parsed };
+    }
+  } catch (_) {}
+
+  if (window.dentalStamp && window.dentalStamp.get) {
+    window.dentalStamp.get().then(res => {
+      if (res && res.success && res.stamp) {
+        clinicStampConfig = { ...clinicStampConfig, ...res.stamp };
+        localStorage.setItem('infinity_dental_clinic_stamp', JSON.stringify(clinicStampConfig));
+        renderStampPreview();
+      }
+    }).catch(() => {});
+  } else {
+    fetch('/api/clinic/stamp').then(r => r.json()).then(res => {
+      if (res && res.success && res.stamp) {
+        clinicStampConfig = { ...clinicStampConfig, ...res.stamp };
+        localStorage.setItem('infinity_dental_clinic_stamp', JSON.stringify(clinicStampConfig));
+        renderStampPreview();
+      }
+    }).catch(() => {});
+  }
+}
+
+function renderStampPreview() {
+  const container = document.getElementById('stampPreviewContainer');
+  const label = document.getElementById('stampStatusLabel');
+  const toggle = document.getElementById('stampEnabledToggle');
+  if (toggle) toggle.checked = Boolean(clinicStampConfig.enabled);
+
+  if (!container) return;
+
+  if (!clinicStampConfig.enabled) {
+    container.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:30px 10px">Stamp is currently disabled.<br>Toggle above to include on bills.</div>';
+    if (label) label.textContent = 'Stamp Disabled';
+    return;
+  }
+
+  if (clinicStampConfig.customDataUrl) {
+    container.innerHTML = `<img src="${clinicStampConfig.customDataUrl}" style="max-height:130px;max-width:150px;object-fit:contain;transform:rotate(-3deg)" alt="Custom Stamp">`;
+    if (label) label.textContent = 'Custom Rubber Stamp Active';
+  } else {
+    container.innerHTML = generateDefaultClinicStampSvg();
+    if (label) label.textContent = 'Default Official Clinic Seal Active';
+  }
+}
+
+function openClinicStampModal() {
+  loadClinicStampConfig();
+  renderStampPreview();
+  const m = document.getElementById('clinicStampModal');
+  if (m) m.classList.add('show');
+}
+
+function closeClinicStampModal() {
+  const m = document.getElementById('clinicStampModal');
+  if (m) m.classList.remove('show');
+}
+
+function toggleStampEnabled(checked) {
+  clinicStampConfig.enabled = Boolean(checked);
+  renderStampPreview();
+}
+
+function useDefaultClinicStamp() {
+  clinicStampConfig.isDefault = true;
+  clinicStampConfig.customDataUrl = null;
+  clinicStampConfig.enabled = true;
+  renderStampPreview();
+  showToast('Switched to official clinic seal.', 'info');
+}
+
+function handleStampFileUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (!file.type.startsWith('image/')) {
+    alert('Please upload a valid image file (PNG, JPG, or WEBP).');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Stamp file is too large. Please select an image under 5MB.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    clinicStampConfig.customDataUrl = e.target.result;
+    clinicStampConfig.isDefault = false;
+    clinicStampConfig.enabled = true;
+    renderStampPreview();
+    showToast('Custom stamp loaded successfully!', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveClinicStampConfig() {
+  localStorage.setItem('infinity_dental_clinic_stamp', JSON.stringify(clinicStampConfig));
+  if (window.dentalStamp && window.dentalStamp.save) {
+    await window.dentalStamp.save(clinicStampConfig);
+  } else {
+    await fetch('/api/clinic/stamp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(clinicStampConfig)
+    }).catch(() => {});
+  }
+  showToast('✓ Clinic Stamp settings saved successfully!', 'success');
+  closeClinicStampModal();
+}
+
+function getClinicStampHtmlForBill() {
+  if (!clinicStampConfig.enabled) return '';
+  if (clinicStampConfig.customDataUrl) {
+    return `<div style="margin-bottom:-22px;position:relative;z-index:2;display:flex;justify-content:center;pointer-events:none">
+      <img src="${clinicStampConfig.customDataUrl}" style="max-height:85px;max-width:140px;object-fit:contain;opacity:0.92;transform:rotate(-4deg)" alt="Official Stamp">
+    </div>`;
+  }
+  return `<div style="margin-bottom:-22px;position:relative;z-index:2;display:flex;justify-content:center;pointer-events:none">
+    ${generateDefaultClinicStampSvg()}
+  </div>`;
+}
+
+// ==========================================================================
+// BILLING & POS TERMINAL (Official A5 Invoices, Payments & Patient Accounting)
+// ==========================================================================
+let billingStagedProcedures = [];
+let billingSelectedPatientId = null;
+let lastBillingDiscountMode = 'amount';
+
+function populateBillingPatients() {
+  const sel = document.getElementById('billingPatient');
+  const dList = document.getElementById('billingPriceListOptions');
+
+  if (dList) {
+    const treatments = (typeof priceList === 'object' && priceList !== null)
+      ? Object.keys(priceList)
+      : ['Consultation', 'OPD Card', 'Scaling & Polishing', 'Tooth Extraction', 'Root Canal (RCT)', 'Dental X-Ray', 'Ceramic Crown', 'Teeth Whitening', 'Composite Restoration'];
+    dList.innerHTML = treatments.map(t => {
+      const cost = priceList[t] || '';
+      return `<option value="${esc(t)}">${esc(t)}${cost ? ` (Rs. ${cost})` : ''}</option>`;
+    }).join('');
+  }
+
+  if (sel) {
+    const list = registeredPatients().slice().sort((a, b) => b.OPDNumber - a.OPDNumber);
+    sel.innerHTML = '<option value="">-- Choose Registered Patient --</option>' +
+      list.map(p => `<option value="${p.id}">OPD-${pad(p.OPDNumber)} — ${esc(p.Name)} (${esc(p.Contact || 'No phone')})</option>`).join('');
+
+    if (selectedId && patients.some(p => p.id === selectedId)) {
+      sel.value = selectedId;
+      billingSelectedPatientId = selectedId;
+    } else if (billingSelectedPatientId && patients.some(p => p.id === billingSelectedPatientId)) {
+      sel.value = billingSelectedPatientId;
+    }
+  }
+
+  renderBillingWorkspace();
+}
+
+function onBillingSearchInput(query) {
+  const resBox = document.getElementById('billingSearchResults');
+  if (!resBox) return;
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) {
+    resBox.style.display = 'none';
+    resBox.innerHTML = '';
+    return;
+  }
+
+  const matches = registeredPatients().filter(p => {
+    const name = String(p.Name || '').toLowerCase();
+    const opd = String(p.OPDNumber || '');
+    const contact = String(p.Contact || '');
+    return name.includes(q) || opd.includes(q) || contact.includes(q);
+  }).slice(0, 8);
+
+  if (!matches.length) {
+    resBox.innerHTML = '<div style="padding:10px 14px;color:#94a3b8;font-size:12px">No registered patients found matching "' + esc(query) + '"</div>';
+    resBox.style.display = 'block';
+    return;
+  }
+
+  resBox.innerHTML = matches.map(p => `
+    <div style="padding:9px 12px;border-bottom:1px solid #1e2e46;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background 0.15s"
+         onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'"
+         onclick="selectBillingPatient('${p.id}'); document.getElementById('billingSearchResults').style.display='none'; document.getElementById('billingSearchInput').value='${esc(p.Name)}';">
+      <div>
+        <span style="font-weight:700;color:#f8fafc;font-size:13px">${esc(p.Name)}</span>
+        <span class="badge" style="font-size:10px;margin-left:6px;background:#0284c7;color:#fff">OPD-${pad(p.OPDNumber)}</span>
+        <div style="font-size:11px;color:#94a3b8">${esc(p.Contact || 'No contact')} • ${esc(p.Address || 'Dhumbarahi, Kathmandu')}</div>
+      </div>
+      <span style="font-size:11px;color:#38bdf8;font-weight:700">Select →</span>
+    </div>
+  `).join('');
+  resBox.style.display = 'block';
+}
+
+function selectBillingPatient(id) {
+  billingSelectedPatientId = id || null;
+  selectedId = id || selectedId;
+  const sel = document.getElementById('billingPatient');
+  if (sel) sel.value = id || '';
+  renderBillingWorkspace();
+}
+
+function renderBillingWorkspace() {
+  const pWorkspace = document.getElementById('billingPatientWorkspace');
+  const eWorkspace = document.getElementById('billingEmptyWorkspace');
+  const p = patients.find(x => x.id === (billingSelectedPatientId || selectedId));
+
+  if (!p) {
+    if (pWorkspace) pWorkspace.style.display = 'none';
+    if (eWorkspace) {
+      eWorkspace.style.display = 'block';
+      renderBillingRecentAndDuePatients();
+    }
+    return;
+  }
+
+  ensurePatientArrays(p);
+  if (eWorkspace) eWorkspace.style.display = 'none';
+  if (pWorkspace) pWorkspace.style.display = 'block';
+
+  const nameEl = document.getElementById('billingPatientName');
+  const opdEl = document.getElementById('billingPatientOpd');
+  const metaEl = document.getElementById('billingPatientMeta');
+  const initEl = document.getElementById('billingPatientInitial');
+  const visitsEl = document.getElementById('billingPatientVisitsCount');
+  const paidEl = document.getElementById('billingPatientTotalPaid');
+  const dueEl = document.getElementById('billingPatientDueBalance');
+
+  if (nameEl) nameEl.textContent = p.Name;
+  if (opdEl) opdEl.textContent = `OPD-${pad(p.OPDNumber)}`;
+  if (metaEl) metaEl.textContent = `Contact: ${p.Contact || '—'} • Age/Gender: ${p.Age || '—'} / ${p.Gender || '—'} • Address: ${p.Address || 'Dhumbarahi, Kathmandu'}`;
+  if (initEl) initEl.textContent = (p.Name || 'P').charAt(0).toUpperCase();
+
+  const visits = p.VisitHistory || [];
+  let totalBilled = 0;
+  let totalPaid = 0;
+  visits.forEach(v => {
+    const cost = Number(v.cost || v.subtotal || 0);
+    const paid = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+    totalBilled += cost;
+    totalPaid += paid;
+  });
+  const totalDue = Math.max(0, totalBilled - totalPaid);
+
+  if (visitsEl) visitsEl.textContent = visits.length;
+  if (paidEl) paidEl.textContent = `Rs. ${totalPaid.toLocaleString()}`;
+  if (dueEl) {
+    dueEl.textContent = `Rs. ${totalDue.toLocaleString()}`;
+    dueEl.style.color = totalDue > 0 ? '#ef4444' : '#10b981';
+  }
+
+  renderBillingStagedRows();
+  updateBillingCalculations();
+  renderBillingInvoicesHistory(p);
+}
+
+function renderBillingRecentAndDuePatients() {
+  const recEl = document.getElementById('billingRecentPatientsList');
+  const dueEl = document.getElementById('billingDuePatientsList');
+  const reg = registeredPatients();
+
+  if (recEl) {
+    const recent = reg.slice(-6).reverse();
+    recEl.innerHTML = recent.length ? `
+      <div class="tablewrap"><table class="table">
+        <thead><tr><th>OPD</th><th>Patient Name</th><th>Contact</th><th>Action</th></tr></thead>
+        <tbody>
+          ${recent.map(p => `
+            <tr class="clickable" onclick="selectBillingPatient('${p.id}')">
+              <td><span class="badge">OPD-${pad(p.OPDNumber)}</span></td>
+              <td style="font-weight:700">${esc(p.Name)}</td>
+              <td>${esc(p.Contact || '—')}</td>
+              <td><button class="btn primary" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();selectBillingPatient('${p.id}')">Open POS</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table></div>
+    ` : '<div class="empty">No registered patients found.</div>';
+  }
+
+  if (dueEl) {
+    const dueList = reg.filter(p => {
+      ensurePatientArrays(p);
+      let billed = 0, paid = 0;
+      (p.VisitHistory || []).forEach(v => {
+        billed += Number(v.cost || v.subtotal || 0);
+        paid += Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+      });
+      return (billed - paid) > 0.01;
+    }).slice(0, 6);
+
+    dueEl.innerHTML = dueList.length ? `
+      <div class="tablewrap"><table class="table">
+        <thead><tr><th>OPD</th><th>Patient Name</th><th style="text-align:right">Due (Rs.)</th><th>Action</th></tr></thead>
+        <tbody>
+          ${dueList.map(p => {
+            let billed = 0, paid = 0;
+            p.VisitHistory.forEach(v => {
+              billed += Number(v.cost || v.subtotal || 0);
+              paid += Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+            });
+            const due = Math.max(0, billed - paid);
+            return `
+              <tr class="clickable" onclick="selectBillingPatient('${p.id}')">
+                <td><span class="badge">OPD-${pad(p.OPDNumber)}</span></td>
+                <td style="font-weight:700">${esc(p.Name)}</td>
+                <td style="text-align:right;font-weight:800;color:#ef4444">Rs. ${due.toLocaleString()}</td>
+                <td><button class="btn secondary" style="padding:3px 8px;font-size:11px;color:#ef4444" onclick="event.stopPropagation();selectBillingPatient('${p.id}')">Collect Due</button></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table></div>
+    ` : '<div class="empty" style="color:#10b981">✓ All registered patients are fully paid. No pending dues!</div>';
+  }
+}
+
+function applyBillingQuickProcedure(name, cost) {
+  billingStagedProcedures.push({ procedure: name, cost: Number(cost) });
+  renderBillingStagedRows();
+  updateBillingCalculations();
+}
+
+function onBillingProcSelect(val) {
+  const costEl = document.getElementById('billingProcCost');
+  if (!costEl) return;
+  const cost = (typeof priceList === 'object' && priceList !== null) ? priceList[val] : null;
+  if (cost != null) costEl.value = cost;
+}
+
+function addBillingProcedureItem() {
+  const nameInput = document.getElementById('billingProcName');
+  const costInput = document.getElementById('billingProcCost');
+  const name = (nameInput?.value || '').trim();
+  const cost = Number(costInput?.value) || 0;
+
+  if (!name) {
+    showToast('Please enter or select a procedure name.', 'warn');
+    nameInput?.focus();
+    return;
+  }
+  if (cost < 0) {
+    showToast('Procedure rate cannot be negative.', 'warn');
+    return;
+  }
+
+  billingStagedProcedures.push({ procedure: name, cost });
+  if (nameInput) nameInput.value = '';
+  if (costInput) costInput.value = '';
+  renderBillingStagedRows();
+  updateBillingCalculations();
+  nameInput?.focus();
+}
+
+function removeBillingProcedureItem(index) {
+  billingStagedProcedures.splice(index, 1);
+  renderBillingStagedRows();
+  updateBillingCalculations();
+}
+
+function renderBillingStagedRows() {
+  const tbody = document.getElementById('billingStagedRows');
+  if (!tbody) return;
+  if (!billingStagedProcedures.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty" style="padding:14px;text-align:center;color:#64748b">No treatments added to this bill yet. Click a preset or add above.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = billingStagedProcedures.map((item, idx) => `
+    <tr>
+      <td style="text-align:center;color:#64748b">${idx + 1}</td>
+      <td style="font-weight:700;color:#f8fafc">${esc(item.procedure)}</td>
+      <td style="text-align:right;font-weight:700;color:#38bdf8">Rs. ${Number(item.cost || 0).toLocaleString()}</td>
+      <td style="text-align:center">
+        <button type="button" class="btn danger" style="padding:2px 7px;font-size:11px" onclick="removeBillingProcedureItem(${idx})" title="Remove item">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function getBillingSubtotal() {
+  return billingStagedProcedures.reduce((acc, item) => acc + (Number(item.cost) || 0), 0);
+}
+
+function onBillingDiscountPercentInput() {
+  lastBillingDiscountMode = 'percent';
+  const subtotal = getBillingSubtotal();
+  const pct = Math.max(0, Math.min(100, Number(document.getElementById('billingDiscountPercent')?.value) || 0));
+  const amt = (subtotal > 0) ? (subtotal * pct / 100) : 0;
+  const amtEl = document.getElementById('billingDiscountAmount');
+  if (amtEl) amtEl.value = amt.toFixed(2);
+  updateBillingCalculations();
+}
+
+function onBillingDiscountAmountInput() {
+  lastBillingDiscountMode = 'amount';
+  const subtotal = getBillingSubtotal();
+  const rawAmt = Number(document.getElementById('billingDiscountAmount')?.value) || 0;
+  const amt = (subtotal > 0) ? Math.max(0, Math.min(subtotal, rawAmt)) : Math.max(0, rawAmt);
+  const pctEl = document.getElementById('billingDiscountPercent');
+  if (subtotal > 0 && pctEl) pctEl.value = (amt / subtotal * 100).toFixed(2);
+  updateBillingCalculations();
+}
+
+function updateBillingCalculations() {
+  const subtotal = getBillingSubtotal();
+  const pctEl = document.getElementById('billingDiscountPercent');
+  const amtEl = document.getElementById('billingDiscountAmount');
+  let discount = 0;
+
+  if (lastBillingDiscountMode === 'percent' && pctEl && subtotal > 0) {
+    const pct = Math.max(0, Math.min(100, Number(pctEl.value) || 0));
+    discount = subtotal * pct / 100;
+    if (amtEl) amtEl.value = discount.toFixed(2);
+  } else {
+    const rawDisc = Number(amtEl?.value) || 0;
+    discount = Math.max(0, Math.min(subtotal, rawDisc));
+    if (subtotal > 0 && pctEl) {
+      pctEl.value = (discount / subtotal * 100).toFixed(2);
+    }
+  }
+
+  const netTotal = Math.max(0, subtotal - discount);
+  const subLabel = document.getElementById('billingSubtotalLabel');
+  const netLabel = document.getElementById('billingNetTotalLabel');
+
+  if (subLabel) subLabel.textContent = `Rs. ${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+  if (netLabel) netLabel.textContent = `Rs. ${netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+
+  updateBillingPaymentCalculations();
+}
+
+function updateBillingPaymentCalculations() {
+  const subtotal = getBillingSubtotal();
+  const rawDisc = Number(document.getElementById('billingDiscountAmount')?.value) || 0;
+  const discount = Math.max(0, Math.min(subtotal, rawDisc));
+  const netTotal = Math.max(0, subtotal - discount);
+
+  const choice = document.querySelector('input[name=billingPaymentChoice]:checked')?.value || 'full';
+  const paidInput = document.getElementById('billingAmountPaidInput');
+
+  if (choice === 'full') {
+    if (paidInput) {
+      paidInput.value = netTotal > 0 ? netTotal.toFixed(2) : '0';
+      paidInput.disabled = false;
+    }
+  } else if (choice === 'due') {
+    if (paidInput) {
+      paidInput.value = '0';
+      paidInput.disabled = true;
+    }
+  } else {
+    if (paidInput) {
+      paidInput.disabled = false;
+    }
+  }
+
+  updateBillingDueBalance();
+}
+
+function updateBillingDueBalance() {
+  const subtotal = getBillingSubtotal();
+  const rawDisc = Number(document.getElementById('billingDiscountAmount')?.value) || 0;
+  const discount = Math.max(0, Math.min(subtotal, rawDisc));
+  const netTotal = Math.max(0, subtotal - discount);
+
+  const paidVal = Number(document.getElementById('billingAmountPaidInput')?.value) || 0;
+  const due = Math.max(0, netTotal - paidVal);
+
+  const dueDisplay = document.getElementById('billingDueBalanceDisplay');
+  if (dueDisplay) {
+    dueDisplay.textContent = `Rs. ${due.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+    dueDisplay.style.color = due > 0 ? '#ef4444' : '#10b981';
+  }
+}
+
+function onBillingPaymentMethodChange(val) {
+  if (val === 'NepalPay QR') {
+    showToast('NepalPay Dynamic QR selected. Dynamic QR will be displayed on screen and sent to NiZi Soundbox upon collection.', 'info');
+  }
+}
+
+function clearBillingForm() {
+  billingStagedProcedures = [];
+  const pctEl = document.getElementById('billingDiscountPercent');
+  const amtEl = document.getElementById('billingDiscountAmount');
+  if (pctEl) pctEl.value = '0';
+  if (amtEl) amtEl.value = '0';
+  renderBillingStagedRows();
+  updateBillingCalculations();
+}
+
+async function collectBillingAndPrintA5(printAfterSave = true) {
+  const p = patients.find(x => x.id === (billingSelectedPatientId || selectedId));
+  if (!p) {
+    showToast('Please select a registered patient first.', 'warn');
+    return;
+  }
+  ensurePatientArrays(p);
+
+  if (!billingStagedProcedures.length) {
+    showToast('Please add at least one treatment / procedure to the bill.', 'warn');
+    return;
+  }
+
+  const subtotal = getBillingSubtotal();
+  const discountAmount = Number(document.getElementById('billingDiscountAmount')?.value) || 0;
+  const discountPercent = Number(document.getElementById('billingDiscountPercent')?.value) || 0;
+  const netTotal = Math.max(0, subtotal - discountAmount);
+
+  const choice = document.querySelector('input[name=billingPaymentChoice]:checked')?.value || 'full';
+  let paid = Number(document.getElementById('billingAmountPaidInput')?.value) || 0;
+  if (choice === 'due') paid = 0;
+  if (choice === 'full' && paid === 0 && netTotal > 0) paid = netTotal;
+
+  const mode = document.getElementById('billingPaymentMethodSelect')?.value || 'Cash';
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const time = now.toTimeString().slice(0, 8);
+  const visitNo = (p.VisitHistory.length || 0) + 1;
+  const billNo = 'B-' + date.replaceAll('-', '') + '-' + pad(p.OPDNumber) + '-' + String(visitNo).padStart(3, '0');
+  const procNames = billingStagedProcedures.map(x => x.procedure).join(', ');
+
+  function finalizeSave(payMethod, payDone, txnId) {
+    const visit = {
+      id: crypto.randomUUID(),
+      date,
+      time,
+      procedures: procNames,
+      paymentDone: payDone,
+      amount: payDone,
+      paymentMethod: payMethod,
+      txnId: txnId || '',
+      subtotal,
+      discountPercent: Number(discountPercent.toFixed(2)),
+      discountAmount: Number(discountAmount.toFixed(2)),
+      cost: netTotal,
+      billNumber: billNo,
+      procedureItems: billingStagedProcedures.map(x => ({ procedure: x.procedure, cost: x.cost }))
+    };
+
+    p.VisitHistory.unshift(visit);
+    billingStagedProcedures.forEach(x => {
+      p.Treatments.push({ procedure: x.procedure, cost: x.cost, date, time, billNumber: billNo });
+    });
+
+    p.PaymentHistory.unshift({
+      date,
+      time,
+      billNumber: billNo,
+      amount: payDone,
+      method: payMethod,
+      txnId: txnId || '',
+      status: payDone >= netTotal ? 'Paid' : payDone > 0 ? 'Partial' : 'Pending'
+    });
+
+    p.PaymentStatus = payDone >= netTotal ? 'Paid' : payDone > 0 ? 'Partial' : 'Pending';
+    p.PaymentMethod = payMethod;
+    p.Subtotal = (Number(p.Subtotal) || 0) + subtotal;
+    p.FinalAmount = (Number(p.FinalAmount) || 0) + netTotal;
+
+    billingStagedProcedures = [];
+    save();
+
+    if (payDone > 0) {
+      sendNiziCommand({ command: 'success', amount: payDone });
+    }
+
+    renderBillingWorkspace();
+    renderProfile();
+    showToast(`✓ Payment collected! Bill No: ${billNo}`, 'success');
+
+    if (printAfterSave) {
+      printBill(billNo);
+    }
+  }
+
+  if (mode === 'NepalPay QR' && paid > 0) {
+    openNepalPayModal({
+      amount: paid,
+      billNumber: billNo,
+      patientName: p.Name,
+      patientContact: p.Contact,
+      opdNumber: p.OPDNumber,
+      remarks: procNames.slice(0, 30),
+      onSuccess: (eventData) => {
+        finalizeSave('NepalPay QR', paid, eventData.txnId);
+      }
+    });
+  } else {
+    finalizeSave(mode, paid);
+  }
+}
+
+function saveBillingVisitOnly() {
+  collectBillingAndPrintA5(false);
+}
+
+function printBillingLatestBill() {
+  const p = patients.find(x => x.id === (billingSelectedPatientId || selectedId));
+  if (!p || !p.VisitHistory?.length) {
+    showToast('No saved bills found for this patient yet.', 'warn');
+    return;
+  }
+  printBill(p.VisitHistory[0].billNumber);
+}
+
+function collectDueForBill(billNo) {
+  const found = findBillForPatient(billNo);
+  if (!found) {
+    showToast('Bill not found.', 'warn');
+    return;
+  }
+  const { p, v } = found;
+  const cost = Number(v.cost || v.subtotal || 0);
+  const currentPaid = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+  const remainingDue = Math.max(0, cost - currentPaid);
+
+  if (remainingDue <= 0) {
+    showToast('This bill is already fully paid.', 'info');
+    return;
+  }
+
+  const inputAmt = prompt(`Collect Due Payment for Bill: ${billNo}\nPatient: ${p.Name} (OPD-${pad(p.OPDNumber)})\n\nTotal Bill: Rs. ${cost.toLocaleString()}\nAlready Paid: Rs. ${currentPaid.toLocaleString()}\nRemaining Due: Rs. ${remainingDue.toLocaleString()}\n\nEnter amount to collect now:`, remainingDue);
+  if (inputAmt === null) return;
+  const addPaid = Number(inputAmt);
+  if (isNaN(addPaid) || addPaid <= 0) {
+    alert('Invalid payment amount entered.');
+    return;
+  }
+
+  const newTotalPaid = Math.min(cost, currentPaid + addPaid);
+  v.paymentDone = newTotalPaid;
+  v.amount = newTotalPaid;
+  if (newTotalPaid >= cost) {
+    v.status = 'Paid';
+  } else {
+    v.status = 'Partial';
+  }
+
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const time = now.toTimeString().slice(0, 8);
+
+  p.PaymentHistory.unshift({
+    date,
+    time,
+    billNumber: billNo,
+    amount: addPaid,
+    method: 'Cash (Due Collection)',
+    status: newTotalPaid >= cost ? 'Paid' : 'Partial'
+  });
+
+  save();
+  sendNiziCommand({ command: 'success', amount: addPaid });
+  renderBillingWorkspace();
+  showToast(`✓ Due payment of Rs. ${addPaid} collected!`, 'success');
+  if (confirm(`Payment of Rs. ${addPaid} collected.\n\nPrint updated A5 Bill now?`)) {
+    printBill(billNo);
+  }
+}
+
+function renderBillingInvoicesHistory(p) {
+  const tbody = document.getElementById('billingHistoryRows');
+  if (!tbody) return;
+  const visits = p.VisitHistory || [];
+
+  if (!visits.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty" style="text-align:center;padding:16px;color:#64748b">No past bills found for this patient.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = visits.map((v, i) => {
+    const cost = Number(v.cost || v.subtotal || 0);
+    const paid = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+    const due = Math.max(0, cost - paid);
+    const isPaid = due <= 0;
+    return `
+      <tr>
+        <td style="font-family:monospace;font-weight:700;color:#f8fafc">${esc(v.billNumber || 'VIS-' + (i + 1))}</td>
+        <td>${esc(v.date || '')} <span class="muted" style="font-size:11px">${esc(v.time || '')}</span></td>
+        <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(v.procedures || '')}">${esc(v.procedures || 'Dental Treatment')}</td>
+        <td style="text-align:right;font-weight:700;color:#f8fafc">Rs. ${cost.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:700;color:#10b981">Rs. ${paid.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:800;color:${due > 0 ? '#ef4444' : '#64748b'}">Rs. ${due.toLocaleString()}</td>
+        <td>${esc(v.paymentMethod || 'Cash')}</td>
+        <td>
+          <span class="badge" style="${isPaid ? 'background:#166534;color:#dcfce7' : (paid > 0 ? 'background:#854d0e;color:#fef9c3' : 'background:#991b1b;color:#fee2e2')}">
+            ${isPaid ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'DUE')}
+          </span>
+        </td>
+        <td style="text-align:center">
+          <div style="display:inline-flex;gap:4px">
+            <button class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button>
+            ${due > 0 ? `<button class="btn secondary" style="padding:3px 8px;font-size:11px;color:#ef4444" onclick="collectDueForBill('${esc(v.billNumber)}')">Collect Due</button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
 
 function showPage(id) {
   if (id === 'staff' && currentUser?.role !== 'superadmin') {
@@ -2557,6 +3345,7 @@ function showPage(id) {
 document.querySelectorAll('.nav').forEach(b => b.onclick = () => showPage(b.dataset.page));
 
 async function initializeClinicDatabase() {
+  loadClinicStampConfig();
   await loadPriceList();
   if (window.dentalDB?.load) {
     try { const data = await window.dentalDB.load(); if (Array.isArray(data)) patients = data; const path = await window.dentalDB.path(); const el = document.getElementById('dataFolderStatus'); if (el) el.textContent = path ? 'SQLite Database: ' + path : 'SQLite Database'; }
@@ -6278,6 +7067,7 @@ function printToPdf(title, sheets) {
   if (!pa) return;
   pa.innerHTML = `
     <h2>Infinity Dental Clinic — ${esc(title)}</h2>
+    <div style="font-size:12px;color:#64748b;margin-bottom:8px">Dhumbarahi, Kathmandu, Nepal • PAN: 125302054</div>
     <p class="foot">Export generated on ${new Date().toLocaleString()}</p>
     ${sheets.map(s => `
       <h3>${esc(s.name)}</h3>

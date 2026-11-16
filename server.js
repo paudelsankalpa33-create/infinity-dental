@@ -2501,6 +2501,49 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 10b. Clinic Official Stamp Configuration
+  if (pathname === '/api/clinic/stamp' && req.method === 'GET') {
+    try {
+      const row = db.prepare("SELECT value FROM clinic_settings WHERE key = 'clinic_stamp'").get();
+      if (row && row.value) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, stamp: JSON.parse(row.value) }));
+        return;
+      }
+    } catch (_) {}
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: true,
+      stamp: {
+        enabled: true,
+        isDefault: true,
+        customDataUrl: null,
+        clinicName: 'INFINITY DENTAL CLINIC',
+        address: 'Dhumbarahi, Kathmandu',
+        pan: '125302054'
+      }
+    }));
+    return;
+  }
+
+  if (pathname === '/api/clinic/stamp' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO clinic_settings (key, value, updated_at)
+        VALUES ('clinic_stamp', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+      `).run(JSON.stringify(body), now);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, stamp: body }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
   // 11. Launch CH341 USB Soundbox Driver Installer
   if (pathname === '/api/nizi/install-driver' && req.method === 'POST') {
     try {

@@ -3977,3 +3977,56 @@ body.dark #dlm .mf input {
   border-color: #1e293b !important;
   color: #f8fafc !important;
 }
+
+/* Switch Toggle Component */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #334155;
+  transition: .25s ease;
+  border-radius: 24px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .25s ease;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #0284c7;
+}
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Clinic Stamp SVG & Container */
+.clinic-stamp-seal-svg {
+  width: 130px;
+  height: 130px;
+  display: inline-block;
+  color: #1d4ed8;
+  opacity: 0.92;
+  transform: rotate(-3deg);
+  filter: drop-shadow(0 1px 1px rgba(29, 78, 216, 0.15));
+}
