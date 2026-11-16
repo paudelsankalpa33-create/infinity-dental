@@ -2348,6 +2348,36 @@ body.dark .modal-box {
   border: 1px solid #1e293b;
 }
 
+/* Ensure update modal white cards always have black/dark readable text in both dark & light themes */
+#updateModal .modal-box div[style*="background:#ffffff"],
+#updateModal .modal-box div[style*="background: #ffffff"],
+#updateModal .modal-box div[style*="background:#f8fafc"],
+#updateModal .modal-box div[style*="background: #f8fafc"] {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+#updateModal .modal-box div[style*="background:#ffffff"] span,
+#updateModal .modal-box div[style*="background: #ffffff"] span,
+#updateModal .modal-box div[style*="background:#f8fafc"] span,
+#updateModal .modal-box div[style*="background: #f8fafc"] span {
+  color: #000000 !important;
+}
+
+#updateModal .modal-box div[style*="background:#ffffff"] span[style*="color:#15803d"],
+#updateModal .modal-box div[style*="background: #ffffff"] span[style*="color:#15803d"],
+#updateModal .modal-box div[style*="background:#f8fafc"] span[style*="color:#15803d"],
+#updateModal .modal-box div[style*="background: #f8fafc"] span[style*="color:#15803d"] {
+  color: #15803d !important;
+}
+
+#updateModal .release-notes-box,
+#updateModal div[style*="background:#fff"],
+#updateModal div[style*="background: #fff"] {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
 body.dark .modal {
   background: rgba(0, 0, 0, 0.75);
 }

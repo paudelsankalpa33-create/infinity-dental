@@ -1838,18 +1838,18 @@
         <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeUpdateModal()">✕</button>
       </div>
 
-      <div style="margin-top:16px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px">
+      <div style="margin-top:16px;background:#ffffff;border:1px solid #cbd5e1;border-radius:10px;padding:14px;color:#000000">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span class="muted" style="font-size:12px">Software:</span>
-          <span style="font-size:13px;font-weight:800;color:var(--primary)">Infinity Dental Clinic</span>
+          <span style="font-size:12px;font-weight:700;color:#000000">Software:</span>
+          <span style="font-size:13px;font-weight:800;color:#000000">Infinity Dental Clinic</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span class="muted" style="font-size:12px">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800">v1.0.16</span>
+          <span style="font-size:12px;font-weight:700;color:#000000">Current Installed Version:</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.16</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="muted" style="font-size:12px">Update Server:</span>
-          <span style="font-size:12px;color:#15803d;font-weight:700">● Infinity Cloud (Connected)</span>
+          <span style="font-size:12px;font-weight:700;color:#000000">Update Server:</span>
+          <span style="font-size:12px;color:#15803d;font-weight:800">● Infinity Cloud (Connected)</span>
         </div>
         <!-- Hidden repository input keeping the GitHub repo connection without exposing personal names to clients -->
         <input id="githubRepoInput" type="hidden" value="paudelsankalpa33-create/infinity-dental">
@@ -1861,7 +1861,7 @@
 
       <!-- In-App Download Progress Area -->
       <div id="updateDownloadArea"
-        style="display:none;margin-top:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px">
+        style="display:none;margin-top:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;color:#000000">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <span id="downloadStatusText" style="font-size:12px;font-weight:700;color:#0369a1">Downloading update directly
             inside the app...</span>
@@ -1871,8 +1871,8 @@
           <div id="updateProgressBar" class="update-progress-fill animated" style="width:0%"></div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-          <span class="muted" style="font-size:11px">Please do not close the app while downloading</span>
-          <span id="downloadBytesText" class="muted" style="font-size:11px;font-weight:600">0 MB / 0 MB</span>
+          <span style="font-size:11px;color:#334155;font-weight:600">Please do not close the app while downloading</span>
+          <span id="downloadBytesText" style="font-size:11px;font-weight:700;color:#000000">0 MB / 0 MB</span>
         </div>
         <div id="installActionsArea" style="margin-top:12px;display:none;text-align:right">
           <button id="restartInstallBtn" class="btn primary"

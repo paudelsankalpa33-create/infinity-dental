@@ -2646,9 +2646,9 @@ async function checkAppUpdates(manual = false) {
         statusArea.style.background = '#f0fdf4';
         statusArea.style.border = '1px solid #86efac';
         statusArea.innerHTML = `
-          <div style="color:#166534;font-weight:700;font-size:14px;margin-bottom:6px">🎉 New Version v${esc(result.latestVersion)} is Available!</div>
-          <div class="muted" style="font-size:11px;margin-bottom:8px">Published: ${result.publishedAt ? new Date(result.publishedAt).toLocaleDateString() : 'Recently'}</div>
-          ${result.releaseNotes ? `<div style="background:#fff;padding:8px 12px;border-radius:6px;font-size:12px;max-height:100px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px;border:1px solid #dcfce7">${esc(result.releaseNotes)}</div>` : ''}
+          <div style="color:#166534;font-weight:800;font-size:14px;margin-bottom:6px">🎉 New Version v${esc(result.latestVersion)} is Available!</div>
+          <div style="color:#334155;font-size:11px;font-weight:600;margin-bottom:8px">Published: ${result.publishedAt ? new Date(result.publishedAt).toLocaleDateString() : 'Recently'}</div>
+          ${result.releaseNotes ? `<div class="release-notes-box" style="background:#ffffff;padding:10px 14px;border-radius:6px;font-size:12px;max-height:100px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px;border:1px solid #86efac;color:#000000 !important;font-weight:600;line-height:1.5">${esc(result.releaseNotes)}</div>` : ''}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button id="inAppDownloadBtn" class="btn primary" style="background:#16a34a;padding:9px 18px;font-weight:800" onclick="startInAppUpdate('${esc(result.downloadUrl || result.htmlUrl)}')">⬇ DOWNLOAD &amp; INSTALL UPDATE (IN-APP)</button>
             <a href="${esc(result.setupUrl || result.downloadUrl || result.htmlUrl)}" target="_blank" download class="btn secondary" style="font-size:12px;padding:9px 14px;text-decoration:none;display:inline-flex;align-items:center">📥 Direct Setup (.exe)</a>
@@ -2662,14 +2662,14 @@ async function checkAppUpdates(manual = false) {
         statusArea.style.display = 'block';
         statusArea.style.background = '#f0fdf4';
         statusArea.style.border = '1px solid #bbf7d0';
-        statusArea.innerHTML = `<div style="color:#15803d;font-weight:700">✓ Infinity Dental Clinic is up to date! (v${esc(result.currentVersion)})</div><div class="muted" style="font-size:11px;margin-top:4px">You are running the latest official version.</div>`;
+        statusArea.innerHTML = `<div style="color:#15803d;font-weight:700">✓ Infinity Dental Clinic is up to date! (v${esc(result.currentVersion)})</div><div style="color:#334155;font-size:11px;font-weight:600;margin-top:4px">You are running the latest official version.</div>`;
       }
     } else {
       if (statusArea && manual) {
         statusArea.style.display = 'block';
         statusArea.style.background = '#fef2f2';
         statusArea.style.border = '1px solid #fecaca';
-        statusArea.innerHTML = `<div style="color:#b91c1c;font-weight:700">Could not check updates</div><div class="muted" style="font-size:11px;margin-top:4px">${esc(result?.error || 'Unknown error')}</div>`;
+        statusArea.innerHTML = `<div style="color:#b91c1c;font-weight:700">Could not check updates</div><div style="color:#64748b;font-size:11px;margin-top:4px">${esc(result?.error || 'Unknown error')}</div>`;
       }
     }
   } catch (err) {
