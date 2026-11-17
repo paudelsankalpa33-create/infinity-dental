@@ -122,17 +122,23 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
-- **Update Download Button Fix**: Direct Setup (.exe) and in-app updater now invoke system browser / high-speed background download cleanly with 1 click, eliminating blank popup windows or frozen click handlers.
-- **Seamless 1-Click Installation & Silent Auto-Updates**: Enabled \`oneClick: true\`, \`perMachine: true\`, \`allowToChangeInstallationDirectory: false\`, and \`runAfterFinish: true\`. Removed the multi-user selection ("Who should this application be installed for?") and install location prompt dialogs. Automatically defaults to \`C:\\Program Files\\Infinity Dental Clinic\` with administrative execution privileges.
-- **Silent Background Update Trigger**: In-app updater passes the \`/S\` silent flag so downloaded updates apply in the background and relaunch the application automatically with zero wizard prompts.
-- **Patient Bill Cleanup**: Removed \`Valid for 15 days from the date of issue\` and redundant website/phone text from the thank-you banner for an elegant single-page A5 invoice.
-- **Integrated AppFooter & AboutSystemModal**: Reusable footer and System Info dialog with copyright, version badge (v1.2.0), client licensing info, developer credit to **3P** (https://sankalpapaudel.com.np), and support contact.
-- **Appointments Real Date & Reschedule**: Defaults to today's real date in both AD and BS calendar mode dynamically on startup. Added inline **RESCHEDULE** button on appointment cards with synced AD/BS date picker, time, and notes.
-- **NiZi POS B33 Soundbox Standby Logo**: User toggle in NepalPay section for Default Standby Screen (Clinic Standby Logo vs Clinic Guest Wi-Fi QR), only pushing payment QRs upon explicit user click.
-- **Lab Works Lab Companies Management**: Replaced hardcoded lab partners with persistent \`laboratories\` table in SQLite. Added **Manage Labs** modal allowing clinic to add new labs and edit existing lab details with cascade rename across lab cases and payments.
-- **Transactions Month & Date Range Filters**: Added Calendar Mode switcher (BS Nepali vs AD English), quick filter buttons (Today, This Month BS, This Month AD, This Week, This Year, All Time), and custom date range inputs.
-- **Visit Procedure Editing**: Same-day visits can be edited directly by staff; visits from earlier dates require Admin PIN authorization before unlocking the visit editor.
-- **Dashboard Patients Attended Today**: Shows ALL patients who attended today (registered, visited, arrived, or billed, including Rs. 0 follow-ups).`;
+- **On-Form Dynamic NepalPay QR Generator**: Added "📱 GENERATE NEPALPAY QR" button directly on the Add Visit form in Patient Profile. Generates a dynamic NCHL QR code matching the exact amount entered in the payment field (or procedure total) and pushes to the NiZi POS B33 Soundbox with automatic payment listening.
+- **Visit & Payment History Row & Bulk Deletion**: Full control over patient clinical and payment history records:
+  - Individual "🗑️ Delete" button on each visit and payment row.
+  - Row checkboxes for single selection.
+  - "Select All" checkbox in table header.
+  - Bulk "🗑️ Delete Selected (<count>)" action with confirmation prompt.
+  - Automatic patient ledger recalculation: subtotal, final amount, and payment status (Paid / Partial / Pending) update instantly in SQLite.
+- **Strict Version Synchronization Across UI**: Dynamic version sync ensures all UI badges (Settings flyout, AppFooter, AboutSystemModal, Update Modal, and Update Banner) display the exact running application version (${tag}) with zero mismatches.
+- **Update Download Button Fix & Silent 1-Click Setup**: Direct Setup (.exe) and in-app updater install silently with 1-click execution, skipping wizard prompts and applying seamlessly.
+- **Cleaned Patient Tax Invoice**: Removed obsolete validity text and streamlined footer branding for single-page A5 printing.
+- **Integrated AppFooter & AboutSystemModal**: System info modal with licensing to Infinity Dental Clinic, developer credits to **3P** (https://sankalpapaudel.com.np), and support contact.
+- **Appointments Real Date & Reschedule**: Dynamic AD/BS current date selection on startup and inline Reschedule feature.
+- **NiZi POS B33 Soundbox Standby Logo**: Automatic IDLE clinic standby screen on launch.
+- **Lab Works Dynamic Lab Company Management**: Dynamic SQLite laboratories table with add/edit lab company capabilities.
+- **Transactions Advanced Date & Month Filters**: Quick filters for BS Month, AD Month, Today, and custom date range.
+- **Visit Procedure Editing**: Same-day staff edits and previous-day admin PIN protection.
+- **Dashboard Patients Attended Today**: Comprehensive list of all attending patients including Rs. 0 follow-up visits.`;
 
   if (!release) {
     console.log(`Creating new GitHub Release for ${tag}...`);

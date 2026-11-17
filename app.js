@@ -572,6 +572,12 @@ function addVisit() {
   }
 
   if ((mode === 'NepalPay QR' || mode === 'Scan') && paid > 0) {
+    if (typeof activeVisitQrTxnId !== 'undefined' && activeVisitQrTxnId) {
+      const savedTxn = activeVisitQrTxnId;
+      activeVisitQrTxnId = null;
+      completeSaveVisit('NepalPay QR', paid, savedTxn);
+      return;
+    }
     openNepalPayModal({
       amount: paid,
       billNumber: billNo,
@@ -1550,6 +1556,14 @@ function renderProfile() {
          </div>
        </div>
        <div id="paymentHint" class="muted" style="margin-top:8px;font-size:11.5px">Enter amount paid (Rs. 1 to 1,00,000) or leave blank for full bill amount.</div>
+       <div id="visitQrActionArea" style="margin-top:12px;padding:12px 14px;background:#030712;border:1px solid #1e3a8a;border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+           <button type="button" id="btnGenerateVisitQr" class="btn primary" style="background:#0284c7;font-weight:800;font-size:12.5px;padding:8px 18px;display:inline-flex;align-items:center;gap:7px;cursor:pointer" onclick="generateVisitNepalPayQr()">
+             📱 GENERATE NEPALPAY QR
+           </button>
+           <span id="visitQrStatusText" class="muted" style="font-size:12px">Generate dynamic NepalPay QR for the exact amount entered above &amp; push to NiZi POS Soundbox.</span>
+         </div>
+       </div>
      </div>
 
      <!-- Next Appointment Card -->
@@ -1607,7 +1621,26 @@ function renderProfile() {
      </div>
    </div>
  </div>
- <div class="grid2" style="margin-top:18px"><div class="card"><div class="section-title">Visit History</div>${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map(v => `<tr><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button><button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit Procedures</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}</div><div class="card"><div class="section-title">Payment History</div>${pays.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>${pays.map(v => `<tr><td>${esc(v.date)}</td><td>${esc(v.billNumber)}</td><td>Rs. ${Number(v.amount || 0).toLocaleString()}</td><td>${esc(v.method)}</td><td>${esc(v.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No payments recorded yet.</div>'}</div></div>`;
+ <div class="grid2" style="margin-top:18px">
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+       <div class="section-title" style="margin:0">Visit History</div>
+       <button type="button" id="btnDeleteSelectedVisits" class="btn secondary" style="color:#ef4444;border-color:#ef4444;font-size:11px;padding:3px 10px;display:none;font-weight:700" onclick="deleteSelectedVisits('${p.id}')">
+         🗑️ Delete Selected (<span id="selectedVisitsCount">0</span>)
+       </button>
+     </div>
+     ${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th style="width:32px;text-align:center"><input type="checkbox" id="selectAllVisits" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="toggleSelectAllVisits(this)" title="Select All Visits"></th><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map((v, vIdx) => `<tr><td style="text-align:center"><input type="checkbox" class="visit-select-chk" data-bill="${esc(v.billNumber || '')}" data-id="${esc(v.id || '')}" data-idx="${vIdx}" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="updateVisitSelectionUI()"></td><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button><button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit</button><button type="button" class="btn secondary" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:#ef4444" onclick="deleteSingleVisit('${p.id}', '${v.id || v.billNumber}')" title="Delete this visit">🗑️</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}
+   </div>
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+       <div class="section-title" style="margin:0">Payment History</div>
+       <button type="button" id="btnDeleteSelectedPayments" class="btn secondary" style="color:#ef4444;border-color:#ef4444;font-size:11px;padding:3px 10px;display:none;font-weight:700" onclick="deleteSelectedPayments('${p.id}')">
+         🗑️ Delete Selected (<span id="selectedPaymentsCount">0</span>)
+       </button>
+     </div>
+     ${pays.length ? `<div class="tablewrap"><table class="table"><thead><tr><th style="width:32px;text-align:center"><input type="checkbox" id="selectAllPayments" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="toggleSelectAllPayments(this)" title="Select All Payments"></th><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th><th>Action</th></tr></thead><tbody>${pays.map((v, pIdx) => `<tr><td style="text-align:center"><input type="checkbox" class="payment-select-chk" data-bill="${esc(v.billNumber || '')}" data-idx="${pIdx}" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="updatePaymentSelectionUI()"></td><td>${esc(v.date || '—')}</td><td>${esc(v.billNumber || '—')}</td><td>Rs. ${Number(v.amount || 0).toLocaleString()}</td><td>${esc(v.method || 'Cash')}</td><td>${esc(v.status || 'Paid')}</td><td><button type="button" class="btn secondary" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:#ef4444" onclick="deleteSinglePayment('${p.id}', '${v.billNumber || ''}', ${pIdx})" title="Delete this payment">🗑️ Delete</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No payments recorded yet.</div>'}
+   </div>
+ </div>`;
   restoreAppointmentFields(p); renderPendingProcedures(); updatePaymentChoice();
 }
 function restoreAppointmentFields(p) {
@@ -1692,7 +1725,222 @@ function setQuickTime(val) {
   if (t) t.value = val;
 }
 
-function selectVisitPaymentMode(mode) { const hidden = document.getElementById('visitPaymentMode'); if (hidden) hidden.value = mode; document.querySelectorAll('.payment-mode').forEach(b => b.classList.toggle('selected', b.dataset.mode === mode)); }
+let activeVisitQrTxnId = null;
+
+function selectVisitPaymentMode(mode) {
+  const hidden = document.getElementById('visitPaymentMode');
+  if (hidden) hidden.value = mode;
+  document.querySelectorAll('.payment-mode').forEach(b => b.classList.toggle('selected', b.dataset.mode === mode));
+  const qrArea = document.getElementById('visitQrActionArea');
+  if (qrArea) {
+    if (mode === 'NepalPay QR') {
+      qrArea.style.borderColor = '#0284c7';
+      qrArea.style.boxShadow = '0 0 12px rgba(2, 132, 199, 0.25)';
+    } else {
+      qrArea.style.borderColor = '#1e3a8a';
+      qrArea.style.boxShadow = 'none';
+    }
+  }
+}
+
+function generateVisitNepalPayQr() {
+  const p = patients.find(x => x.id === selectedId);
+  if (!p) {
+    showToast('Please select a patient first.', 'warn');
+    return;
+  }
+  
+  let amt = parseFloat(document.getElementById('visitPaid')?.value);
+  if (isNaN(amt) || amt <= 0) {
+    amt = getVisitFinalTotal();
+  }
+  if (!amt || amt <= 0) {
+    showToast('Please enter an amount in Amount Paid (Rs.) or select a procedure first.', 'warn');
+    document.getElementById('visitPaid')?.focus();
+    return;
+  }
+
+  // Select NepalPay QR payment mode and sync input field
+  selectVisitPaymentMode('NepalPay QR');
+  const paidEl = document.getElementById('visitPaid');
+  if (paidEl) paidEl.value = amt;
+
+  const billNo = 'B-' + ymd(new Date()).replace(/-/g, '') + '-' + pad(p.OPDNumber) + '-' + pad(Number(p.BillSequence || p.VisitHistory?.length || 0) + 1, 3);
+  const procEl = document.getElementById('visitProcedure');
+  const remarks = (procEl?.value || 'Dental Treatment').slice(0, 30);
+
+  const statusText = document.getElementById('visitQrStatusText');
+  if (statusText) {
+    statusText.innerHTML = `⏳ <span style="color:#38bdf8;font-weight:700">Generating NepalPay Dynamic QR for Rs. ${amt.toLocaleString()}...</span>`;
+  }
+
+  openNepalPayModal({
+    amount: amt,
+    billNumber: billNo,
+    patientName: p.Name,
+    patientContact: p.Contact,
+    opdNumber: p.OPDNumber,
+    remarks: remarks,
+    onSuccess: (data) => {
+      activeVisitQrTxnId = data.txnId || ('NPI-' + Date.now());
+      if (statusText) {
+        statusText.innerHTML = `🎉 <span style="color:#22c55e;font-weight:800">✓ Rs. ${amt.toLocaleString()} Paid via NepalPay (Txn: ${esc(activeVisitQrTxnId)})</span>`;
+      }
+      showToast(`✓ Payment Confirmed: Rs. ${amt.toLocaleString()} via NepalPay`, 'success');
+    }
+  });
+}
+
+function recalculatePatientFinancials(p) {
+  if (!p) return;
+  ensurePatientArrays(p);
+  const visits = Array.isArray(p.VisitHistory) ? p.VisitHistory : [];
+  const payments = Array.isArray(p.PaymentHistory) ? p.PaymentHistory : [];
+
+  const totalSubtotal = visits.reduce((sum, v) => sum + (Number(v.subtotal) || Number(v.cost) || 0), 0);
+  const totalCost = visits.reduce((sum, v) => sum + (Number(v.cost) || 0), 0);
+  const totalPaid = payments.reduce((sum, pay) => sum + (Number(pay.amount) || 0), 0);
+
+  p.Subtotal = totalSubtotal;
+  p.FinalAmount = totalCost;
+  p.PaymentStatus = (totalPaid >= totalCost && totalCost > 0) ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Pending');
+  if (totalCost === 0 && totalPaid === 0) {
+    p.PaymentStatus = 'Pending';
+  }
+}
+
+function toggleSelectAllVisits(masterChk) {
+  const chks = document.querySelectorAll('.visit-select-chk');
+  chks.forEach(c => c.checked = masterChk.checked);
+  updateVisitSelectionUI();
+}
+
+function updateVisitSelectionUI() {
+  const selected = document.querySelectorAll('.visit-select-chk:checked');
+  const btn = document.getElementById('btnDeleteSelectedVisits');
+  const countSpan = document.getElementById('selectedVisitsCount');
+  if (btn && countSpan) {
+    countSpan.textContent = selected.length;
+    btn.style.display = selected.length > 0 ? 'inline-flex' : 'none';
+  }
+}
+
+async function deleteSingleVisit(patientId, visitKey) {
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  const ok = confirm('Are you sure you want to delete this visit record? This will also remove its associated procedures and recalculate patient balance.');
+  if (!ok) return;
+
+  ensurePatientArrays(p);
+  const v = p.VisitHistory.find(x => x.id === visitKey || x.billNumber === visitKey);
+  const billNo = v?.billNumber || visitKey;
+
+  p.VisitHistory = p.VisitHistory.filter(x => x.id !== visitKey && x.billNumber !== visitKey);
+  if (billNo && Array.isArray(p.Treatments)) {
+    p.Treatments = p.Treatments.filter(t => t.billNumber !== billNo);
+  }
+  if (billNo && Array.isArray(p.PaymentHistory)) {
+    p.PaymentHistory = p.PaymentHistory.filter(pay => pay.billNumber !== billNo);
+  }
+
+  recalculatePatientFinancials(p);
+  save();
+  updateAll();
+  renderProfile();
+  showToast('✓ Visit record deleted successfully.', 'success');
+}
+
+async function deleteSelectedVisits(patientId) {
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  const selectedChks = Array.from(document.querySelectorAll('.visit-select-chk:checked'));
+  if (!selectedChks.length) {
+    showToast('No visits selected to delete.', 'warn');
+    return;
+  }
+
+  const ok = confirm(`Are you sure you want to delete ${selectedChks.length} selected visit record(s)? This will also remove their associated procedures and recalculate patient balance.`);
+  if (!ok) return;
+
+  ensurePatientArrays(p);
+  const deleteKeys = new Set(selectedChks.map(c => c.dataset.id || c.dataset.bill).filter(Boolean));
+  const deleteBills = new Set(selectedChks.map(c => c.dataset.bill).filter(Boolean));
+
+  p.VisitHistory = p.VisitHistory.filter(v => !deleteKeys.has(v.id) && !deleteBills.has(v.billNumber));
+  if (Array.isArray(p.Treatments)) {
+    p.Treatments = p.Treatments.filter(t => !deleteBills.has(t.billNumber));
+  }
+  if (Array.isArray(p.PaymentHistory)) {
+    p.PaymentHistory = p.PaymentHistory.filter(pay => !deleteBills.has(pay.billNumber));
+  }
+
+  recalculatePatientFinancials(p);
+  save();
+  updateAll();
+  renderProfile();
+  showToast(`✓ ${selectedChks.length} visit record(s) deleted successfully.`, 'success');
+}
+
+function toggleSelectAllPayments(masterChk) {
+  const chks = document.querySelectorAll('.payment-select-chk');
+  chks.forEach(c => c.checked = masterChk.checked);
+  updatePaymentSelectionUI();
+}
+
+function updatePaymentSelectionUI() {
+  const selected = document.querySelectorAll('.payment-select-chk:checked');
+  const btn = document.getElementById('btnDeleteSelectedPayments');
+  const countSpan = document.getElementById('selectedPaymentsCount');
+  if (btn && countSpan) {
+    countSpan.textContent = selected.length;
+    btn.style.display = selected.length > 0 ? 'inline-flex' : 'none';
+  }
+}
+
+async function deleteSinglePayment(patientId, billNumber, index) {
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  const ok = confirm('Are you sure you want to delete this payment record? This will update the patient balance.');
+  if (!ok) return;
+
+  ensurePatientArrays(p);
+  if (Array.isArray(p.PaymentHistory)) {
+    if (billNumber) {
+      p.PaymentHistory = p.PaymentHistory.filter((pay, i) => !(pay.billNumber === billNumber && i === index));
+    } else {
+      p.PaymentHistory.splice(index, 1);
+    }
+  }
+
+  recalculatePatientFinancials(p);
+  save();
+  updateAll();
+  renderProfile();
+  showToast('✓ Payment record deleted successfully.', 'success');
+}
+
+async function deleteSelectedPayments(patientId) {
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  const selectedChks = Array.from(document.querySelectorAll('.payment-select-chk:checked'));
+  if (!selectedChks.length) {
+    showToast('No payments selected to delete.', 'warn');
+    return;
+  }
+
+  const ok = confirm(`Are you sure you want to delete ${selectedChks.length} selected payment record(s)? This will update the patient balance.`);
+  if (!ok) return;
+
+  ensurePatientArrays(p);
+  const indicesToDelete = new Set(selectedChks.map(c => parseInt(c.dataset.idx, 10)));
+  p.PaymentHistory = p.PaymentHistory.filter((_, idx) => !indicesToDelete.has(idx));
+
+  recalculatePatientFinancials(p);
+  save();
+  updateAll();
+  renderProfile();
+  showToast(`✓ ${selectedChks.length} payment record(s) deleted successfully.`, 'success');
+}
 // duplicate updateVisitCost removed
 function updateAppointmentAd() { }
 function initNepaliAppointmentPicker() { }
@@ -8454,7 +8702,7 @@ function scrollToAttendedToday() {
 
 /* About System Modal & Dynamic Version Controller */
 async function syncAppVersionUI() {
-  let ver = '1.0.25';
+  let ver = '1.0.26';
   if (window.dentalApp && window.dentalApp.getVersion) {
     try {
       const v = await window.dentalApp.getVersion();
