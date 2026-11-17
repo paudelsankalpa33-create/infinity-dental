@@ -3714,6 +3714,7 @@ async function checkAppUpdates(manual = false) {
     }
 
     if (result && result.success && result.hasUpdate) {
+      window.currentUpdateInfo = result;
       const banner = document.getElementById('updateBanner');
       const vBadge = document.getElementById('updateBannerVersion');
       const tText = document.getElementById('updateBannerTitle');
@@ -3730,9 +3731,9 @@ async function checkAppUpdates(manual = false) {
           <div style="color:#334155;font-size:11px;font-weight:600;margin-bottom:8px">Published: ${result.publishedAt ? new Date(result.publishedAt).toLocaleDateString() : 'Recently'}</div>
           ${result.releaseNotes ? `<div class="release-notes-box" style="background:#ffffff;padding:10px 14px;border-radius:6px;font-size:12px;max-height:100px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px;border:1px solid #86efac;color:#000000 !important;font-weight:600;line-height:1.5">${esc(result.releaseNotes)}</div>` : ''}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <button id="inAppDownloadBtn" class="btn primary" style="background:#16a34a;padding:9px 18px;font-weight:800" onclick="startInAppUpdate('${esc(result.downloadUrl || result.htmlUrl)}')">⬇ DOWNLOAD &amp; INSTALL UPDATE (IN-APP)</button>
-            <a href="${esc(result.setupUrl || result.downloadUrl || result.htmlUrl)}" target="_blank" download class="btn secondary" style="font-size:12px;padding:9px 14px;text-decoration:none;display:inline-flex;align-items:center">📥 Direct Setup (.exe)</a>
-            <button class="btn secondary" style="font-size:11px;padding:8px 12px" onclick="openExternalUrl('${esc(result.htmlUrl)}')">View Release Details</button>
+            <button id="inAppDownloadBtn" type="button" class="btn primary" style="background:#16a34a;padding:9px 18px;font-weight:800;cursor:pointer" onclick="startInAppUpdate()">⬇ DOWNLOAD &amp; INSTALL UPDATE (IN-APP)</button>
+            <button type="button" class="btn secondary" style="font-size:12px;padding:9px 14px;display:inline-flex;align-items:center;cursor:pointer" onclick="downloadAppUpdateDirect()">📥 Direct Setup (.exe)</button>
+            <button type="button" class="btn secondary" style="font-size:11px;padding:8px 12px;cursor:pointer" onclick="openReleasePage()">View Release Details</button>
           </div>
         `;
       }
@@ -3766,9 +3767,27 @@ async function checkAppUpdates(manual = false) {
 
 let isDownloadingUpdate = false;
 let downloadedUpdatePath = null;
+let currentUpdateInfo = null;
 
-async function startInAppUpdate(downloadUrl) {
+function downloadAppUpdateDirect() {
+  const url = window.currentUpdateInfo?.setupUrl || window.currentUpdateInfo?.downloadUrl || window.currentUpdateInfo?.htmlUrl;
+  console.log('[Updater] Direct setup download requested:', url);
+  if (url) {
+    openExternalUrl(url);
+  } else {
+    openExternalUrl('https://github.com/paudelsankalpa33-create/infinity-dental/releases/latest');
+  }
+}
+
+function openReleasePage() {
+  const url = window.currentUpdateInfo?.htmlUrl || 'https://github.com/paudelsankalpa33-create/infinity-dental/releases/latest';
+  openExternalUrl(url);
+}
+
+async function startInAppUpdate(overrideUrl) {
   if (isDownloadingUpdate) return;
+  const downloadUrl = overrideUrl || window.currentUpdateInfo?.downloadUrl || window.currentUpdateInfo?.setupUrl || window.currentUpdateInfo?.htmlUrl;
+  console.log('[Updater] startInAppUpdate invoked with URL:', downloadUrl);
 
   const downloadArea = document.getElementById('updateDownloadArea');
   const statusText = document.getElementById('downloadStatusText');
@@ -3839,16 +3858,20 @@ async function startInAppUpdate(downloadUrl) {
         throw new Error(res?.error || 'Download failed');
       }
     } catch (err) {
+      console.error('[Updater] In-app download error:', err);
       if (statusText) {
-        statusText.innerHTML = `⚠️ Download failed: ${esc(err.message)}`;
+        statusText.innerHTML = `⚠️ In-app notice: ${esc(err.message)}. Opening direct browser download...`;
         statusText.style.color = '#b91c1c';
       }
       if (bytesText) {
-        bytesText.innerHTML = `<a href="${esc(downloadUrl)}" target="_blank" download style="color:var(--primary);font-weight:700">Click here to download setup file directly</a>`;
+        bytesText.innerHTML = `<button type="button" onclick="downloadAppUpdateDirect()" class="btn secondary" style="font-size:11px;padding:4px 8px;margin-top:4px;cursor:pointer">📥 Download via Browser</button>`;
       }
       if (inAppBtn) {
         inAppBtn.disabled = false;
         inAppBtn.innerHTML = '⬇ RETRY IN-APP UPDATE';
+      }
+      if (downloadUrl) {
+        openExternalUrl(downloadUrl);
       }
     } finally {
       isDownloadingUpdate = false;
@@ -3937,14 +3960,28 @@ async function applyUpdateAndRestart() {
 }
 
 function downloadAppUpdate(url) {
-  openExternalUrl(url);
+  if (url) {
+    openExternalUrl(url);
+  } else {
+    downloadAppUpdateDirect();
+  }
 }
 
 function openExternalUrl(url) {
-  if (window.dentalApp && window.dentalApp.openExternal) {
-    window.dentalApp.openExternal(url);
-  } else {
+  if (!url) return;
+  console.log('[ExternalUrl] Opening:', url);
+  try {
+    if (window.dentalApp && window.dentalApp.openExternal) {
+      window.dentalApp.openExternal(url);
+      return;
+    }
+  } catch (e) {
+    console.warn('[ExternalUrl] dentalApp.openExternal failed:', e);
+  }
+  try {
     window.open(url, '_blank');
+  } catch (e) {
+    console.warn('[ExternalUrl] window.open failed:', e);
   }
 }
 

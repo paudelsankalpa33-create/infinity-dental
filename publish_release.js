@@ -122,6 +122,7 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
+- **Update Download Button Fix**: Direct Setup (.exe) and in-app updater now invoke system browser / high-speed background download cleanly with 1 click, eliminating blank popup windows or frozen click handlers.
 - **Seamless 1-Click Installation & Silent Auto-Updates**: Enabled \`oneClick: true\`, \`perMachine: true\`, \`allowToChangeInstallationDirectory: false\`, and \`runAfterFinish: true\`. Removed the multi-user selection ("Who should this application be installed for?") and install location prompt dialogs. Automatically defaults to \`C:\\Program Files\\Infinity Dental Clinic\` with administrative execution privileges.
 - **Silent Background Update Trigger**: In-app updater passes the \`/S\` silent flag so downloaded updates apply in the background and relaunch the application automatically with zero wizard prompts.
 - **Patient Bill Cleanup**: Removed \`Valid for 15 days from the date of issue\` and redundant website/phone text from the thank-you banner for an elegant single-page A5 invoice.

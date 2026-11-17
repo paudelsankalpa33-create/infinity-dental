@@ -297,8 +297,12 @@ function createWindow(){
   win.setMenu(null);
   mainWindow = win;
 
-  // Window open handler: ensures clean bill print windows with no menus and optimal size
+  // Window open handler: allows bill print popups, but delegates external web links (e.g. GitHub releases, websites) to default system browser
   win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
     return {
       action: 'allow',
       overrideBrowserWindowOptions: {
@@ -593,8 +597,8 @@ function checkAppUpdatesInternal(repoSlug) {
             let setupSizeMb = null;
 
             if (Array.isArray(release.assets)) {
-              const fastAsset = release.assets.find(a => a.name && a.name.toLowerCase().includes('fastupdate'));
-              const setupAsset = release.assets.find(a => a.name && a.name.endsWith('.exe') && a.name.toLowerCase().includes('setup'));
+              const fastAsset = release.assets.find(a => a.name && (a.name.toLowerCase().includes('fastpatch') || a.name.toLowerCase().includes('fastupdate')));
+              const setupAsset = release.assets.find(a => a.name && a.name.endsWith('.exe') && (a.name.toLowerCase().includes('setup') || a.name.toLowerCase().includes('full')));
               const portableAsset = release.assets.find(a => a.name && a.name.endsWith('.exe'));
 
               if (fastAsset && fastAsset.browser_download_url) {
@@ -606,7 +610,7 @@ function checkAppUpdatesInternal(repoSlug) {
                 setupSizeMb = (setupAsset.size / (1024 * 1024)).toFixed(1);
               }
 
-              // Prefer 1MB FastUpdate zip for ultra-fast in-app updating!
+              // Prefer FastPatch / FastUpdate executable for ultra-fast in-app updating!
               if (fastUpdateUrl) {
                 downloadUrl = fastUpdateUrl;
               } else if (setupUrl) {
@@ -856,37 +860,7 @@ function downloadFileWithResume(fileUrl, destPath, onProgress, onDone, onError) 
 ipcMain.handle('app:download-update', async (_event, downloadUrl) => {
   if (!downloadUrl) return { success: false, error: 'No download URL provided.' };
 
-  // 1. FAST LOCAL PATH: Check if a matching installer already exists locally on this machine
-  try {
-    const candidates = [
-      path.join('D:\\dental software', 'Infinity Dental Clinic Setup.exe'),
-      path.join(path.dirname(process.execPath), 'Infinity Dental Clinic Setup.exe'),
-      path.join(process.cwd(), 'release', 'Infinity Dental Clinic Setup.exe')
-    ];
-    for (const cand of candidates) {
-      if (fs.existsSync(cand)) {
-        const stat = fs.statSync(cand);
-        if (stat.size > 50 * 1024 * 1024) {
-          console.log('[Updater] Instant local installer detected:', cand);
-          downloadedInstallerPath = cand;
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('update:download-progress', {
-              percent: 100,
-              downloadedBytes: stat.size,
-              totalBytes: stat.size,
-              speedMb: 'Local Fast-Path',
-              etaSec: 0
-            });
-          }
-          return { success: true, filePath: cand, isLocal: true };
-        }
-      }
-    }
-  } catch (localErr) {
-    console.warn('[Updater] Local check notice:', localErr.message);
-  }
-
-  // 2. High-speed network download with Range auto-resume
+  // High-speed network download with Range auto-resume
   const tempDir = app.getPath('temp');
   const isZip = downloadUrl.toLowerCase().includes('.zip');
   const ext = isZip ? '.zip' : '.exe';
