@@ -2,10 +2,11 @@
 !include "x64.nsh"
 
 Unicode true
-RequestExecutionLevel user
+RequestExecutionLevel admin
 
 Name "Infinity Dental Clinic Fast Patch"
-OutFile "release\Infinity.Dental.Clinic.FastPatch.1.0.23.exe"
+InstallDir "$PROGRAMFILES64\Infinity Dental Clinic"
+OutFile "release\Infinity.Dental.Clinic.FastPatch.1.0.24.exe"
 SetCompressor /SOLID lzma
 
 SilentInstall silent
@@ -14,7 +15,7 @@ Section "Main"
   Sleep 1000
 
   Var /GLOBAL TARGET_DIR
-  StrCpy $TARGET_DIR ""
+  StrCpy $TARGET_DIR "$INSTDIR"
 
   ${If} ${RunningX64}
     StrCpy $0 "$PROGRAMFILES64\Infinity Dental Clinic"
@@ -56,8 +57,8 @@ Section "Main"
   FileWrite $0 '  timeout /t 1 /nobreak >nul$\r$\n'
   FileWrite $0 '  goto retry$\r$\n'
   FileWrite $0 ')$\r$\n'
-  FileWrite $0 'reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.23" /f >nul 2>&1$\r$\n'
-  FileWrite $0 'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.23" /f >nul 2>&1$\r$\n'
+  FileWrite $0 'reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.24" /f >nul 2>&1$\r$\n'
+  FileWrite $0 'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" /v "DisplayVersion" /t REG_SZ /d "1.0.24" /f >nul 2>&1$\r$\n'
   FileWrite $0 'start "" "$TARGET_DIR\Infinity Dental Clinic.exe"$\r$\n'
   FileWrite $0 'timeout /t 2 /nobreak >nul$\r$\n'
   FileWrite $0 'rd /s /q "$1" >nul 2>&1$\r$\n'
@@ -70,8 +71,11 @@ Section "Main"
   ${If} ${Errors}
     ExecShell "runas" "$1\apply.bat" "" SW_HIDE
   ${Else}
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.23"
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.23"
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.24"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\np.infinitydental.clinic" "DisplayVersion" "1.0.24"
+    Exec '"$TARGET_DIR\Infinity Dental Clinic.exe"'
+    RMDir /r "$1"
+  ${EndIf}
     Exec '"$TARGET_DIR\Infinity Dental Clinic.exe"'
     RMDir /r "$1"
   ${EndIf}

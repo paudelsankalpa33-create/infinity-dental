@@ -122,10 +122,12 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
-- **Patient Bill Cleanup**: Removed \`Valid for 15 days from the date of issue\` from terms and cleaned duplicate website/phone numbers from the bottom thank-you banner for a sleek single-page A5 invoice.
-- **Integrated AppFooter & AboutSystemModal**: Added reusable footer and System Info dialog with copyright, version badge (v1.2.0), client licensing info, developer credit to **3P** (https://sankalpapaudel.com.np), and support contact.
-- **Appointments Real Date & Reschedule**: Defaults to today's real date in both AD and BS calendar mode dynamically on startup. Added inline **RESCHEDULE** button on appointment cards with synced AD/BS date picker, time, and notes, refreshing SQLite records immediately.
-- **NiZi POS B33 Soundbox Standby Logo**: Removed boot-time test QR. Added user toggle in NepalPay section for Default Standby Screen (Clinic Standby Logo vs Clinic Guest Wi-Fi QR), only pushing payment QRs upon explicit user click.
+- **Seamless 1-Click Installation & Silent Auto-Updates**: Enabled \`oneClick: true\`, \`perMachine: true\`, \`allowToChangeInstallationDirectory: false\`, and \`runAfterFinish: true\`. Removed the multi-user selection ("Who should this application be installed for?") and install location prompt dialogs. Automatically defaults to \`C:\\Program Files\\Infinity Dental Clinic\` with administrative execution privileges.
+- **Silent Background Update Trigger**: In-app updater passes the \`/S\` silent flag so downloaded updates apply in the background and relaunch the application automatically with zero wizard prompts.
+- **Patient Bill Cleanup**: Removed \`Valid for 15 days from the date of issue\` and redundant website/phone text from the thank-you banner for an elegant single-page A5 invoice.
+- **Integrated AppFooter & AboutSystemModal**: Reusable footer and System Info dialog with copyright, version badge (v1.2.0), client licensing info, developer credit to **3P** (https://sankalpapaudel.com.np), and support contact.
+- **Appointments Real Date & Reschedule**: Defaults to today's real date in both AD and BS calendar mode dynamically on startup. Added inline **RESCHEDULE** button on appointment cards with synced AD/BS date picker, time, and notes.
+- **NiZi POS B33 Soundbox Standby Logo**: User toggle in NepalPay section for Default Standby Screen (Clinic Standby Logo vs Clinic Guest Wi-Fi QR), only pushing payment QRs upon explicit user click.
 - **Lab Works Lab Companies Management**: Replaced hardcoded lab partners with persistent \`laboratories\` table in SQLite. Added **Manage Labs** modal allowing clinic to add new labs and edit existing lab details with cascade rename across lab cases and payments.
 - **Transactions Month & Date Range Filters**: Added Calendar Mode switcher (BS Nepali vs AD English), quick filter buttons (Today, This Month BS, This Month AD, This Week, This Year, All Time), and custom date range inputs.
 - **Visit Procedure Editing**: Same-day visits can be edited directly by staff; visits from earlier dates require Admin PIN authorization before unlocking the visit editor.

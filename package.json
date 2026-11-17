@@ -1,6 +1,6 @@
 {
   "name": "infinity-dental-clinic",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "description": "Infinity Dental Clinic offline desktop management and billing app",
   "main": "main.js",
   "author": "Infinity Dental Clinic",
@@ -53,9 +53,10 @@
       "icon": "assets/clinic-logo.png"
     },
     "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
+      "runAfterFinish": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
