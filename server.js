@@ -505,6 +505,34 @@ function initDatabase() {
       created_at TEXT NOT NULL
     )`);
 
+    db.exec(`CREATE TABLE IF NOT EXISTS laboratories (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      contact_person TEXT,
+      phone TEXT,
+      address TEXT,
+      opening_balance REAL DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+    try {
+      const labCount = db.prepare('SELECT COUNT(*) as count FROM laboratories').get();
+      if (!labCount || labCount.count === 0) {
+        const now = new Date().toISOString();
+        const insertLab = db.prepare(`
+          INSERT INTO laboratories (id, name, contact_person, phone, address, opening_balance, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)
+        `);
+        insertLab.run('lab-1', 'Smile Lab', 'Manager', '9800000001', 'Kathmandu', 8000, now, now);
+        insertLab.run('lab-2', 'Dental Craft', 'Manager', '9800000002', 'Lalitpur', 0, now, now);
+        insertLab.run('lab-3', 'Precision Dental Lab', 'Manager', '9800000003', 'Kathmandu', 5000, now, now);
+      }
+    } catch (seedErr) {
+      console.warn('[SQLite Laboratories Seed]', seedErr.message);
+    }
+
 
     // --- LAB, PURCHASES & STOCKS DATABASE TABLES ---
 
@@ -2610,6 +2638,70 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Laboratory Companies Management Endpoints
+  if (pathname === '/api/lab/companies' && req.method === 'GET') {
+    try {
+      const rows = db.prepare('SELECT * FROM laboratories ORDER BY name ASC').all();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, labs: rows }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message, labs: [] }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/lab/companies' && req.method === 'POST') {
+    try {
+      const lab = await parseJsonBody(req);
+      const id = lab.id || ('lab-' + Date.now());
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO laboratories (id, name, contact_person, phone, address, opening_balance, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)
+      `).run(id, lab.name.trim(), lab.contact_person || '', lab.phone || '', lab.address || '', Number(lab.opening_balance || 0), now, now);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, id }));
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/lab/companies/update' && req.method === 'POST') {
+    try {
+      const lab = await parseJsonBody(req);
+      const now = new Date().toISOString();
+      const existing = db.prepare('SELECT * FROM laboratories WHERE id = ?').get(lab.id);
+      if (!existing) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Laboratory not found' }));
+        return;
+      }
+
+      db.prepare(`
+        UPDATE laboratories 
+        SET name = ?, contact_person = ?, phone = ?, address = ?, opening_balance = ?, updated_at = ?
+        WHERE id = ?
+      `).run(lab.name.trim(), lab.contact_person || '', lab.phone || '', lab.address || '', Number(lab.opening_balance || 0), now, lab.id);
+
+      if (existing.name !== lab.name.trim()) {
+        try {
+          db.prepare('UPDATE lab_cases SET lab = ? WHERE lab = ?').run(lab.name.trim(), existing.name);
+          db.prepare('UPDATE lab_payments SET lab = ? WHERE lab = ?').run(lab.name.trim(), existing.name);
+        } catch (_) {}
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
   // 11. Launch CH341 USB Soundbox Driver Installer
   if (pathname === '/api/nizi/install-driver' && req.method === 'POST') {
     try {
@@ -2932,7 +3024,14 @@ const server = http.createServer(async (req, res) => {
     try {
       const queryParams = url.searchParams;
       const monthBs = queryParams.get('month') || '07';
-      const LABS = { 'Smile Lab': 8000, 'Dental Craft': 0, 'Precision Dental Lab': 5000 };
+      const labRows = db.prepare('SELECT name, opening_balance FROM laboratories WHERE status = "active"').all();
+      const LABS = {};
+      labRows.forEach(l => { LABS[l.name] = Number(l.opening_balance || 0); });
+      if (!Object.keys(LABS).length) {
+        LABS['Smile Lab'] = 8000;
+        LABS['Dental Craft'] = 0;
+        LABS['Precision Dental Lab'] = 5000;
+      }
       const MS = ['04', '05', '06', '07'];
 
       const cases = db.prepare('SELECT * FROM lab_cases').all();

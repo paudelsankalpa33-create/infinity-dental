@@ -246,6 +246,34 @@ function openDb(){
     remarks TEXT,
     created_at TEXT NOT NULL
   )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS laboratories (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    contact_person TEXT,
+    phone TEXT,
+    address TEXT,
+    opening_balance REAL DEFAULT 0,
+    status TEXT DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+
+  try {
+    const labCount = db.prepare('SELECT COUNT(*) as count FROM laboratories').get();
+    if (!labCount || labCount.count === 0) {
+      const now = new Date().toISOString();
+      const insertLab = db.prepare(`
+        INSERT INTO laboratories (id, name, contact_person, phone, address, opening_balance, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)
+      `);
+      insertLab.run('lab-1', 'Smile Lab', 'Manager', '9800000001', 'Kathmandu', 8000, now, now);
+      insertLab.run('lab-2', 'Dental Craft', 'Manager', '9800000002', 'Lalitpur', 0, now, now);
+      insertLab.run('lab-3', 'Precision Dental Lab', 'Manager', '9800000003', 'Kathmandu', 5000, now, now);
+    }
+  } catch (seedErr) {
+    console.warn('[SQLite Laboratories Seed]', seedErr.message);
+  }
 }
 
 let mainWindow = null;
@@ -1484,32 +1512,66 @@ ipcMain.handle('nepalpay:logs:add', async (_event, record) => {
   }
 });
 
+ipcMain.handle('labs:list', async () => {
+  try {
+    if (!db) openDb();
+    const rows = db.prepare('SELECT * FROM laboratories ORDER BY name ASC').all();
+    return { success: true, labs: rows };
+  } catch (e) {
+    console.error('[labs:list]', e);
+    return { success: false, error: e.message, labs: [] };
+  }
+});
+
+ipcMain.handle('labs:create', async (_event, lab) => {
+  try {
+    if (!db) openDb();
+    const id = lab.id || ('lab-' + Date.now());
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO laboratories (id, name, contact_person, phone, address, opening_balance, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)
+    `).run(id, lab.name.trim(), lab.contact_person || '', lab.phone || '', lab.address || '', Number(lab.opening_balance || 0), now, now);
+    return { success: true, id };
+  } catch (e) {
+    console.error('[labs:create]', e);
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('labs:update', async (_event, lab) => {
+  try {
+    if (!db) openDb();
+    const now = new Date().toISOString();
+    const existing = db.prepare('SELECT * FROM laboratories WHERE id = ?').get(lab.id);
+    if (!existing) return { success: false, error: 'Laboratory not found' };
+
+    db.prepare(`
+      UPDATE laboratories 
+      SET name = ?, contact_person = ?, phone = ?, address = ?, opening_balance = ?, updated_at = ?
+      WHERE id = ?
+    `).run(lab.name.trim(), lab.contact_person || '', lab.phone || '', lab.address || '', Number(lab.opening_balance || 0), now, lab.id);
+
+    if (existing.name !== lab.name.trim()) {
+      try {
+        db.prepare('UPDATE lab_cases SET lab = ? WHERE lab = ?').run(lab.name.trim(), existing.name);
+        db.prepare('UPDATE lab_payments SET lab = ? WHERE lab = ?').run(lab.name.trim(), existing.name);
+      } catch (_) {}
+    }
+
+    return { success: true };
+  } catch (e) {
+    console.error('[labs:update]', e);
+    return { success: false, error: e.message };
+  }
+});
+
 app.whenReady().then(async ()=>{
   registerSerialPortHandler(session.defaultSession);
   openDb();
   createWindow();
   app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()});
-
-  // Automatically trigger a live test request to capture live gateway logs & trace ID for NCHL support
-  console.log('\n======================================================');
-  console.log('⚡ [NCHL Live Gateway Test] Initiating NEPALPAY Dynamic QR test request on boot...');
-  console.log('======================================================');
-  try {
-    const testResult = await callNpiGenerateQrMain({
-      amount: 1500,
-      billNumber: 'TEST-' + Date.now(),
-      remarks: 'NCHL Verification Test',
-      patientContact: '9800000000'
-    });
-    console.log('======================================================');
-    console.log(`⚡ [NCHL Live Gateway Test Result] HTTP Status       : ${testResult.statusCode}`);
-    console.log(`⚡ [NCHL Live Gateway Test Result] Validation Trace ID: ${testResult.validationTraceId}`);
-    console.log(`⚡ [NCHL Live Gateway Test Result] Bill Number        : ${testResult.billNumber}`);
-    console.log(`⚡ [NCHL Live Gateway Test Result] Raw Gateway Body   :`, testResult.body);
-    console.log('======================================================\n');
-  } catch (err) {
-    console.error('❌ [NCHL Live Gateway Test Error]:', err);
-  }
+  // Standby mode on boot - NiZi soundbox stays in IDLE / Standby logo
 });
 app.on('window-all-closed',()=>{if(db)db.close();if(process.platform!=='darwin')app.quit()});
 

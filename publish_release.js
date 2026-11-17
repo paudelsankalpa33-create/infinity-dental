@@ -122,14 +122,14 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
-- **Official Clinic PAN in Red-Lined Logo Area**: Moved Clinic PAN **125302054** directly into the red-lined area under the clinic logo on all printed A5 patient bills, with a matching PAN badge on the Patient Tax Invoice header, and cleaned up address lines.
-- **Confidential NepalPay Financial Audit Logs in Settings**: Dedicated financial audit log for managers and superadmins, viewable strictly inside Settings (📋 NepalPay Financial Logs). Records all NepalPay dynamic QR collections, simulator payments, gateway trace IDs, OPD numbers, and patient names, with 1-click CSV export and printable audit sheets.
-- **Transaction & Revenue Count Metrics**: Real-time transaction counts displayed directly in the Total Revenue section and payment method cards (Total Transactions & Revenue, Cash Payments count, and NepalPay/Digital count) with dynamic daily, weekly, monthly, and yearly filtering.
-- **Operations & Inventory Workspace**: Verified full viewport grid layout so Purchases & Inventory, Stocks, and Staff & Accounts render cleanly at the top of the main workspace.
-- **Always-Active ADD VISIT & SAVE**: Staged visits can always be saved with automatic "General Dental Consultation & Checkup" fallback if empty, and syncs appointment and payments in one click.
-- **Official Clinic Details Everywhere**: Phone numbers **9768592344, 01-4514888**, email **The.infinity.dental@gmail.com**, and website **www.infinitydentalclinic.com.np** active across bills, OPD stickers, settings, and navigation.
-- **Single-Page A5 Patient Bills**: Standardized patient bills to fit cleanly on a single sheet of A5 paper (148mm × 210mm) with official clinic stamp seal.
-- **Instant In-App Updater**: Fast 0.6MB patch with zero permission errors and automatic restart.`;
+- **Appointments Real Date & Reschedule**: Defaults to today's real date in both AD and BS calendar mode dynamically on startup. Added inline **RESCHEDULE** button on appointment cards with synced AD/BS date picker, time, and notes, refreshing SQLite records immediately.
+- **NiZi POS B33 Soundbox Standby Logo**: Removed boot-time test QR. Added user toggle in NepalPay section for Default Standby Screen (Clinic Standby Logo vs Clinic Guest Wi-Fi QR), only pushing payment QRs upon explicit user click.
+- **Lab Works Lab Companies Management**: Replaced hardcoded lab partners with persistent \`laboratories\` table in SQLite (seeded with Smile Lab, Dental Craft, Precision Dental Lab). Added **Manage Labs** modal allowing clinic to add new labs and edit existing lab details with cascade rename across lab cases and payments.
+- **Transactions Month & Date Range Filters**: Added Calendar Mode switcher (BS Nepali vs AD English), quick filter buttons (Today, This Month BS, This Month AD, This Week, This Year, All Time), and custom date range inputs (From Date and To Date) with dynamic recalculation of total revenue and transaction counts.
+- **Visit Procedure Editing (Same-Day Direct + Admin PIN for Prior Visits)**: Added **Edit Procedures** button on patient visit history rows. Same-day visits can be edited directly by staff; visits from earlier dates require Admin PIN authorization before unlocking the visit editor to update procedures, tooth numbers, notes, and charges.
+- **Dashboard Patients Attended Today**: Upgraded Today's Patients KPI card and added Patients Attended Today view showing ALL patients who attended today (registered today, logged visit/procedure today, marked arrived today, or billed today, including Rs. 0 follow-ups covered by previous visits). Shows OPD No., Name, Contact, Reason, and status badges.
+- **Input Contrast & Non-blocking Dialogs**: Replaced native prompt dialogs with custom dark-mode HTML modal (#adminPinModal) to eliminate Windows/Electron focus locks. Styled all selects, date pickers, and modals with high-contrast dark theme.
+- **Section Viewport Scroll Reset**: Navigation clicks automatically reset viewport scroll to top so operations and settings pages never open scrolled down into the footer.`;
 
   if (!release) {
     console.log(`Creating new GitHub Release for ${tag}...`);

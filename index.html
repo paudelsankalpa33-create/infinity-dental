@@ -245,7 +245,7 @@
             <button id="settingsUpdateBtn" class="settings-flyout-item"
               onclick="openUpdateModal(); closeSettingsMenu();">
               <span class="settings-item-title">Updates</span>
-              <span id="settingsVersionBadge" class="header-version-pill">v1.0.21</span>
+              <span id="settingsVersionBadge" class="header-version-pill">v1.0.22</span>
             </button>
             <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
               <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
@@ -302,7 +302,7 @@
               </div>
               <div class="stat" id="statPatients">0</div>
             </div>
-            <div class="card">
+            <div class="card clickable" onclick="scrollToAttendedToday()" title="Click to view all patients attended today (including follow-ups &amp; non-paying visits)">
               <div class="kpi-header">
                 <div class="muted">Today's Patients</div>
                 <div class="kpi-icon-badge kpi-badge-emerald">
@@ -315,6 +315,7 @@
                 </div>
               </div>
               <div class="stat" id="statToday">0</div>
+              <div class="muted" style="font-size:11px;margin-top:4px">Attended Today ➔</div>
             </div>
             <div class="card">
               <div class="kpi-header">
@@ -396,6 +397,20 @@
               </div>
             </div>
           </div>
+
+          <!-- Patients Attended Today Card -->
+          <div class="card" id="attendedTodayCard" style="margin-top:18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <div>
+                <div class="section-title" id="attendedTodayTitle" style="margin:0">Patients Attended Today</div>
+                <div class="muted" style="font-size:11.5px">All patients who registered, had a clinical visit, completed a follow-up, or made a payment today</div>
+              </div>
+              <div class="muted" style="font-size:11.5px">Click any patient row to open clinical profile</div>
+            </div>
+            <div id="attendedTodayList">
+              <div class="empty">No patients have attended yet today.</div>
+            </div>
+          </div>
         </div>
       </section>
       <section id="register" class="page">
@@ -464,14 +479,40 @@
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
           <div>
             <div class="title">Clinic Transactions &amp; Revenue</div>
-            <div class="muted">Review daily, weekly, monthly, and yearly transaction revenue and payment records.</div>
+            <div class="muted">Review daily, monthly (BS / AD), yearly, and custom date range revenue records.</div>
           </div>
-          <div class="toolbar" style="margin:0;gap:8px">
-            <button id="txToday" class="btn primary" onclick="setTransactionRange('today')">Today</button>
-            <button id="txWeek" class="btn secondary" onclick="setTransactionRange('week')">This Week</button>
-            <button id="txMonth" class="btn secondary" onclick="setTransactionRange('month')">This Month</button>
-            <button id="txYear" class="btn secondary" onclick="setTransactionRange('year')">This Year</button>
-            <button id="txAll" class="btn secondary" onclick="setTransactionRange('all')">All Time</button>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="muted" style="font-size:11.5px;font-weight:700">CALENDAR:</span>
+            <div class="toolbar" style="margin:0;gap:4px">
+              <button id="txModeBS" class="btn primary" style="padding:6px 10px;font-size:11.5px" onclick="setTransactionCalendarMode('BS')">BS (Nepali)</button>
+              <button id="txModeAD" class="btn secondary" style="padding:6px 10px;font-size:11.5px" onclick="setTransactionCalendarMode('AD')">AD (English)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comprehensive Filter Bar -->
+        <div class="card" style="margin-top:14px;padding:12px 16px;background:#090d16;border:1px solid #1e293b;border-radius:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span class="muted" style="font-size:11.5px;font-weight:700">QUICK PERIOD:</span>
+              <div class="toolbar" style="margin:0;gap:4px">
+                <button id="txToday" class="btn primary" style="padding:5px 10px;font-size:11.5px" onclick="setTransactionRange('today')">Today</button>
+                <button id="txMonthBs" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setTransactionRange('this_month_bs')">This Month (BS)</button>
+                <button id="txMonthAd" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setTransactionRange('this_month_ad')">This Month (AD)</button>
+                <button id="txWeek" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setTransactionRange('week')">This Week</button>
+                <button id="txYear" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setTransactionRange('year')">This Year</button>
+                <button id="txAll" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setTransactionRange('all')">All Time</button>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span class="muted" style="font-size:11.5px;font-weight:700">CUSTOM RANGE:</span>
+              <input id="txDateFrom" type="text" placeholder="From (YYYY-MM-DD)" style="width:130px;padding:5px 9px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" />
+              <span class="muted" style="font-size:12px">to</span>
+              <input id="txDateTo" type="text" placeholder="To (YYYY-MM-DD)" style="width:130px;padding:5px 9px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" />
+              <button class="btn primary" style="padding:5px 12px;font-size:11.5px" onclick="applyTransactionCustomRange()">Apply</button>
+              <button class="btn secondary" style="padding:5px 9px;font-size:11.5px" onclick="resetTransactionFilters()">✕</button>
+            </div>
           </div>
         </div>
 
@@ -939,8 +980,14 @@
                 title="Open standalone NiZi B33 HTTP Bridge (Port 9121) diagnostic tester">🧪 Full Tester</button>
             </div>
           </div>
-          <div class="muted" style="font-size:11px;margin-bottom:14px;text-align:center">3.5" Color LCD &amp; 3W Speaker
-            Soundbox</div>
+          <div class="muted" style="font-size:11px;margin-bottom:10px;text-align:center">3.5" Color LCD &amp; 3W Speaker Soundbox</div>
+          <div style="background:#090d16;padding:8px 12px;border-radius:8px;border:1px solid #1e293b;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span class="muted" style="font-size:11px;font-weight:700">DEFAULT STANDBY SCREEN:</span>
+            <select id="niziStartupScreenSelect" onchange="onNiziStartupScreenChange(this.value)" style="padding:4px 8px;font-size:11.5px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155">
+              <option value="idle">Clinic Standby Logo (IDLE)</option>
+              <option value="wifi">Clinic Guest Wi-Fi QR</option>
+            </select>
+          </div>
 
           <div class="nizi-device">
             <div class="nizi-header">
@@ -1270,6 +1317,7 @@
         <div class="muted">Lab assignments, delivery progress and laboratory accounts</div>
       </div>
       <div class="actions">
+        <button class="btn secondary" onclick="openManageLabsModal()" style="display:inline-flex;align-items:center;gap:6px">🏢 Manage Labs</button>
         <button class="btn secondary" onclick="dlOpen(this)">⬇ Download Records</button>
         <button class="btn primary" onclick="labTab('new')">＋ Assign Lab Work</button>
       </div>
@@ -2091,7 +2139,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:12px;font-weight:700;color:#000000">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.21</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.22</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:700;color:#000000">Update Server:</span>
@@ -2429,6 +2477,245 @@
     </div>
   </div>
 
+
+
+  <!-- Reschedule Appointment Modal -->
+  <div id="rescheduleModal" class="modal" onclick="if(event.target===this)closeRescheduleModal()">
+    <div class="modal-box" style="width:min(540px,96vw);padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">📅</span>
+          <div>
+            <div style="font-weight:800;font-size:16px;letter-spacing:-.2px">Reschedule Appointment</div>
+            <div class="muted" style="font-size:11.5px" id="reschedulePatientHeader">Select new appointment date and time</div>
+          </div>
+        </div>
+        <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeRescheduleModal()">✕</button>
+      </div>
+
+      <input type="hidden" id="reschedulePatientId" value="" />
+
+      <div style="background:#090d16;padding:10px 14px;border-radius:8px;border:1px solid #1e293b;margin-bottom:14px">
+        <div class="muted" style="font-size:11px;font-weight:700">CURRENT APPOINTMENT:</div>
+        <div id="rescheduleCurrentDetails" style="font-weight:700;color:#38bdf8;margin-top:2px;font-size:13px">—</div>
+      </div>
+
+      <div class="formgrid">
+        <div class="field">
+          <label>English Date (AD) — Click to pick or type</label>
+          <input id="rescheduleAdDate" type="date" onclick="this.showPicker &amp;&amp; this.showPicker()" onchange="onRescheduleAdChange(this.value)" />
+        </div>
+        <div class="field">
+          <label>Nepali Date (BS) — Write / Edit</label>
+          <input id="rescheduleBsDate" placeholder="YYYY-MM-DD (e.g. 2083-08-05)" oninput="onRescheduleBsChange(this.value)" />
+        </div>
+      </div>
+      <div id="rescheduleBsDisplay" class="appt-bs-sync-badge" style="margin-top:8px">📅 Select or write a date above</div>
+
+      <div style="margin-top:12px">
+        <div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px">QUICK DATE PRESETS:</div>
+        <div class="quick-dates" style="flex-wrap:wrap">
+          <button type="button" class="btn secondary" onclick="setQuickRescheduleDate(1)">TOMORROW</button>
+          <button type="button" class="btn secondary" onclick="setQuickRescheduleDate(3)">AFTER 3 DAYS</button>
+          <button type="button" class="btn secondary" onclick="setQuickRescheduleDate(7)">AFTER 1 WEEK</button>
+          <button type="button" class="btn secondary" onclick="setQuickRescheduleDate(14)">AFTER 2 WEEKS</button>
+          <button type="button" class="btn secondary" onclick="setQuickRescheduleDate(30)">AFTER 1 MONTH</button>
+        </div>
+      </div>
+
+      <div class="formgrid" style="margin-top:14px;align-items:flex-end">
+        <div class="field">
+          <label>New Time</label>
+          <input id="rescheduleTime" type="time" onclick="this.showPicker &amp;&amp; this.showPicker()" value="10:00" />
+        </div>
+        <div class="field">
+          <label class="muted" style="font-size:11px">Common Time Slots:</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" class="btn secondary" style="padding:6px 9px;font-size:11px" onclick="document.getElementById('rescheduleTime').value='10:00'">10:00 AM</button>
+            <button type="button" class="btn secondary" style="padding:6px 9px;font-size:11px" onclick="document.getElementById('rescheduleTime').value='11:30'">11:30 AM</button>
+            <button type="button" class="btn secondary" style="padding:6px 9px;font-size:11px" onclick="document.getElementById('rescheduleTime').value='14:00'">02:00 PM</button>
+            <button type="button" class="btn secondary" style="padding:6px 9px;font-size:11px" onclick="document.getElementById('rescheduleTime').value='16:00'">04:00 PM</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:12px">
+        <label>Reschedule Reason / Follow-up Note (Optional)</label>
+        <textarea id="rescheduleNotes" rows="2" placeholder="e.g. Patient requested afternoon time slot next week."></textarea>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+        <button class="btn secondary" onclick="closeRescheduleModal()">Cancel</button>
+        <button class="btn primary" onclick="saveRescheduleAppointment()">✓ SAVE RESCHEDULED APPOINTMENT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage Laboratories Modal -->
+  <div id="manageLabsModal" class="modal" onclick="if(event.target===this)closeManageLabsModal()">
+    <div class="modal-box" style="width:min(780px,96vw);max-height:90vh;display:flex;flex-direction:column;padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">🏢</span>
+          <div>
+            <div style="font-weight:800;font-size:16px;letter-spacing:-.2px">Laboratory Companies &amp; Partners</div>
+            <div class="muted" style="font-size:11.5px">Add, edit and manage dental lab partners and opening balances</div>
+          </div>
+        </div>
+        <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeManageLabsModal()">✕</button>
+      </div>
+
+      <!-- Add / Edit Form Card -->
+      <div style="background:#090d16;padding:14px;border-radius:10px;border:1px solid #1e293b;margin-bottom:16px">
+        <div style="font-weight:700;font-size:13px;color:#f8fafc;margin-bottom:8px" id="labFormTitle">＋ Add New Lab Company</div>
+        <input type="hidden" id="labEditId" value="" />
+        <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr auto;gap:8px;align-items:flex-end">
+          <div class="field" style="margin:0">
+            <label style="font-size:11px">Lab Name *</label>
+            <input id="labNameInput" type="text" placeholder="e.g. Apex Dental Lab" required />
+          </div>
+          <div class="field" style="margin:0">
+            <label style="font-size:11px">Contact Person</label>
+            <input id="labContactInput" type="text" placeholder="e.g. Ramesh" />
+          </div>
+          <div class="field" style="margin:0">
+            <label style="font-size:11px">Phone</label>
+            <input id="labPhoneInput" type="text" placeholder="e.g. 9801234567" />
+          </div>
+          <div class="field" style="margin:0">
+            <label style="font-size:11px">Opening Bal (Rs.)</label>
+            <input id="labBalanceInput" type="number" min="0" step="100" value="0" />
+          </div>
+          <div>
+            <button class="btn primary" id="saveLabBtn" onclick="saveLabCompany()" style="padding:8px 14px;font-size:12px">Save Lab</button>
+            <button class="btn secondary" id="cancelLabEditBtn" onclick="resetLabForm()" style="display:none;padding:8px 10px;font-size:12px;margin-left:4px">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Labs Table -->
+      <div class="tablewrap" style="flex:1;max-height:45vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+        <table class="table" style="width:100%;font-size:12px;margin:0">
+          <thead style="position:sticky;top:0;background:var(--card);z-index:2">
+            <tr>
+              <th>Lab Name</th>
+              <th>Contact Person</th>
+              <th>Phone</th>
+              <th>Address</th>
+              <th style="text-align:right">Opening Balance</th>
+              <th style="text-align:center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="manageLabsTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Admin PIN Authorization Modal (Non-Blocking HTML Dialog) -->
+  <div id="adminPinModal" class="modal" onclick="if(event.target===this)closeAdminPinModal()">
+    <div class="modal-box" style="width:min(400px,94vw);padding:24px;border:1px solid #334155;background:#0f172a;border-radius:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:36px;height:36px;border-radius:8px;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;color:#ef4444;font-size:18px">
+          🔒
+        </div>
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#f8fafc" id="adminPinModalTitle">Admin PIN Authorization</div>
+          <div class="muted" style="font-size:11.5px" id="adminPinModalMsg">Enter 4-digit PIN to authorize this change.</div>
+        </div>
+      </div>
+      <input id="adminPinModalInput" type="password" maxlength="30" placeholder="••••" 
+             onkeydown="if(event.key==='Enter')confirmAdminPinModal()"
+             style="width:100%;font-size:20px;letter-spacing:6px;text-align:center;padding:10px;border-radius:8px;background:#090d16;color:#f8fafc;border:1px solid #334155;margin:8px 0 12px 0" />
+      <div id="adminPinModalErr" style="color:#ef4444;font-size:12px;min-height:16px;text-align:center;margin-bottom:12px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn secondary" onclick="closeAdminPinModal()">Cancel</button>
+        <button class="btn primary" onclick="confirmAdminPinModal()">Unlock &amp; Proceed</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Procedures Done on Visit Modal -->
+  <div id="editVisitModal" class="modal" onclick="if(event.target===this)closeEditVisitModal()">
+    <div class="modal-box" style="width:min(680px,96vw);padding:24px;max-height:90vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">✎</span>
+          <div>
+            <div style="font-weight:800;font-size:16px;letter-spacing:-.2px">Edit Clinical Visit &amp; Procedures</div>
+            <div class="muted" style="font-size:11.5px" id="editVisitHeaderInfo">Patient procedures and clinical charges</div>
+          </div>
+        </div>
+        <button class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeEditVisitModal()">✕</button>
+      </div>
+
+      <input type="hidden" id="editVisitPatientId" value="" />
+      <input type="hidden" id="editVisitId" value="" />
+
+      <div style="flex:1;overflow-y:auto;padding-right:4px">
+        <div class="formgrid">
+          <div class="field">
+            <label>Procedures Done / Treatments Performed *</label>
+            <input id="editVisitProcedures" type="text" placeholder="e.g. Scaling &amp; Polishing, Composite Filling" required />
+          </div>
+          <div class="field">
+            <label>Tooth Numbers / Quadrants (Optional)</label>
+            <input id="editVisitTeeth" type="text" placeholder="e.g. 16, 26, Upper Right" />
+          </div>
+        </div>
+
+        <div class="formgrid" style="margin-top:12px">
+          <div class="field">
+            <label>Procedure Charge / Cost (Rs.) *</label>
+            <input id="editVisitCost" type="number" min="0" step="1" required oninput="recalcEditVisitTotals()" />
+          </div>
+          <div class="field">
+            <label>Discount Amount (Rs.)</label>
+            <input id="editVisitDiscount" type="number" min="0" step="1" value="0" oninput="recalcEditVisitTotals()" />
+          </div>
+        </div>
+
+        <div class="formgrid" style="margin-top:12px">
+          <div class="field">
+            <label>Payment Collected (Rs.)</label>
+            <input id="editVisitPayment" type="number" min="0" step="1" value="0" oninput="recalcEditVisitTotals()" />
+          </div>
+          <div class="field">
+            <label>Payment Mode</label>
+            <select id="editVisitPaymentMode">
+              <option value="Cash">Cash</option>
+              <option value="NepalPay QR">NepalPay QR</option>
+              <option value="mPOS">mPOS / Card</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="background:#090d16;padding:12px 14px;border-radius:8px;border:1px solid #1e293b;margin:14px 0;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="muted" style="font-size:11px">FINAL NET CHARGE:</div>
+            <strong id="editVisitNetCharge" style="font-size:15px;color:#38bdf8">Rs. 0</strong>
+          </div>
+          <div>
+            <div class="muted" style="font-size:11px">BALANCE DUE:</div>
+            <strong id="editVisitBalanceDue" style="font-size:15px;color:#ef4444">Rs. 0</strong>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Doctor's Clinical Notes / Remarks</label>
+          <textarea id="editVisitNotes" rows="3" placeholder="Clinical observations, tooth preparation details, prescriptions given..."></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+        <button class="btn secondary" onclick="closeEditVisitModal()">Cancel</button>
+        <button class="btn primary" onclick="saveEditedVisit()">✓ SAVE PROCEDURE CHANGES</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Printable Reception Wi-Fi Desk Stand Card -->
   <div id="wifiPrintTentCard">

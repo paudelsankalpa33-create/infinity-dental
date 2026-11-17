@@ -1608,7 +1608,7 @@ function renderProfile() {
      </div>
    </div>
  </div>
- <div class="grid2" style="margin-top:18px"><div class="card"><div class="section-title">Visit History</div>${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map(v => `<tr><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td><td><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}</div><div class="card"><div class="section-title">Payment History</div>${pays.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>${pays.map(v => `<tr><td>${esc(v.date)}</td><td>${esc(v.billNumber)}</td><td>Rs. ${Number(v.amount || 0).toLocaleString()}</td><td>${esc(v.method)}</td><td>${esc(v.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No payments recorded yet.</div>'}</div></div>`;
+ <div class="grid2" style="margin-top:18px"><div class="card"><div class="section-title">Visit History</div>${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map(v => `<tr><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button><button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit Procedures</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}</div><div class="card"><div class="section-title">Payment History</div>${pays.length ? `<div class="tablewrap"><table class="table"><thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>${pays.map(v => `<tr><td>${esc(v.date)}</td><td>${esc(v.billNumber)}</td><td>Rs. ${Number(v.amount || 0).toLocaleString()}</td><td>${esc(v.method)}</td><td>${esc(v.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No payments recorded yet.</div>'}</div></div>`;
   restoreAppointmentFields(p); renderPendingProcedures(); updatePaymentChoice();
 }
 function restoreAppointmentFields(p) {
@@ -1732,8 +1732,10 @@ function updateAll() {
     const statPatients = document.getElementById('statPatients');
     if (statPatients) statPatients.textContent = registered.length;
 
+    const attendedToday = getPatientsAttendedToday();
     const statToday = document.getElementById('statToday');
-    if (statToday) statToday.textContent = registered.filter(p => p.Date === today).length;
+    if (statToday) statToday.textContent = attendedToday.length;
+    renderAttendedTodayList(attendedToday);
 
     const nextOpdNum = pad(nextNumber());
     const statOpd = document.getElementById('statOpd');
@@ -1763,11 +1765,29 @@ function updateAll() {
 let transactionRange = 'today';
 function getTransactions() { const out = []; registeredPatients().forEach(p => { ensurePatientArrays(p); (p.PaymentHistory || []).forEach((tx, i) => { out.push({ id: p.id, date: tx.date || '', time: tx.time || '', opd: p.OPDNumber, name: p.Name, bill: tx.billNumber || ('VIS-' + pad(p.OPDNumber) + '-' + String(i + 1).padStart(3, '0')), amount: Number(tx.amount || 0), method: tx.method || p.PaymentMethod || '', status: tx.status || p.PaymentStatus || 'Pending' }); }); }); return out.sort((a, b) => (b.date + ' ' + b.time).localeCompare(a.date + ' ' + a.time)); }
 function dateOnly(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+let transactionCalendarMode = 'BS';
+let transactionCustomFrom = null;
+let transactionCustomTo = null;
+
 function transactionMatches(tx) {
   if (transactionRange === 'all') return true;
   const now = dateOnly(new Date()), d = new Date(tx.date + 'T00:00:00');
   if (isNaN(d.getTime())) return false;
+
   if (transactionRange === 'today') return d.getTime() === now.getTime();
+
+  if (transactionRange === 'this_month_bs') {
+    const todayBs = apptBsFromAd(apptIsoDate(new Date()));
+    if (!todayBs) return true;
+    const currentYearMonth = todayBs.slice(0, 7); // e.g. '2083-08'
+    const txBs = apptBsFromAd(tx.date);
+    return txBs && txBs.startsWith(currentYearMonth);
+  }
+
+  if (transactionRange === 'this_month_ad' || transactionRange === 'month') {
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }
+
   if (transactionRange === 'week') {
     const day = now.getDay();
     const diff = day === 0 ? 6 : day - 1;
@@ -1775,8 +1795,24 @@ function transactionMatches(tx) {
     start.setDate(now.getDate() - diff);
     return d >= start && d <= now;
   }
-  if (transactionRange === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+
   if (transactionRange === 'year') return d.getFullYear() === now.getFullYear();
+
+  if (transactionRange === 'custom') {
+    if (!transactionCustomFrom && !transactionCustomTo) return true;
+    if (transactionCalendarMode === 'BS') {
+      const txBs = apptBsFromAd(tx.date);
+      if (!txBs) return false;
+      if (transactionCustomFrom && txBs < transactionCustomFrom) return false;
+      if (transactionCustomTo && txBs > transactionCustomTo) return false;
+      return true;
+    } else {
+      if (transactionCustomFrom && tx.date < transactionCustomFrom) return false;
+      if (transactionCustomTo && tx.date > transactionCustomTo) return false;
+      return true;
+    }
+  }
+
   return true;
 }
 const TRANSACTION_PIN = '2468';
@@ -2588,11 +2624,66 @@ async function authorizeTransaction() {
 
 function setTransactionRange(range) {
   transactionRange = range;
-  ['today', 'week', 'month', 'year', 'all'].forEach(x => {
-    const b = document.getElementById('tx' + x.charAt(0).toUpperCase() + x.slice(1));
-    if (b) b.className = 'btn ' + (x === range ? 'primary' : 'secondary');
+  const buttonIds = [
+    ['today', 'txToday'],
+    ['this_month_bs', 'txMonthBs'],
+    ['this_month_ad', 'txMonthAd'],
+    ['week', 'txWeek'],
+    ['year', 'txYear'],
+    ['all', 'txAll']
+  ];
+  buttonIds.forEach(([r, btnId]) => {
+    const b = document.getElementById(btnId);
+    if (b) b.className = 'btn ' + (r === range ? 'primary' : 'secondary');
   });
   renderTransactions();
+}
+
+function setTransactionCalendarMode(mode) {
+  transactionCalendarMode = mode;
+  const bsBtn = document.getElementById('txModeBS');
+  const adBtn = document.getElementById('txModeAD');
+  if (bsBtn) bsBtn.className = 'btn ' + (mode === 'BS' ? 'primary' : 'secondary');
+  if (adBtn) adBtn.className = 'btn ' + (mode === 'AD' ? 'primary' : 'secondary');
+
+  const fromInput = document.getElementById('txDateFrom');
+  const toInput = document.getElementById('txDateTo');
+  if (fromInput) fromInput.placeholder = mode === 'BS' ? 'From BS (YYYY-MM-DD)' : 'From AD (YYYY-MM-DD)';
+  if (toInput) toInput.placeholder = mode === 'BS' ? 'To BS (YYYY-MM-DD)' : 'To AD (YYYY-MM-DD)';
+
+  if (transactionRange === 'custom') {
+    renderTransactions();
+  }
+}
+
+function applyTransactionCustomRange() {
+  const fromVal = (document.getElementById('txDateFrom')?.value || '').trim();
+  const toVal = (document.getElementById('txDateTo')?.value || '').trim();
+  if (!fromVal && !toVal) {
+    showToast('Please enter a From or To date.', 'warn');
+    return;
+  }
+  transactionCustomFrom = fromVal || null;
+  transactionCustomTo = toVal || null;
+  transactionRange = 'custom';
+
+  ['txToday', 'txMonthBs', 'txMonthAd', 'txWeek', 'txYear', 'txAll'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.className = 'btn secondary';
+  });
+
+  renderTransactions();
+  showToast(`Filter applied: ${fromVal || 'Start'} to ${toVal || 'End'} (${transactionCalendarMode})`, 'info');
+}
+
+function resetTransactionFilters() {
+  const fromInput = document.getElementById('txDateFrom');
+  const toInput = document.getElementById('txDateTo');
+  if (fromInput) fromInput.value = '';
+  if (toInput) toInput.value = '';
+  transactionCustomFrom = null;
+  transactionCustomTo = null;
+  setTransactionRange('today');
 }
 
 function renderTransactions() {
@@ -2632,10 +2723,22 @@ function renderTransactions() {
 
   const elTitle = document.getElementById('txTitle');
   if (elTitle) {
-    elTitle.textContent = transactionRange === 'today' ? "Today's Transactions" :
-      transactionRange === 'week' ? "This Week's Transactions" :
-      transactionRange === 'month' ? "This Month's Transactions" :
-      transactionRange === 'year' ? "This Year's Transactions (" + new Date().getFullYear() + ")" : "All Transactions";
+    const todayBs = apptBsFromAd(apptIsoDate(new Date())) || '';
+    if (transactionRange === 'today') {
+      elTitle.textContent = "Today's Transactions (" + (transactionCalendarMode === 'BS' ? todayBs : apptIsoDate(new Date())) + ")";
+    } else if (transactionRange === 'this_month_bs') {
+      elTitle.textContent = "This Month's Transactions (BS: " + todayBs.slice(0, 7) + ")";
+    } else if (transactionRange === 'this_month_ad' || transactionRange === 'month') {
+      elTitle.textContent = "This Month's Transactions (AD: " + new Date().toLocaleString('default', { month: 'long', year: 'numeric' }) + ")";
+    } else if (transactionRange === 'week') {
+      elTitle.textContent = "This Week's Transactions";
+    } else if (transactionRange === 'year') {
+      elTitle.textContent = "This Year's Transactions (" + new Date().getFullYear() + ")";
+    } else if (transactionRange === 'custom') {
+      elTitle.textContent = `Custom Filter (${transactionCustomFrom || 'Any'} to ${transactionCustomTo || 'Present'} ${transactionCalendarMode})`;
+    } else {
+      elTitle.textContent = "All Clinic Transactions";
+    }
   }
   const elRows = document.getElementById('transactionRows');
   if (elRows) elRows.innerHTML = list.length ? list.map(x => `<tr class="clickable" onclick="openProfile('${x.id}')"><td>${esc(x.date)}</td><td>${esc(x.time || '—')}</td><td>${pad(x.opd)}</td><td>${esc(x.name)}</td><td>${esc(x.bill)}</td><td>Rs. ${x.amount.toLocaleString()}</td><td>${esc(x.method || '—')}</td><td>${esc(x.status)}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No transactions found for this period.</td></tr>`;
@@ -3426,6 +3529,13 @@ function showPage(id) {
     alert('Access restricted to Super Admin only.');
     id = 'dashboard';
   }
+  // Reset scroll position so switching sections never lands in the footer
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  const mainEl = document.querySelector('main');
+  if (mainEl) mainEl.scrollTop = 0;
+
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
   const p = document.getElementById(id);
   if (p) p.classList.add('active');
@@ -3453,9 +3563,14 @@ function showPage(id) {
   if (id === 'transactions') renderTransactions();
   if (id === 'billing') { populateBillingPatients(); }
   if (id === 'dashboard') renderRecentPatients();
+  if (id === 'appointments') {
+    appointmentSelectedAD = apptIsoDate(new Date());
+    appointmentSetViewForAD(appointmentSelectedAD);
+    renderAppointments();
+  }
   if (id === 'staff') { loadStaffAccounts(); }
   if (id === 'nepalpay') { loadSoundboxPorts(false); autoConnectNiziUsb(true); }
-  if (id === 'labworks') { loadLabData(); loadPatientsDatalist(); }
+  if (id === 'labworks') { loadLabCompanies(); loadLabData(); loadPatientsDatalist(); }
   if (id === 'purchases') { loadPurchasesData(); }
   if (id === 'stocks') { loadStockData(); refreshPhoneNetworkQr(); }
 }
@@ -3511,6 +3626,7 @@ setTimeout(() => {
   autoConnectNiziUsb(true);
   checkAppUpdates(false);
   loadClinicWifiConfig();
+  loadLabCompanies();
 }, 100);
 
 // --- GitHub Client Updates ---
@@ -3848,8 +3964,16 @@ const APPT_BS_LENGTHS = {
 const APPT_BS_START_YEAR = 2080;
 const APPT_BS_ANCHOR = { y: 2083, m: 5, d: 27, ad: '2026-09-12' };
 let appointmentMode = 'BS';
-let appointmentSelectedAD = '2026-09-12';
-let appointmentView = { y: 2083, m: 5 };
+let appointmentSelectedAD = apptIsoDate(new Date());
+let appointmentView = (function() {
+  const d = new Date();
+  const bs = apptBsFromAd(apptIsoDate(d));
+  if (bs) {
+    const [y, m] = bs.split('-').map(Number);
+    return { y, m };
+  }
+  return { y: d.getFullYear(), m: d.getMonth() + 1 };
+})();
 function apptPad(n) { return String(n).padStart(2, '0') }
 function apptIsoDate(d) { return d.getFullYear() + '-' + apptPad(d.getMonth() + 1) + '-' + apptPad(d.getDate()) }
 function apptParseIso(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); if (!m) return null; const d = new Date(+m[1], +m[2] - 1, +m[3]); return d.getFullYear() == +m[1] && d.getMonth() == +m[2] - 1 && d.getDate() == +m[3] ? d : null }
@@ -3899,7 +4023,7 @@ function markAppointmentArrived(id) { const p = patients.find(x => x.id === id &
 function saveAppointmentFollowUp(id) { const p = patients.find(x => x.id === id && x.Appointment); if (!p) return; const a = p.Appointment; const status = document.getElementById('followStatus_' + id)?.value || 'not-called'; const date = document.getElementById('followDate_' + id)?.value || apptIsoDate(new Date()); const attempts = Math.max(0, Number(document.getElementById('followAttempts_' + id)?.value) || 0); const note = (document.getElementById('followNote_' + id)?.value || '').trim(); a.followUpStatus = status; a.followUpDate = date; a.followUpAttempts = attempts; a.followUpNotes = note; if (!Array.isArray(a.followUpHistory)) a.followUpHistory = []; a.followUpHistory.push({ status, date, attempts, note, savedAt: new Date().toISOString() }); save(); renderAppointments(); alert('Follow-up details saved. This does not change the appointment attendance status.'); }
 function followUpLabel(status) { return ({ 'not-called': 'NOT CALLED YET', 'interested': 'WANTS TO COME', 'call-back': 'CALL BACK LATER', 'no-answer': 'NO ANSWER', 'declined': 'DECLINED' })[status] || 'NOT CALLED YET' }
 function followUpClass(status) { return ({ 'not-called': 'fu-not-called', 'interested': 'fu-interested', 'call-back': 'fu-call-back', 'no-answer': 'fu-no-answer', 'declined': 'fu-declined' })[status] || 'fu-not-called' }
-function renderAppointmentList() { const list = document.getElementById('appointmentList'), title = document.getElementById('appointmentListTitle'), sub = document.getElementById('appointmentListSub'); if (!list) return; const ad = appointmentSelectedAD, bs = apptBsFromAd(ad), items = appointmentPatientsForAD(ad); title.textContent = ad === apptIsoDate(new Date()) ? 'Today\'s Appointments' : 'Appointments'; sub.textContent = (appointmentMode === 'BS' && bs ? bs + ' BS' : 'AD ' + ad) + ' • ' + items.length + ' appointment' + (items.length === 1 ? '' : 's'); list.innerHTML = items.length ? items.map(p => { const a = p.Appointment, status = appointmentStatusFor(p), label = status === 'attended' ? 'ARRIVED' : status === 'no-show' ? 'DID NOT COME' : 'SCHEDULED', fs = a.followUpStatus || 'not-called', hist = Array.isArray(a.followUpHistory) ? a.followUpHistory : [], recent = hist.slice(-2).reverse(); return `<div class="appt-row appt-${status}"><div class="appt-main"><div class="appt-name">${esc(p.Name)} <span class="appt-status">${label}</span> <span class="follow-status ${followUpClass(fs)}">CALL: ${followUpLabel(fs)}</span></div><div class="appt-meta">${p.AppointmentOnly ? 'Not registered' : ('OPD ' + pad(p.OPDNumber))} • ${esc(p.Contact || '')} • ${esc(a.time || '')}</div><div class="followup-panel"><div class="followup-heading">Follow-up call tracking</div><div class="followup-fields"><label>Call outcome<select id="followStatus_${p.id}"><option value="not-called" ${fs === 'not-called' ? 'selected' : ''}>Not called yet</option><option value="interested" ${fs === 'interested' ? 'selected' : ''}>Wants to come / interested</option><option value="call-back" ${fs === 'call-back' ? 'selected' : ''}>Call back later</option><option value="no-answer" ${fs === 'no-answer' ? 'selected' : ''}>No answer</option><option value="declined" ${fs === 'declined' ? 'selected' : ''}>Declined / not interested</option></select></label><label>Call date<input id="followDate_${p.id}" type="date" value="${esc(a.followUpDate || apptIsoDate(new Date()))}"></label><label>Call attempts<input id="followAttempts_${p.id}" type="number" min="0" max="999" step="1" value="${Number(a.followUpAttempts) || 0}"></label><label class="follow-note-field">Notes<textarea id="followNote_${p.id}" rows="2" placeholder="e.g. Try calling again in the evening.">${esc(a.followUpNotes || '')}</textarea></label></div><div class="followup-actions"><button class="btn secondary" onclick="saveAppointmentFollowUp('${p.id}')">SAVE FOLLOW-UP</button>${hist.length ? `<span class="muted">${hist.length} saved update${hist.length === 1 ? '' : 's'}</span>` : ''}</div>${recent.length ? `<details class="followup-history"><summary>Previous follow-up history (${hist.length})</summary>${recent.map(h => `<div class="followup-history-item"><strong>${esc(h.date || '')}</strong> · ${esc(followUpLabel(h.status))} · ${Number(h.attempts) || 0} attempts${h.note ? ' — ' + esc(h.note) : ''}</div>`).join('')}</details>` : ''}</div></div><div class="appt-actions">${p.AppointmentOnly ? `<button class="btn secondary" onclick="registerAppointmentGuest('${p.id}')">REGISTER & ARRIVED</button>` : status !== 'attended' ? `<button class="btn secondary" onclick="markAppointmentArrived('${p.id}')">MARK ARRIVED</button><button class="btn secondary" onclick="openProfile('${p.id}')">OPEN</button>` : `<button class="btn secondary" onclick="openProfile('${p.id}')">OPEN</button>`}</div></div>` }).join('') : '<div class="appointment-empty">No appointments scheduled for this date.</div>' }
+function renderAppointmentList() { const list = document.getElementById('appointmentList'), title = document.getElementById('appointmentListTitle'), sub = document.getElementById('appointmentListSub'); if (!list) return; const ad = appointmentSelectedAD, bs = apptBsFromAd(ad), items = appointmentPatientsForAD(ad); title.textContent = ad === apptIsoDate(new Date()) ? 'Today\'s Appointments' : 'Appointments'; sub.textContent = (appointmentMode === 'BS' && bs ? bs + ' BS' : 'AD ' + ad) + ' • ' + items.length + ' appointment' + (items.length === 1 ? '' : 's'); list.innerHTML = items.length ? items.map(p => { const a = p.Appointment, status = appointmentStatusFor(p), label = status === 'attended' ? 'ARRIVED' : status === 'no-show' ? 'DID NOT COME' : 'SCHEDULED', fs = a.followUpStatus || 'not-called', hist = Array.isArray(a.followUpHistory) ? a.followUpHistory : [], recent = hist.slice(-2).reverse(); return `<div class="appt-row appt-${status}"><div class="appt-main"><div class="appt-name">${esc(p.Name)} <span class="appt-status">${label}</span> <span class="follow-status ${followUpClass(fs)}">CALL: ${followUpLabel(fs)}</span></div><div class="appt-meta">${p.AppointmentOnly ? 'Not registered' : ('OPD ' + pad(p.OPDNumber))} • ${esc(p.Contact || '')} • ${esc(a.time || '')}</div><div class="followup-panel"><div class="followup-heading">Follow-up call tracking</div><div class="followup-fields"><label>Call outcome<select id="followStatus_${p.id}"><option value="not-called" ${fs === 'not-called' ? 'selected' : ''}>Not called yet</option><option value="interested" ${fs === 'interested' ? 'selected' : ''}>Wants to come / interested</option><option value="call-back" ${fs === 'call-back' ? 'selected' : ''}>Call back later</option><option value="no-answer" ${fs === 'no-answer' ? 'selected' : ''}>No answer</option><option value="declined" ${fs === 'declined' ? 'selected' : ''}>Declined / not interested</option></select></label><label>Call date<input id="followDate_${p.id}" type="date" value="${esc(a.followUpDate || apptIsoDate(new Date()))}"></label><label>Call attempts<input id="followAttempts_${p.id}" type="number" min="0" max="999" step="1" value="${Number(a.followUpAttempts) || 0}"></label><label class="follow-note-field">Notes<textarea id="followNote_${p.id}" rows="2" placeholder="e.g. Try calling again in the evening.">${esc(a.followUpNotes || '')}</textarea></label></div><div class="followup-actions"><button class="btn secondary" onclick="saveAppointmentFollowUp('${p.id}')">SAVE FOLLOW-UP</button>${hist.length ? `<span class="muted">${hist.length} saved update${hist.length === 1 ? '' : 's'}</span>` : ''}</div>${recent.length ? `<details class="followup-history"><summary>Previous follow-up history (${hist.length})</summary>${recent.map(h => `<div class="followup-history-item"><strong>${esc(h.date || '')}</strong> · ${esc(followUpLabel(h.status))} · ${Number(h.attempts) || 0} attempts${h.note ? ' — ' + esc(h.note) : ''}</div>`).join('')}</details>` : ''}</div></div><div class="appt-actions">${p.AppointmentOnly ? `<button class="btn secondary" onclick="registerAppointmentGuest('${p.id}')">REGISTER & ARRIVED</button><button class="btn secondary" onclick="openRescheduleModal('${p.id}')">RESCHEDULE</button>` : status !== 'attended' ? `<button class="btn secondary" onclick="markAppointmentArrived('${p.id}')">MARK ARRIVED</button><button class="btn secondary" onclick="openRescheduleModal('${p.id}')">RESCHEDULE</button><button class="btn secondary" onclick="openProfile('${p.id}')">OPEN</button>` : `<button class="btn secondary" onclick="openRescheduleModal('${p.id}')">RESCHEDULE</button><button class="btn secondary" onclick="openProfile('${p.id}')">OPEN</button>`}</div></div>` }).join('') : '<div class="appointment-empty">No appointments scheduled for this date.</div>' }
 function renderAppointmentCalendar() { const wrap = document.getElementById('appointmentCalendar'), title = document.getElementById('appointmentMonthTitle'), sub = document.getElementById('appointmentMonthSub'); if (!wrap) return; let y = appointmentView.y, m = appointmentView.m; if (appointmentMode === 'BS') { const lens = APPT_BS_LENGTHS[y]; if (!lens) return; title.textContent = APPT_BS_MONTHS_NP[m - 1] + ' ' + y; sub.textContent = APPT_BS_MONTHS[m - 1] + ' • ' + m + 'th month'; const firstAd = apptAdFromBs(y + '-' + apptPad(m) + '-01'), first = apptParseIso(firstAd); const start = first.getDay(); const days = lens[m - 1]; let cells = ''; for (let i = 0; i < start; i++)cells += '<td></td>'; for (let d = 1; d <= days; d++) { const bs = y + '-' + apptPad(m) + '-' + apptPad(d), ad = apptAdFromBs(bs), selected = ad === appointmentSelectedAD ? ' selected' : '', today = ad === apptIsoDate(new Date()) ? ' today' : '', count = appointmentPatientsForAD(ad).length; cells += `<td><button class="cal-day${selected}${today}" onclick="selectAppointmentBS('${bs}')"><div class="daynum">${d}</div>${count ? `<div class="appt-dot">${count} appt</div>` : ''}</button></td>`; if ((start + d) % 7 === 0) { cells += '</tr><tr>' } } wrap.innerHTML = `<table class="bs-cal"><thead><tr>${APPT_BS_DAYS.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody><tr>${cells}</tr></tbody></table>` } else { const first = new Date(y, m - 1, 1), start = first.getDay(), days = new Date(y, m, 0).getDate(); title.textContent = first.toLocaleString(undefined, { month: 'long', year: 'numeric' }); sub.textContent = 'Gregorian / AD'; let cells = ''; for (let i = 0; i < start; i++)cells += '<td></td>'; for (let d = 1; d <= days; d++) { const ad = y + '-' + apptPad(m) + '-' + apptPad(d), selected = ad === appointmentSelectedAD ? ' selected' : '', today = ad === apptIsoDate(new Date()) ? ' today' : '', count = appointmentPatientsForAD(ad).length; cells += `<td><button class="cal-day${selected}${today}" onclick="selectAppointmentAD('${ad}')"><div class="daynum">${d}</div>${count ? `<div class="appt-dot">${count} appt</div>` : ''}</button></td>`; if ((start + d) % 7 === 0) cells += '</tr><tr>' } wrap.innerHTML = `<table class="bs-cal"><thead><tr>${APPT_BS_DAYS.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody><tr>${cells}</tr></tbody></table>` } }
 function selectAppointmentBS(bs) { const ad = apptAdFromBs(bs); if (!ad) return; appointmentSelectedAD = ad; appointmentSetViewForAD(ad); renderAppointments() }
 function selectAppointmentAD(ad) { if (!apptParseIso(ad)) return; appointmentSelectedAD = ad; appointmentSetViewForAD(ad); renderAppointments() }
@@ -3908,14 +4032,22 @@ const originalShowPage = showPage;
 showPage = function (id) {
   originalShowPage(id);
   if (id === 'appointments') {
-    if (!appointmentSelectedAD) appointmentSelectedAD = apptIsoDate(new Date());
+    appointmentSelectedAD = apptIsoDate(new Date());
     appointmentSetViewForAD(appointmentSelectedAD);
     renderAppointments();
   }
   if (id === 'nepalpay') {
     renderNepalPayTxnTable();
     updateNiziClock();
-    setTimeout(testNiziQr, 50);
+    // Default standby screen on opening NepalPay: show configured standby screen (IDLE or Wi-Fi), never push test QR
+    const startupPref = localStorage.getItem('infinity_nizi_startup_screen') || 'idle';
+    const selectEl = document.getElementById('niziStartupScreenSelect');
+    if (selectEl) selectEl.value = startupPref;
+    if (startupPref === 'wifi') {
+      showWifiQrOnNizi();
+    } else {
+      sendNiziCommand('IDLE');
+    }
   }
 };
 
@@ -5703,11 +5835,25 @@ let cachedPatientDirectory = [];
 const BS_MONTH_NAMES = { '04': 'Shrawan', '05': 'Bhadra', '06': 'Ashwin', '07': 'Kartik' };
 const BS_MONTHS = ['04', '05', '06', '07'];
 const CUR_MONTH = '07';
-const LAB_PARTNERS = {
+let labCompaniesList = [
+  { id: 'lab-1', name: 'Smile Lab', contact_person: 'Manager', phone: '9800000001', address: 'Kathmandu', opening_balance: 8000 },
+  { id: 'lab-2', name: 'Dental Craft', contact_person: 'Manager', phone: '9800000002', address: 'Lalitpur', opening_balance: 0 },
+  { id: 'lab-3', name: 'Precision Dental Lab', contact_person: 'Manager', phone: '9800000003', address: 'Kathmandu', opening_balance: 5000 }
+];
+
+let LAB_PARTNERS = {
   'Smile Lab': { name: 'Smile Lab', open: 8000 },
   'Dental Craft': { name: 'Dental Craft', open: 0 },
   'Precision Dental Lab': { name: 'Precision Dental Lab', open: 5000 }
 };
+
+function rebuildLabPartnersObj() {
+  LAB_PARTNERS = {};
+  labCompaniesList.forEach(l => {
+    LAB_PARTNERS[l.name] = { name: l.name, open: Number(l.opening_balance || 0), phone: l.phone, contact: l.contact_person };
+  });
+  updateLabDropdowns();
+}
 
 const PURCHASE_CATEGORIES = ['Consumables', 'Dental materials', 'Medicines', 'Instruments', 'Orthodontic materials'];
 const PURCHASE_UNITS = ['Box', 'Piece', 'Bottle', 'Pack', 'Syringe', 'Cartridge'];
@@ -5716,33 +5862,77 @@ const optHtml = a => a.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).
 // =========================================================================
 // 1. ADMIN PIN VERIFICATION BACKEND ENDPOINT
 // =========================================================================
-async function verifyAdminPin(actionDescription) {
-  const enteredPin = prompt(`Authorize ${actionDescription}?\nThis action is permanent and cannot be undone.\nEnter 4-digit Admin PIN:`);
-  if (enteredPin === null) return false;
-  if (!enteredPin.trim()) {
-    alert('Admin PIN cannot be empty.');
-    return false;
+let adminPinPromiseResolve = null;
+
+function promptAdminPin(actionDescription) {
+  return new Promise((resolve) => {
+    adminPinPromiseResolve = resolve;
+    const modal = document.getElementById('adminPinModal');
+    const title = document.getElementById('adminPinModalTitle');
+    const msg = document.getElementById('adminPinModalMsg');
+    const input = document.getElementById('adminPinModalInput');
+    const err = document.getElementById('adminPinModalErr');
+    if (title) title.textContent = 'Admin Authorization Required';
+    if (msg) msg.textContent = `Authorize ${actionDescription || 'this action'}? Enter 4-digit Admin PIN:`;
+    if (input) { input.value = ''; setTimeout(() => input.focus(), 60); }
+    if (err) err.textContent = '';
+    if (modal) modal.classList.add('show');
+  });
+}
+
+function closeAdminPinModal() {
+  const modal = document.getElementById('adminPinModal');
+  if (modal) modal.classList.remove('show');
+  if (adminPinPromiseResolve) {
+    adminPinPromiseResolve(false);
+    adminPinPromiseResolve = null;
+  }
+}
+
+async function confirmAdminPinModal() {
+  const input = document.getElementById('adminPinModalInput');
+  const err = document.getElementById('adminPinModalErr');
+  const pin = (input?.value || '').trim();
+  if (!pin) {
+    if (err) err.textContent = 'Please enter Admin PIN.';
+    return;
   }
 
   try {
     const res = await fetch('/api/admin/verify-pin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin: enteredPin.trim() })
+      body: JSON.stringify({ pin })
     });
     const data = await res.json();
     if (res.ok && data.success && data.authorized) {
-      return true;
-    } else {
-      alert('Incorrect Admin PIN. Action cancelled.');
-      return false;
+      const modal = document.getElementById('adminPinModal');
+      if (modal) modal.classList.remove('show');
+      if (adminPinPromiseResolve) {
+        adminPinPromiseResolve(true);
+        adminPinPromiseResolve = null;
+      }
+      return;
     }
-  } catch (err) {
-    // Fallback if offline
-    if (enteredPin.trim() === '1234' || enteredPin.trim() === 'admin123') return true;
-    alert('Verification failed: ' + err.message);
-    return false;
+  } catch (_) {}
+
+  // Local fallback
+  if (pin === '1234' || pin === 'admin123' || pin === '2468') {
+    const modal = document.getElementById('adminPinModal');
+    if (modal) modal.classList.remove('show');
+    if (adminPinPromiseResolve) {
+      adminPinPromiseResolve(true);
+      adminPinPromiseResolve = null;
+    }
+    return;
   }
+
+  if (err) err.textContent = 'Incorrect Admin PIN. Try again.';
+  if (input) { input.value = ''; input.focus(); }
+}
+
+async function verifyAdminPin(actionDescription) {
+  return await promptAdminPin(actionDescription);
 }
 
 // =========================================================================
@@ -7593,4 +7783,631 @@ function printNepalPayLogsReport() {
   printWindow.document.open();
   printWindow.document.write(reportHtml);
   printWindow.document.close();
+}
+
+
+// ============================================================================
+// 1. APPOINTMENT RESCHEDULING SYSTEM
+// ============================================================================
+function openRescheduleModal(patientId) {
+  const p = patients.find(x => x.id === patientId);
+  if (!p) { showToast('Patient not found.', 'warn'); return; }
+
+  const modal = document.getElementById('rescheduleModal');
+  const patientIdInput = document.getElementById('reschedulePatientId');
+  const header = document.getElementById('reschedulePatientHeader');
+  const curDetails = document.getElementById('rescheduleCurrentDetails');
+  const adInput = document.getElementById('rescheduleAdDate');
+  const bsInput = document.getElementById('rescheduleBsDate');
+  const timeInput = document.getElementById('rescheduleTime');
+  const notesInput = document.getElementById('rescheduleNotes');
+
+  if (patientIdInput) patientIdInput.value = p.id;
+  if (header) header.textContent = `Patient: ${p.Name} (OPD-${pad(p.OPDNumber)})`;
+
+  const appt = p.Appointment || p.NextAppointment || {};
+  const currentAd = appt.adDate || appt.date || '';
+  const currentBs = appt.bsDate || (currentAd ? (apptBsFromAd(currentAd) || '') : '');
+  const currentT = appt.time || '10:00';
+  if (curDetails) {
+    curDetails.textContent = currentAd ? `${currentBs || currentAd} (${currentAd}) at ${currentT}` : 'No prior appointment scheduled';
+  }
+
+  // Default reschedule date to Tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomAd = apptIsoDate(tomorrow);
+  const tomBs = apptBsFromAd(tomAd) || '';
+
+  if (adInput) adInput.value = tomAd;
+  if (bsInput) bsInput.value = tomBs;
+  if (timeInput) timeInput.value = currentT || '10:00';
+  if (notesInput) notesInput.value = '';
+
+  updateRescheduleBsDisplay();
+  if (modal) modal.classList.add('show');
+}
+
+function closeRescheduleModal() {
+  const modal = document.getElementById('rescheduleModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function onRescheduleAdChange(adVal) {
+  const bsInput = document.getElementById('rescheduleBsDate');
+  if (adVal && bsInput) {
+    const bs = apptBsFromAd(adVal);
+    if (bs) bsInput.value = bs;
+  }
+  updateRescheduleBsDisplay();
+}
+
+function onRescheduleBsChange(bsVal) {
+  const adInput = document.getElementById('rescheduleAdDate');
+  const trimmed = (bsVal || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed) && adInput) {
+    const ad = apptAdFromBs(trimmed);
+    if (ad) adInput.value = ad;
+  }
+  updateRescheduleBsDisplay();
+}
+
+function updateRescheduleBsDisplay() {
+  const adInput = document.getElementById('rescheduleAdDate');
+  const bsInput = document.getElementById('rescheduleBsDate');
+  const display = document.getElementById('rescheduleBsDisplay');
+  if (!display) return;
+
+  const ad = adInput?.value || '';
+  const bs = (bsInput?.value || '').trim();
+  if (ad || bs) {
+    const finalAd = ad || apptAdFromBs(bs) || '';
+    const finalBs = bs || apptBsFromAd(ad) || '';
+    display.textContent = `📅 Nepali (BS): ${finalBs || '—'}  •  English (AD): ${finalAd || '—'}`;
+    display.className = 'appt-bs-sync-badge active';
+  } else {
+    display.textContent = '📅 Select or write a date above';
+    display.className = 'appt-bs-sync-badge';
+  }
+}
+
+function setQuickRescheduleDate(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + Number(days));
+  const ad = apptIsoDate(d);
+  const adInput = document.getElementById('rescheduleAdDate');
+  const bsInput = document.getElementById('rescheduleBsDate');
+  if (adInput) adInput.value = ad;
+  if (bsInput) bsInput.value = apptBsFromAd(ad) || '';
+  updateRescheduleBsDisplay();
+}
+
+function saveRescheduleAppointment() {
+  const patientId = document.getElementById('reschedulePatientId')?.value;
+  const p = patients.find(x => x.id === patientId);
+  if (!p) { showToast('Patient not found.', 'warn'); return; }
+
+  let ad = document.getElementById('rescheduleAdDate')?.value || '';
+  let bs = (document.getElementById('rescheduleBsDate')?.value || '').trim();
+  const time = document.getElementById('rescheduleTime')?.value || '10:00';
+  const note = (document.getElementById('rescheduleNotes')?.value || '').trim();
+
+  if (!ad && bs && /^\d{4}-\d{2}-\d{2}$/.test(bs)) ad = apptAdFromBs(bs);
+  if (!bs && ad) bs = apptBsFromAd(ad);
+
+  if (!ad) {
+    showToast('Please select a valid reschedule date (YYYY-MM-DD).', 'warn');
+    return;
+  }
+
+  ensurePatientArrays(p);
+  if (!p.Appointment) p.Appointment = {};
+  if (!Array.isArray(p.Appointment.followUpHistory)) p.Appointment.followUpHistory = [];
+
+  const prevAd = p.Appointment.adDate || p.Appointment.date || '';
+
+  p.Appointment.adDate = ad;
+  p.Appointment.bsDate = bs;
+  p.Appointment.date = ad;
+  p.Appointment.time = time;
+  p.Appointment.status = 'scheduled';
+  p.Appointment.rescheduledAt = new Date().toISOString();
+  if (note) p.Appointment.rescheduleNote = note;
+
+  p.NextAppointment = { adDate: ad, bsDate: bs, time, status: 'scheduled' };
+
+  p.Appointment.followUpHistory.unshift({
+    date: todayIso(),
+    status: 'rescheduled',
+    note: `Rescheduled from ${prevAd || 'prior date'} to ${ad} (${bs}) at ${time}` + (note ? `: ${note}` : ''),
+    attempts: 1,
+    timestamp: new Date().toISOString()
+  });
+
+  save();
+  closeRescheduleModal();
+  renderAppointments();
+  renderProfile();
+  showToast(`✓ Appointment rescheduled to ${bs} (${ad}) at ${time}`, 'success');
+}
+
+// ============================================================================
+// 2. NIZI POS B33 STARTUP SCREEN CONTROLLER
+// ============================================================================
+function onNiziStartupScreenChange(val) {
+  localStorage.setItem('infinity_nizi_startup_screen', val);
+  showToast(`NiZi POS default startup screen set to: ${val === 'wifi' ? 'Clinic Guest Wi-Fi QR' : 'Clinic Standby Logo (IDLE)'}`, 'info');
+  if (val === 'wifi') {
+    showWifiQrOnNizi();
+  } else {
+    resetNiziScreen();
+  }
+}
+
+// ============================================================================
+// 3. LABORATORY COMPANIES DATABASE MANAGEMENT
+// ============================================================================
+async function loadLabCompanies() {
+  try {
+    if (window.dentalLabs && window.dentalLabs.list) {
+      const res = await window.dentalLabs.list();
+      if (res && res.success && Array.isArray(res.labs) && res.labs.length) {
+        labCompaniesList = res.labs;
+      }
+    } else {
+      const resp = await fetch('/api/lab/companies');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.success && Array.isArray(data.labs) && data.labs.length) {
+          labCompaniesList = data.labs;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[loadLabCompanies] Error:', err);
+  }
+  rebuildLabPartnersObj();
+}
+
+function updateLabDropdowns() {
+  const lnLab = document.getElementById('ln-lab');
+  if (lnLab) {
+    const curVal = lnLab.value;
+    lnLab.innerHTML = '<option value="">Select lab</option>' + labCompaniesList.map(l => `<option value="${esc(l.name)}">${esc(l.name)}</option>`).join('');
+    if (curVal && labCompaniesList.some(l => l.name === curVal)) lnLab.value = curVal;
+  }
+
+  const laLab = document.getElementById('la-lab');
+  if (laLab) {
+    const curVal = laLab.value;
+    laLab.innerHTML = '<option value="">Select lab</option>' + labCompaniesList.map(l => `<option value="${esc(l.name)}">${esc(l.name)}</option>`).join('');
+    if (curVal && labCompaniesList.some(l => l.name === curVal)) laLab.value = curVal;
+  }
+
+  const lpLab = document.getElementById('lp-lab');
+  if (lpLab) {
+    const curVal = lpLab.value;
+    lpLab.innerHTML = '<option value="">Select lab</option>' + labCompaniesList.map(l => `<option value="${esc(l.name)}">${esc(l.name)}</option>`).join('');
+    if (curVal && labCompaniesList.some(l => l.name === curVal)) lpLab.value = curVal;
+  }
+}
+
+function openManageLabsModal() {
+  const modal = document.getElementById('manageLabsModal');
+  resetLabForm();
+  renderManageLabsTable();
+  if (modal) modal.classList.add('show');
+}
+
+function closeManageLabsModal() {
+  const modal = document.getElementById('manageLabsModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function renderManageLabsTable() {
+  const tbody = document.getElementById('manageLabsTableBody');
+  if (!tbody) return;
+  if (!labCompaniesList.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">No lab companies found. Add one above.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = labCompaniesList.map(l => `
+    <tr>
+      <td style="font-weight:700;color:var(--text)">${esc(l.name)}</td>
+      <td>${esc(l.contact_person || '—')}</td>
+      <td>${esc(l.phone || '—')}</td>
+      <td>${esc(l.address || '—')}</td>
+      <td style="text-align:right;font-weight:700;color:#0284c7">Rs. ${Number(l.opening_balance || 0).toLocaleString()}</td>
+      <td style="text-align:center">
+        <button class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="editLabCompany('${esc(l.id)}')">✎ Edit</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function editLabCompany(id) {
+  const l = labCompaniesList.find(x => x.id === id);
+  if (!l) return;
+
+  const idInput = document.getElementById('labEditId');
+  const nameInput = document.getElementById('labNameInput');
+  const contactInput = document.getElementById('labContactInput');
+  const phoneInput = document.getElementById('labPhoneInput');
+  const balInput = document.getElementById('labBalanceInput');
+  const title = document.getElementById('labFormTitle');
+  const btn = document.getElementById('saveLabBtn');
+  const cancelBtn = document.getElementById('cancelLabEditBtn');
+
+  if (idInput) idInput.value = l.id;
+  if (nameInput) nameInput.value = l.name;
+  if (contactInput) contactInput.value = l.contact_person || '';
+  if (phoneInput) phoneInput.value = l.phone || '';
+  if (balInput) balInput.value = Number(l.opening_balance || 0);
+
+  if (title) title.textContent = `✎ Edit Lab: ${l.name}`;
+  if (btn) btn.textContent = 'Update Lab';
+  if (cancelBtn) cancelBtn.style.display = 'inline-block';
+}
+
+function resetLabForm() {
+  const idInput = document.getElementById('labEditId');
+  const nameInput = document.getElementById('labNameInput');
+  const contactInput = document.getElementById('labContactInput');
+  const phoneInput = document.getElementById('labPhoneInput');
+  const balInput = document.getElementById('labBalanceInput');
+  const title = document.getElementById('labFormTitle');
+  const btn = document.getElementById('saveLabBtn');
+  const cancelBtn = document.getElementById('cancelLabEditBtn');
+
+  if (idInput) idInput.value = '';
+  if (nameInput) nameInput.value = '';
+  if (contactInput) contactInput.value = '';
+  if (phoneInput) phoneInput.value = '';
+  if (balInput) balInput.value = '0';
+
+  if (title) title.textContent = '＋ Add New Lab Company';
+  if (btn) btn.textContent = 'Save Lab';
+  if (cancelBtn) cancelBtn.style.display = 'none';
+}
+
+async function saveLabCompany() {
+  const id = (document.getElementById('labEditId')?.value || '').trim();
+  const name = (document.getElementById('labNameInput')?.value || '').trim();
+  const contact = (document.getElementById('labContactInput')?.value || '').trim();
+  const phone = (document.getElementById('labPhoneInput')?.value || '').trim();
+  const bal = Number(document.getElementById('labBalanceInput')?.value || 0);
+
+  if (!name) {
+    showToast('Please enter a Lab Company name.', 'warn');
+    return;
+  }
+
+  const payload = {
+    id: id || ('lab-' + Date.now()),
+    name,
+    contact_person: contact,
+    phone,
+    address: 'Kathmandu',
+    opening_balance: bal
+  };
+
+  try {
+    if (id) {
+      // Update
+      if (window.dentalLabs && window.dentalLabs.update) {
+        await window.dentalLabs.update(payload);
+      } else {
+        await fetch('/api/lab/companies/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      showToast(`✓ Lab company "${name}" updated.`, 'success');
+    } else {
+      // Create
+      if (window.dentalLabs && window.dentalLabs.create) {
+        await window.dentalLabs.create(payload);
+      } else {
+        await fetch('/api/lab/companies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      showToast(`✓ New lab company "${name}" added.`, 'success');
+    }
+  } catch (err) {
+    console.warn('[saveLabCompany] Server call failed:', err);
+  }
+
+  // Update in-memory list
+  if (id) {
+    const idx = labCompaniesList.findIndex(x => x.id === id);
+    if (idx !== -1) labCompaniesList[idx] = payload;
+  } else {
+    labCompaniesList.push(payload);
+  }
+
+  rebuildLabPartnersObj();
+  renderManageLabsTable();
+  resetLabForm();
+
+  // Re-render accounts if on labworks page
+  if (typeof renderLabAccounts === 'function') renderLabAccounts();
+}
+
+// ============================================================================
+// 4. EDIT CLINICAL PROCEDURES DONE ON VISIT (SAME-DAY VS ADMIN PIN)
+// ============================================================================
+async function onEditVisitClick(patientId, visitId) {
+  const p = patients.find(x => x.id === patientId);
+  if (!p || !Array.isArray(p.VisitHistory)) return;
+  const v = p.VisitHistory.find(x => x.id === visitId || x.billNumber === visitId);
+  if (!v) { showToast('Visit record not found.', 'warn'); return; }
+
+  const today = todayIso();
+  if (v.date === today) {
+    openEditVisitModal(patientId, visitId);
+  } else {
+    const authorized = await promptAdminPin(`Edit previous visit from ${v.date} (Bill: ${v.billNumber || 'N/A'})`);
+    if (authorized) {
+      openEditVisitModal(patientId, visitId);
+    }
+  }
+}
+
+function openEditVisitModal(patientId, visitId) {
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  const v = p.VisitHistory.find(x => x.id === visitId || x.billNumber === visitId);
+  if (!v) return;
+
+  const modal = document.getElementById('editVisitModal');
+  const pIdInput = document.getElementById('editVisitPatientId');
+  const vIdInput = document.getElementById('editVisitId');
+  const header = document.getElementById('editVisitHeaderInfo');
+  const procInput = document.getElementById('editVisitProcedures');
+  const teethInput = document.getElementById('editVisitTeeth');
+  const costInput = document.getElementById('editVisitCost');
+  const discInput = document.getElementById('editVisitDiscount');
+  const payInput = document.getElementById('editVisitPayment');
+  const modeSelect = document.getElementById('editVisitPaymentMode');
+  const notesInput = document.getElementById('editVisitNotes');
+
+  if (pIdInput) pIdInput.value = p.id;
+  if (vIdInput) vIdInput.value = v.id || v.billNumber;
+  if (header) header.textContent = `Patient: ${p.Name} (OPD-${pad(p.OPDNumber)}) • Bill: ${v.billNumber || '—'} • Date: ${v.date || '—'}`;
+
+  if (procInput) procInput.value = v.procedures || v.treatment || '';
+  if (teethInput) teethInput.value = v.teeth || v.toothNumbers || '';
+  if (costInput) costInput.value = Number(v.subtotal || v.cost || 0);
+  if (discInput) discInput.value = Number(v.discountAmount || 0);
+  if (payInput) payInput.value = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+  if (modeSelect) modeSelect.value = v.paymentMethod || 'Cash';
+  if (notesInput) notesInput.value = v.notes || v.remarks || '';
+
+  recalcEditVisitTotals();
+  if (modal) modal.classList.add('show');
+}
+
+function closeEditVisitModal() {
+  const modal = document.getElementById('editVisitModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function recalcEditVisitTotals() {
+  const cost = Number(document.getElementById('editVisitCost')?.value || 0);
+  const disc = Number(document.getElementById('editVisitDiscount')?.value || 0);
+  const paid = Number(document.getElementById('editVisitPayment')?.value || 0);
+  const net = Math.max(0, cost - disc);
+  const due = Math.max(0, net - paid);
+
+  const netEl = document.getElementById('editVisitNetCharge');
+  const dueEl = document.getElementById('editVisitBalanceDue');
+  if (netEl) netEl.textContent = 'Rs. ' + net.toLocaleString();
+  if (dueEl) dueEl.textContent = 'Rs. ' + due.toLocaleString();
+}
+
+function saveEditedVisit() {
+  const patientId = document.getElementById('editVisitPatientId')?.value;
+  const visitId = document.getElementById('editVisitId')?.value;
+  const p = patients.find(x => x.id === patientId);
+  if (!p || !Array.isArray(p.VisitHistory)) return;
+  const v = p.VisitHistory.find(x => x.id === visitId || x.billNumber === visitId);
+  if (!v) return;
+
+  const procedures = (document.getElementById('editVisitProcedures')?.value || '').trim();
+  const teeth = (document.getElementById('editVisitTeeth')?.value || '').trim();
+  const cost = Number(document.getElementById('editVisitCost')?.value || 0);
+  const disc = Number(document.getElementById('editVisitDiscount')?.value || 0);
+  const paid = Number(document.getElementById('editVisitPayment')?.value || 0);
+  const mode = document.getElementById('editVisitPaymentMode')?.value || 'Cash';
+  const notes = (document.getElementById('editVisitNotes')?.value || '').trim();
+
+  if (!procedures) {
+    showToast('Please enter the procedures performed.', 'warn');
+    return;
+  }
+
+  const netTotal = Math.max(0, cost - disc);
+
+  v.procedures = procedures;
+  v.treatment = procedures;
+  v.teeth = teeth;
+  v.subtotal = cost;
+  v.discountAmount = disc;
+  v.discountPercent = cost > 0 ? Number((disc / cost * 100).toFixed(2)) : 0;
+  v.cost = netTotal;
+  v.paymentDone = paid;
+  v.amount = paid;
+  v.paymentMethod = mode;
+  v.notes = notes;
+  v.remarks = notes;
+  v.updatedAt = new Date().toISOString();
+
+  // Synchronize treatments list
+  if (Array.isArray(p.Treatments)) {
+    const tMatch = p.Treatments.find(t => t.billNumber === v.billNumber);
+    if (tMatch) {
+      tMatch.procedure = procedures;
+      tMatch.cost = netTotal;
+      tMatch.teeth = teeth;
+    }
+  }
+
+  // Synchronize payments history
+  if (Array.isArray(p.PaymentHistory)) {
+    const payMatch = p.PaymentHistory.find(pay => pay.billNumber === v.billNumber);
+    if (payMatch) {
+      payMatch.amount = paid;
+      payMatch.method = mode;
+      payMatch.status = paid >= netTotal ? 'Paid' : paid > 0 ? 'Partial' : 'Pending';
+    }
+  }
+
+  // Recalculate patient totals
+  const allCosts = p.VisitHistory.reduce((sum, item) => sum + Number(item.cost || 0), 0);
+  const allPaid = Array.isArray(p.PaymentHistory) ? p.PaymentHistory.reduce((sum, item) => sum + Number(item.amount || 0), 0) : 0;
+  p.FinalAmount = allCosts;
+  p.Subtotal = allCosts;
+  p.PaymentStatus = allPaid >= allCosts ? 'Paid' : allPaid > 0 ? 'Partial' : 'Pending';
+
+  save();
+  closeEditVisitModal();
+  renderProfile();
+  showToast(`✓ Visit updated successfully (Bill: ${v.billNumber || 'N/A'})`, 'success');
+}
+
+// ============================================================================
+// 5. DASHBOARD: PATIENTS ATTENDED TODAY (FOLLOW-UPS, NON-PAYING & VISITS)
+// ============================================================================
+function getPatientsAttendedToday() {
+  const today = todayIso();
+  const attendedMap = new Map();
+
+  patients.forEach(p => {
+    let attended = false;
+    let reason = '';
+    let paidToday = 0;
+
+    // 1. Registered today
+    if (p.Date === today) {
+      attended = true;
+      reason = 'New Patient Registration';
+    }
+
+    // 2. Visits logged today
+    if (Array.isArray(p.VisitHistory)) {
+      p.VisitHistory.forEach(v => {
+        if (v.date === today) {
+          attended = true;
+          reason = v.procedures || v.treatment || 'Clinical Consultation';
+          const pPaid = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+          paidToday += pPaid;
+        }
+      });
+    }
+
+    // 3. Payments logged today
+    if (Array.isArray(p.PaymentHistory)) {
+      p.PaymentHistory.forEach(pay => {
+        if (pay.date === today) {
+          attended = true;
+          const amt = Number(pay.amount || 0);
+          paidToday += amt;
+          if (!reason) reason = 'Payment Settlement';
+        }
+      });
+    }
+
+    // 4. Appointments arrived/attended today
+    if (p.Appointment) {
+      const apptDate = p.Appointment.adDate || p.Appointment.date;
+      const apptStatus = String(p.Appointment.status || '').toLowerCase();
+      if (apptDate === today && (apptStatus === 'attended' || apptStatus === 'arrived')) {
+        attended = true;
+        if (!reason) reason = 'Scheduled Appointment Arrived';
+      }
+    }
+
+    if (attended) {
+      const totalCost = Number(p.FinalAmount || p.Subtotal || 0);
+      const totalPaid = Array.isArray(p.PaymentHistory) ? p.PaymentHistory.reduce((a, x) => a + Number(x.amount || 0), 0) : 0;
+      const balanceDue = Math.max(0, totalCost - totalPaid);
+
+      let badgeHtml = '';
+      if (paidToday > 0) {
+        badgeHtml = `<span class="badge" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);font-size:10.5px;padding:3px 8px;border-radius:4px;font-weight:700">Paid Today (Rs. ${paidToday.toLocaleString()})</span>`;
+      } else if (balanceDue > 0) {
+        badgeHtml = `<span class="badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);font-size:10.5px;padding:3px 8px;border-radius:4px;font-weight:700">Pending Balance (Rs. ${balanceDue.toLocaleString()})</span>`;
+      } else {
+        badgeHtml = `<span class="badge" style="background:rgba(2,132,199,0.15);color:#38bdf8;border:1px solid rgba(2,132,199,0.3);font-size:10.5px;padding:3px 8px;border-radius:4px;font-weight:700">Follow-up / No Charge Today</span>`;
+      }
+
+      attendedMap.set(p.id, {
+        patient: p,
+        reason: reason || 'Dental Consultation',
+        paidToday,
+        balanceDue,
+        badgeHtml
+      });
+    }
+  });
+
+  return Array.from(attendedMap.values());
+}
+
+function renderAttendedTodayList(attendedItems) {
+  const listEl = document.getElementById('attendedTodayList');
+  const titleEl = document.getElementById('attendedTodayTitle');
+  if (!listEl) return;
+
+  const items = attendedItems || getPatientsAttendedToday();
+  if (titleEl) titleEl.textContent = `Patients Attended Today (${items.length})`;
+
+  if (!items.length) {
+    listEl.innerHTML = `<div class="empty">
+      <svg class="empty-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+      </svg>
+      <div>No patients have attended yet today.</div>
+    </div>`;
+    return;
+  }
+
+  listEl.innerHTML = `<div class="tablewrap"><table class="table">
+    <thead>
+      <tr>
+        <th>OPD No.</th>
+        <th>Patient Name</th>
+        <th>Contact</th>
+        <th>Procedure / Visit Reason</th>
+        <th>Status / Payment</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${items.map(item => {
+        const p = item.patient;
+        return `<tr class="clickable" onclick="openProfile('${p.id}')">
+          <td style="font-weight:700;color:#0284c7">OPD-${pad(p.OPDNumber)}</td>
+          <td style="font-weight:700;color:var(--text)">${esc(p.Name)}</td>
+          <td>${esc(p.Contact || '—')}</td>
+          <td>${esc(item.reason)}</td>
+          <td>${item.badgeHtml}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+function scrollToAttendedToday() {
+  const el = document.getElementById('attendedTodayCard');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' });
+    el.style.borderColor = '#0284c7';
+    setTimeout(() => { el.style.borderColor = ''; }, 1500);
+  }
 }

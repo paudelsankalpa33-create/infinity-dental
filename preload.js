@@ -53,3 +53,9 @@ contextBridge.exposeInMainWorld('dentalNepalPayLogs', {
   list: () => ipcRenderer.invoke('nepalpay:logs:list'),
   add: (record) => ipcRenderer.invoke('nepalpay:logs:add', record)
 });
+
+contextBridge.exposeInMainWorld('dentalLabs', {
+  list: () => ipcRenderer.invoke('labs:list'),
+  create: (lab) => ipcRenderer.invoke('labs:create', lab),
+  update: (lab) => ipcRenderer.invoke('labs:update', lab)
+});
