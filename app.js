@@ -3642,10 +3642,14 @@ function openUpdateModal() {
 
   if (window.dentalApp && window.dentalApp.getVersion) {
     window.dentalApp.getVersion().then(v => {
+      const formatted = (v && !v.startsWith('v')) ? 'v' + v : (v || 'v1.0.25');
       const badge = document.getElementById('modalCurrentVersion');
-      if (badge) badge.textContent = 'v' + v;
+      if (badge) badge.textContent = formatted;
+      const settingsBadge = document.getElementById('settingsVersionBadge');
+      if (settingsBadge) settingsBadge.textContent = formatted;
       const headerBadge = document.getElementById('appVersionBadge');
-      if (headerBadge) headerBadge.textContent = 'v' + v;
+      if (headerBadge) headerBadge.textContent = formatted;
+      if (typeof syncAppVersionUI === 'function') syncAppVersionUI();
     });
   }
 }
@@ -8448,8 +8452,37 @@ function scrollToAttendedToday() {
   }
 }
 
-/* About System Modal & App Footer Controller */
+/* About System Modal & Dynamic Version Controller */
+async function syncAppVersionUI() {
+  let ver = '1.0.25';
+  if (window.dentalApp && window.dentalApp.getVersion) {
+    try {
+      const v = await window.dentalApp.getVersion();
+      if (v) ver = v;
+    } catch (_) {}
+  }
+  const formattedVer = ver.startsWith('v') ? ver : 'v' + ver;
+
+  const targetIds = [
+    'settingsVersionBadge',
+    'footerVersionBadge',
+    'aboutModalVersionBadge',
+    'modalCurrentVersion',
+    'updateBannerVersion',
+    'appVersionBadge'
+  ];
+  targetIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = formattedVer;
+  });
+
+  document.querySelectorAll('.info-badge-ver, .about-system-badge, .header-version-pill').forEach(el => {
+    el.textContent = formattedVer;
+  });
+}
+
 function openAboutSystemModal() {
+  syncAppVersionUI();
   const m = document.getElementById('aboutSystemModal');
   if (m) m.style.display = 'flex';
 }
@@ -8462,5 +8495,9 @@ function closeAboutSystemModal() {
 (function initAppFooter() {
   const el = document.getElementById('appFooterYear');
   if (el) el.textContent = new Date().getFullYear();
+  syncAppVersionUI();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncAppVersionUI);
+  }
 })();
 
