@@ -1212,7 +1212,6 @@ function printBill(billNo) {
       <div class="terms-text">
         <b>Terms &amp; Instructions:</b><br>
         • Please bring this bill for dental check-up &amp; follow-up visits.<br>
-        • Valid for 15 days from the date of issue.<br>
         • Clinical queries &amp; appointments: 📞 9768592344, 01-4514888 • ✉️ The.infinity.dental@gmail.com<br>
         • Book appointments &amp; explore services online: 🌐 www.infinitydentalclinic.com.np
       </div>
@@ -1225,7 +1224,7 @@ function printBill(billNo) {
     </div>
 
     <div class="thank-banner">
-      Thank You for Choosing Infinity Dental Clinic! • 🌐 www.infinitydentalclinic.com.np • 📞 9768592344, 01-4514888
+      Thank You for Choosing Infinity Dental Clinic!
     </div>
   </div>
 </body>
@@ -8411,3 +8410,20 @@ function scrollToAttendedToday() {
     setTimeout(() => { el.style.borderColor = ''; }, 1500);
   }
 }
+
+/* About System Modal & App Footer Controller */
+function openAboutSystemModal() {
+  const m = document.getElementById('aboutSystemModal');
+  if (m) m.style.display = 'flex';
+}
+
+function closeAboutSystemModal() {
+  const m = document.getElementById('aboutSystemModal');
+  if (m) m.style.display = 'none';
+}
+
+(function initAppFooter() {
+  const el = document.getElementById('appFooterYear');
+  if (el) el.textContent = new Date().getFullYear();
+})();
+

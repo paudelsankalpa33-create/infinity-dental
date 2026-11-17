@@ -122,14 +122,14 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
+- **Patient Bill Cleanup**: Removed \`Valid for 15 days from the date of issue\` from terms and cleaned duplicate website/phone numbers from the bottom thank-you banner for a sleek single-page A5 invoice.
+- **Integrated AppFooter & AboutSystemModal**: Added reusable footer and System Info dialog with copyright, version badge (v1.2.0), client licensing info, developer credit to **3P** (https://sankalpapaudel.com.np), and support contact.
 - **Appointments Real Date & Reschedule**: Defaults to today's real date in both AD and BS calendar mode dynamically on startup. Added inline **RESCHEDULE** button on appointment cards with synced AD/BS date picker, time, and notes, refreshing SQLite records immediately.
 - **NiZi POS B33 Soundbox Standby Logo**: Removed boot-time test QR. Added user toggle in NepalPay section for Default Standby Screen (Clinic Standby Logo vs Clinic Guest Wi-Fi QR), only pushing payment QRs upon explicit user click.
-- **Lab Works Lab Companies Management**: Replaced hardcoded lab partners with persistent \`laboratories\` table in SQLite (seeded with Smile Lab, Dental Craft, Precision Dental Lab). Added **Manage Labs** modal allowing clinic to add new labs and edit existing lab details with cascade rename across lab cases and payments.
-- **Transactions Month & Date Range Filters**: Added Calendar Mode switcher (BS Nepali vs AD English), quick filter buttons (Today, This Month BS, This Month AD, This Week, This Year, All Time), and custom date range inputs (From Date and To Date) with dynamic recalculation of total revenue and transaction counts.
-- **Visit Procedure Editing (Same-Day Direct + Admin PIN for Prior Visits)**: Added **Edit Procedures** button on patient visit history rows. Same-day visits can be edited directly by staff; visits from earlier dates require Admin PIN authorization before unlocking the visit editor to update procedures, tooth numbers, notes, and charges.
-- **Dashboard Patients Attended Today**: Upgraded Today's Patients KPI card and added Patients Attended Today view showing ALL patients who attended today (registered today, logged visit/procedure today, marked arrived today, or billed today, including Rs. 0 follow-ups covered by previous visits). Shows OPD No., Name, Contact, Reason, and status badges.
-- **Input Contrast & Non-blocking Dialogs**: Replaced native prompt dialogs with custom dark-mode HTML modal (#adminPinModal) to eliminate Windows/Electron focus locks. Styled all selects, date pickers, and modals with high-contrast dark theme.
-- **Section Viewport Scroll Reset**: Navigation clicks automatically reset viewport scroll to top so operations and settings pages never open scrolled down into the footer.`;
+- **Lab Works Lab Companies Management**: Replaced hardcoded lab partners with persistent \`laboratories\` table in SQLite. Added **Manage Labs** modal allowing clinic to add new labs and edit existing lab details with cascade rename across lab cases and payments.
+- **Transactions Month & Date Range Filters**: Added Calendar Mode switcher (BS Nepali vs AD English), quick filter buttons (Today, This Month BS, This Month AD, This Week, This Year, All Time), and custom date range inputs.
+- **Visit Procedure Editing**: Same-day visits can be edited directly by staff; visits from earlier dates require Admin PIN authorization before unlocking the visit editor.
+- **Dashboard Patients Attended Today**: Shows ALL patients who attended today (registered, visited, arrived, or billed, including Rs. 0 follow-ups).`;
 
   if (!release) {
     console.log(`Creating new GitHub Release for ${tag}...`);

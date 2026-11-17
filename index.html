@@ -2023,6 +2023,25 @@
     </div>
   </section>
 
+  <!-- =========================================================================
+     APPLICATION FOOTER
+     ========================================================================= -->
+  <footer class="app-footer" id="appFooter">
+    <div class="app-footer-left">
+      <span>© <span id="appFooterYear">2026</span> <strong id="appFooterClient">Infinity Dental Clinic</strong></span>
+    </div>
+    <div class="app-footer-center">
+      <button type="button" class="system-info-badge" onclick="openAboutSystemModal()" title="View System Information & Licensing">
+        <span class="info-badge-dot"></span>
+        <span class="info-badge-text">System Info</span>
+        <span class="info-badge-ver">v1.2.0</span>
+      </button>
+    </div>
+    <div class="app-footer-right">
+      <span>Developed by <a href="https://sankalpapaudel.com.np" target="_blank" rel="noopener noreferrer" class="footer-author-link"><strong>3P</strong></a> • Built with ❤️ and legacy</span>
+    </div>
+  </footer>
+
   </main>
   </div>
 
@@ -2808,6 +2827,50 @@
         <p id="ph-msg" class="pvp"></p>
         <label style="margin-top:14px">Recent updates</label>
         <div id="ph-recent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+     ABOUT SYSTEM MODAL
+     ========================================================================= -->
+  <div id="aboutSystemModal" class="modal" style="display:none" onclick="if(event.target===this)closeAboutSystemModal()">
+    <div class="about-system-modal-card">
+      <div class="about-system-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="about-system-title">Infinity Dental Management</span>
+          <span class="about-system-badge">v1.2.0</span>
+        </div>
+        <button type="button" class="about-system-close" onclick="closeAboutSystemModal()" title="Close">✕</button>
+      </div>
+      <div class="about-system-body">
+        <div class="about-system-row">
+          <span class="about-system-label">Licensed To</span>
+          <span class="about-system-val">Infinity Dental Clinic</span>
+        </div>
+        <div class="about-system-row">
+          <span class="about-system-label">Website</span>
+          <a href="https://sankalpapaudel.com.np" target="_blank" rel="noopener noreferrer" class="about-system-link">
+            <span>sankalpapaudel.com.np</span>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
+        </div>
+        <div class="about-system-row">
+          <span class="about-system-label">Support Contact</span>
+          <a href="tel:9748421950" class="about-system-tel">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            </svg>
+            <span>9748421950</span>
+          </a>
+        </div>
+      </div>
+      <div class="about-system-footer">
+        Developed by <a href="https://sankalpapaudel.com.np" target="_blank" rel="noopener noreferrer" class="about-author-link"><strong>3P</strong></a> • Built with ❤️ and legacy
       </div>
     </div>
   </div>
