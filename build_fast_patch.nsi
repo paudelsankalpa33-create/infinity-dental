@@ -76,7 +76,4 @@ Section "Main"
     Exec '"$TARGET_DIR\Infinity Dental Clinic.exe"'
     RMDir /r "$1"
   ${EndIf}
-    Exec '"$TARGET_DIR\Infinity Dental Clinic.exe"'
-    RMDir /r "$1"
-  ${EndIf}
 SectionEnd
