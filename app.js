@@ -130,7 +130,11 @@ function updateDataFolderStatus() { const el = document.getElementById('dataFold
 
 function nextNumber() { return Math.max(1000, patients.filter(p => !p.AppointmentOnly).reduce((m, p) => Math.max(m, Number(p.OPDNumber) || 0), 0)) + 1 }
 function registeredPatients() { return patients.filter(p => !p.AppointmentOnly) }
-function pad(n) { return String(n).padStart(4, '0') }
+function pad(n, len = 4) { return String(n).padStart(len, '0') }
+function ymd(d) {
+  const date = d instanceof Date ? d : (d ? new Date(d) : new Date());
+  return date.toISOString().slice(0, 10);
+}
 function esc(s) { return String(s ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])) }
 let isRegisteringPatient = false;
 function registerPatient() {
@@ -443,6 +447,21 @@ function updatePaymentChoice() {
       ? '✓ Ready to save visit & print bill.'
       : 'Click ADD VISIT & SAVE to record today’s visit.';
   }
+}
+
+function getVisitFinalTotal() {
+  const subtotal = getVisitSubtotal();
+  const pctEl = document.getElementById('discountPercent');
+  const amtEl = document.getElementById('discountAmount');
+  let discount = 0;
+  if (lastDiscountMode === 'percent' && pctEl && subtotal > 0) {
+    const pct = Math.max(0, Math.min(100, Number(pctEl.value) || 0));
+    discount = subtotal * pct / 100;
+  } else {
+    const rawDisc = Number(amtEl?.value) || 0;
+    discount = Math.max(0, Math.min(subtotal, rawDisc));
+  }
+  return Math.max(0, subtotal - discount);
 }
 
 function openClinicWebsite() {
@@ -1765,7 +1784,10 @@ function generateVisitNepalPayQr() {
   const paidEl = document.getElementById('visitPaid');
   if (paidEl) paidEl.value = amt;
 
-  const billNo = 'B-' + ymd(new Date()).replace(/-/g, '') + '-' + pad(p.OPDNumber) + '-' + pad(Number(p.BillSequence || p.VisitHistory?.length || 0) + 1, 3);
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const visitNo = ((p.VisitHistory && p.VisitHistory.length) || 0) + 1;
+  const billNo = 'B-' + dateStr + '-' + pad(p.OPDNumber) + '-' + String(visitNo).padStart(3, '0');
   const procEl = document.getElementById('visitProcedure');
   const remarks = (procEl?.value || 'Dental Treatment').slice(0, 30);
 
@@ -4022,13 +4044,9 @@ let downloadedUpdatePath = null;
 let currentUpdateInfo = null;
 
 function downloadAppUpdateDirect() {
-  const url = window.currentUpdateInfo?.setupUrl || window.currentUpdateInfo?.downloadUrl || window.currentUpdateInfo?.htmlUrl;
+  const url = window.currentUpdateInfo?.setupUrl || window.currentUpdateInfo?.downloadUrl || window.currentUpdateInfo?.htmlUrl || 'https://github.com/paudelsankalpa33-create/infinity-dental/releases/latest';
   console.log('[Updater] Direct setup download requested:', url);
-  if (url) {
-    openExternalUrl(url);
-  } else {
-    openExternalUrl('https://github.com/paudelsankalpa33-create/infinity-dental/releases/latest');
-  }
+  openExternalUrl(url);
 }
 
 function openReleasePage() {
@@ -4038,7 +4056,10 @@ function openReleasePage() {
 
 async function startInAppUpdate(overrideUrl) {
   if (isDownloadingUpdate) return;
-  const downloadUrl = overrideUrl || window.currentUpdateInfo?.downloadUrl || window.currentUpdateInfo?.setupUrl || window.currentUpdateInfo?.htmlUrl;
+  let downloadUrl = overrideUrl || window.currentUpdateInfo?.downloadUrl || window.currentUpdateInfo?.setupUrl || window.currentUpdateInfo?.htmlUrl;
+  if (!downloadUrl) {
+    downloadUrl = 'https://github.com/paudelsankalpa33-create/infinity-dental/releases/latest';
+  }
   console.log('[Updater] startInAppUpdate invoked with URL:', downloadUrl);
 
   const downloadArea = document.getElementById('updateDownloadArea');
@@ -8702,7 +8723,7 @@ function scrollToAttendedToday() {
 
 /* About System Modal & Dynamic Version Controller */
 async function syncAppVersionUI() {
-  let ver = '1.0.26';
+  let ver = '1.0.27';
   if (window.dentalApp && window.dentalApp.getVersion) {
     try {
       const v = await window.dentalApp.getVersion();

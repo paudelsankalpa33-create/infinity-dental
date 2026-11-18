@@ -122,7 +122,7 @@ Official client release. Fast in-app updater compatible.
 Patient database in C:\\Infiinity Dental Clinic is preserved.
 
 ### What's New in ${tag}:
-- **On-Form Dynamic NepalPay QR Generator**: Added "📱 GENERATE NEPALPAY QR" button directly on the Add Visit form in Patient Profile. Generates a dynamic NCHL QR code matching the exact amount entered in the payment field (or procedure total) and pushes to the NiZi POS B33 Soundbox with automatic payment listening.
+- **Fixed '📱 GENERATE NEPALPAY QR' Button Activation**: Resolved runtime reference errors (\`ymd\` and \`getVisitFinalTotal\`) so clicking the button immediately creates the dynamic NepalPay QR code with the exact price entered (or procedure total) and pushes to the NiZi POS B33 Soundbox.
 - **Visit & Payment History Row & Bulk Deletion**: Full control over patient clinical and payment history records:
   - Individual "🗑️ Delete" button on each visit and payment row.
   - Row checkboxes for single selection.
@@ -130,7 +130,7 @@ Patient database in C:\\Infiinity Dental Clinic is preserved.
   - Bulk "🗑️ Delete Selected (<count>)" action with confirmation prompt.
   - Automatic patient ledger recalculation: subtotal, final amount, and payment status (Paid / Partial / Pending) update instantly in SQLite.
 - **Strict Version Synchronization Across UI**: Dynamic version sync ensures all UI badges (Settings flyout, AppFooter, AboutSystemModal, Update Modal, and Update Banner) display the exact running application version (${tag}) with zero mismatches.
-- **Update Download Button Fix & Silent 1-Click Setup**: Direct Setup (.exe) and in-app updater install silently with 1-click execution, skipping wizard prompts and applying seamlessly.
+- **Update Download Button & In-App Installer Fix**: Direct Setup (.exe) and in-app updater download seamlessly with zero frozen click handlers.
 - **Cleaned Patient Tax Invoice**: Removed obsolete validity text and streamlined footer branding for single-page A5 printing.
 - **Integrated AppFooter & AboutSystemModal**: System info modal with licensing to Infinity Dental Clinic, developer credits to **3P** (https://sankalpapaudel.com.np), and support contact.
 - **Appointments Real Date & Reschedule**: Dynamic AD/BS current date selection on startup and inline Reschedule feature.
