@@ -970,26 +970,20 @@ ipcMain.handle('app:install-and-restart', async (_event, customPath) => {
       }
     }
 
-    // Default: Full .exe installer (launch with cmd start to allow UAC elevation if needed and pass /S for silent install)
+    // Default: Full .exe installer (launch with PowerShell Start-Process with /S and -Verb RunAs for seamless elevation)
     console.log('[Updater] Launching installer with silent flag (/S):', targetPath);
     try {
-      const child = spawn('cmd.exe', ['/c', 'start', '""', targetPath, '/S'], {
+      const psCmd = `Start-Process -FilePath "${targetPath.replace(/"/g, '`"')}" -ArgumentList "/S" -Verb RunAs`;
+      const ps = spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', psCmd], {
         detached: true,
         stdio: 'ignore'
       });
-      child.on('error', (err) => {
-        console.warn('[Updater] Direct spawn notice, trying PowerShell Start-Process:', err.message);
+      ps.on('error', () => {
         try {
-          const ps = spawn('powershell.exe', ['-NoProfile', '-Command', `Start-Process -FilePath '${targetPath}' -ArgumentList '/S'`], {
-            detached: true,
-            stdio: 'ignore'
-          });
-          ps.unref();
-        } catch (_) {
           shell.openPath(targetPath);
-        }
+        } catch (_) {}
       });
-      child.unref();
+      ps.unref();
     } catch (spawnErr) {
       console.warn('[Updater] Fallback to shell.openPath:', spawnErr.message);
       shell.openPath(targetPath);

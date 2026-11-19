@@ -8,7 +8,7 @@ import React, { useEffect } from 'react';
  * @param {boolean} props.isOpen - Whether modal is visible
  * @param {Function} props.onClose - Close callback function
  * @param {string} [props.appName="Infinity Dental Management"] - Software Name
- * @param {string} [props.version="v1.0.30"] - Version tag
+ * @param {string} [props.version="v1.0.31"] - Version tag
  * @param {string} [props.clientName="Infinity Dental Clinic"] - Licensed client name
  * @param {string} [props.website="sankalpapaudel.com.np"] - Website display text
  * @param {string} [props.websiteUrl="https://sankalpapaudel.com.np"] - Website URL
@@ -18,7 +18,7 @@ export default function AboutSystemModal({
   isOpen,
   onClose,
   appName = "Infinity Dental Management",
-  version = "v1.0.30",
+  version = "v1.0.31",
   clientName = "Infinity Dental Clinic",
   website = "sankalpapaudel.com.np",
   websiteUrl = "https://sankalpapaudel.com.np",

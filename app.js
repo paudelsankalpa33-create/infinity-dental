@@ -273,7 +273,17 @@ function savePageInputs() { }
 function saveVisitInputs() { }
 function loadVisitDraft() { }
 function renderPatients() { const q = (document.getElementById('search')?.value || '').trim().toLowerCase(); const list = registeredPatients().filter(p => !q || [p.OPDNumber, p.Name, p.Contact].some(v => String(v || '').toLowerCase().includes(q))).sort((a, b) => b.OPDNumber - a.OPDNumber); document.getElementById('patientRows').innerHTML = list.length ? list.map(p => `<tr class="clickable" onclick="openProfile('${p.id}')"><td>${pad(p.OPDNumber)}</td><td>${esc(p.Name)}</td><td>${esc(p.Contact)}</td><td>${esc(p.Date)}</td><td>${esc(p.PaymentStatus || 'Pending')}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">No patients found.</td></tr>` }
-function openProfile(id) { pendingProcedures = []; selectedId = id; const recent = JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1') || '[]').filter(x => x !== id); recent.unshift(id); localStorage.setItem('infinity_dental_recent_patients_v1', JSON.stringify(recent.slice(0, 8))); showPage('profile'); renderProfile() }
+function openProfile(id) {
+  pendingProcedures = [];
+  selectedId = id;
+  const p = patients.find(x => x.id === id);
+  if (p) recalculatePatientFinancials(p);
+  const recent = JSON.parse(localStorage.getItem('infinity_dental_recent_patients_v1') || '[]').filter(x => x !== id);
+  recent.unshift(id);
+  localStorage.setItem('infinity_dental_recent_patients_v1', JSON.stringify(recent.slice(0, 8)));
+  showPage('profile');
+  renderProfile();
+}
 let PROCEDURES = [];
 function priceText(x) {
   if (x.price != null) return 'Rs. ' + Number(x.price).toLocaleString() + (x.unit ? ' ' + x.unit : '');
@@ -513,7 +523,7 @@ function updatePaymentChoice() {
   }
 
   const total = Math.max(0, subtotal - discount);
-  const choice = document.querySelector('input[name=paymentType]:checked')?.value || 'total';
+  const choice = document.querySelector('input[name=paymentType]:checked')?.value || 'due';
   const paidEl = document.getElementById('visitPaid');
   const hint = document.getElementById('paymentHint');
   const totalEl = document.getElementById('discountedTotal');
@@ -522,17 +532,30 @@ function updatePaymentChoice() {
 
   if (totalEl) totalEl.textContent = 'Rs. ' + total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   if (paidEl) {
-    if (choice === 'total') {
-      paidEl.placeholder = total > 0 ? `e.g. ${total.toLocaleString()} (Full Amount)` : 'Enter amount (Rs. 1 to 1,00,000)';
+    if (choice === 'due') {
+      paidEl.value = '0';
+      paidEl.disabled = true;
       if (hint) {
-        hint.textContent = total > 0
-          ? `Total payment: Enter amount paid (Rs. 1 to 1,00,000) or leave blank for full bill (Rs. ${total.toLocaleString()}).`
+        hint.innerHTML = total > 0
+          ? `⏳ <span style="color:#ef4444;font-weight:700">Due / Unpaid:</span> Rs. 0 received today. Full amount (Rs. ${total.toLocaleString()}) will be recorded as pending balance.`
+          : '⏳ <span style="color:#64748b;font-weight:600">No charge / checkup visit. Rs. 0 payment.</span>';
+      }
+    } else if (choice === 'total') {
+      paidEl.disabled = false;
+      paidEl.value = total > 0 ? total : '0';
+      if (hint) {
+        hint.innerHTML = total > 0
+          ? `💰 <span style="color:#22c55e;font-weight:700">Full Payment:</span> Marking full bill (Rs. ${total.toLocaleString()}) as paid today.`
           : 'Enter amount paid (Rs. 1 to 1,00,000).';
       }
     } else {
+      paidEl.disabled = false;
+      if (paidEl.value === '0' || Number(paidEl.value) === total) {
+        paidEl.value = '';
+      }
       paidEl.placeholder = 'Enter partial amount (Rs. 1 to 1,00,000)';
       if (hint) {
-        hint.textContent = 'Partial payment: Enter amount received today (Rs. 1 to 1,00,000). Remaining balance will be recorded as due.';
+        hint.innerHTML = '🪙 <span style="color:#38bdf8;font-weight:700">Partial Payment:</span> Enter amount received today. Remaining balance will be recorded as due.';
       }
     }
   }
@@ -607,20 +630,24 @@ function addVisit() {
   const discountAmount = Math.max(0, Math.min(subtotal, rawDiscount));
   const discountPercent = subtotal ? (discountAmount / subtotal * 100) : 0;
   const total = Math.max(0, subtotal - discountAmount);
-  const choice = document.querySelector('input[name=paymentType]:checked')?.value || 'total';
+  const choice = document.querySelector('input[name=paymentType]:checked')?.value || 'due';
 
   const paidEl = document.getElementById('visitPaid');
   const rawPaid = (paidEl?.value ?? '').trim();
-  let paid;
-  if (rawPaid !== '') {
+  let paid = 0;
+  if (choice === 'due') {
+    paid = 0;
+  } else if (rawPaid !== '') {
     paid = Number(rawPaid);
     if (isNaN(paid) || paid < 0) {
-      showToast('Please enter a valid payment amount (Rs. 1 to 1,00,000).', 'warn');
+      showToast('Please enter a valid payment amount.', 'warn');
       paidEl?.focus();
       return;
     }
+  } else if (choice === 'total') {
+    paid = total;
   } else {
-    paid = (choice === 'total') ? total : 0;
+    paid = 0;
   }
 
   let mode = document.getElementById('visitPaymentMode')?.value || 'Cash';
@@ -680,6 +707,9 @@ function addVisit() {
       p.default_doctor_name = doctorName;
     }
 
+    const isPaid = (payDone > 0);
+    const isFree = (total === 0);
+
     const visit = {
       id: crypto.randomUUID(),
       date,
@@ -689,7 +719,7 @@ function addVisit() {
       procedures: procNames,
       paymentDone: payDone,
       amount: payDone,
-      paymentMethod: payMethod,
+      paymentMethod: isPaid ? payMethod : '',
       txnId: txnId || '',
       subtotal,
       discountPercent: Number(discountPercent.toFixed(2)),
@@ -701,18 +731,36 @@ function addVisit() {
     };
     p.VisitHistory.unshift(visit);
     pendingProcedures.forEach(x => p.Treatments.push({ procedure: x.procedure, cost: x.cost, date, time, billNumber: billNo, doctorId, doctorName }));
-    p.PaymentHistory.unshift({ date, time, billNumber: billNo, amount: payDone, method: payMethod, txnId: txnId || '', status: payDone >= total ? 'Paid' : payDone > 0 ? 'Partial' : 'Pending', doctorId, doctorName });
-    p.PaymentStatus = payDone >= total ? 'Paid' : payDone > 0 ? 'Partial' : 'Pending';
-    p.PaymentMethod = payMethod;
+
+    if (isPaid) {
+      p.PaymentHistory.unshift({
+        date,
+        time,
+        billNumber: billNo,
+        amount: payDone,
+        method: payMethod,
+        txnId: txnId || '',
+        status: payDone >= total ? 'Paid' : 'Partial',
+        doctorId,
+        doctorName
+      });
+      p.PaymentStatus = payDone >= total ? 'Paid' : 'Partial';
+      p.PaymentMethod = payMethod;
+    } else {
+      // Unpaid or 0-cost visit: Do NOT add a fake Rs. 0 payment entry to PaymentHistory!
+      p.PaymentStatus = isFree ? 'No Charge' : 'Pending';
+      p.PaymentMethod = '';
+    }
+
     p.Subtotal = (Number(p.Subtotal) || 0) + subtotal;
     p.FinalAmount = (Number(p.FinalAmount) || 0) + total;
     pendingProcedures = [];
     save();
     updateAll();
-    if (payDone > 0) {
+    if (isPaid) {
       sendNiziCommand({ command: 'success', amount: payDone });
     }
-    if (payMethod === 'NepalPay QR' || (typeof payMethod === 'string' && payMethod.toLowerCase().includes('nepalpay'))) {
+    if (isPaid && (payMethod === 'NepalPay QR' || (typeof payMethod === 'string' && payMethod.toLowerCase().includes('nepalpay')))) {
       logNepalPayMoneyRecord({
         billNumber: billNo,
         patientName: p.Name,
@@ -1719,10 +1767,13 @@ function renderProfile() {
        <div class="section-title" style="margin:0 0 8px 0">Payment Done</div>
        <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
          <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
-           <input type="radio" name="paymentType" value="total" checked onchange="updatePaymentChoice()"> Total Payment
+           <input type="radio" name="paymentType" value="due" checked onchange="updatePaymentChoice()"> ⏳ Due / Unpaid (Pay Later — Rs. 0)
          </label>
          <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
-           <input type="radio" name="paymentType" value="partial" onchange="updatePaymentChoice()"> Partial Payment
+           <input type="radio" name="paymentType" value="total" onchange="updatePaymentChoice()"> 💰 Full Payment
+         </label>
+         <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+           <input type="radio" name="paymentType" value="partial" onchange="updatePaymentChoice()"> 🪙 Partial Payment
          </label>
        </div>
        <div class="formgrid">
@@ -1814,7 +1865,12 @@ function renderProfile() {
          🗑️ Delete Selected (<span id="selectedVisitsCount">0</span>)
        </button>
      </div>
-     ${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th style="width:32px;text-align:center"><input type="checkbox" id="selectAllVisits" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="toggleSelectAllVisits(this)" title="Select All Visits"></th><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map((v, vIdx) => `<tr><td style="text-align:center"><input type="checkbox" class="visit-select-chk" data-bill="${esc(v.billNumber || '')}" data-id="${esc(v.id || '')}" data-idx="${vIdx}" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="updateVisitSelectionUI()"></td><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div>${(v.doctorName || p.default_doctor_name) ? `<div style="font-size:11px;color:#38bdf8;font-weight:600;margin-top:2px">👨‍⚕️ ${esc(v.doctorName || p.default_doctor_name)}</div>` : ''}</td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button><button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit</button><button type="button" class="btn secondary" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:#ef4444" onclick="deleteSingleVisit('${p.id}', '${v.id || v.billNumber}')" title="Delete this visit">🗑️</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}
+     ${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th style="width:32px;text-align:center"><input type="checkbox" id="selectAllVisits" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="toggleSelectAllVisits(this)" title="Select All Visits"></th><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map((v, vIdx) => {
+        const vCost = Number(v.cost || v.subtotal || 0);
+        const vPaid = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+        const vDue = Math.max(0, vCost - vPaid);
+        return `<tr><td style="text-align:center"><input type="checkbox" class="visit-select-chk" data-bill="${esc(v.billNumber || '')}" data-id="${esc(v.id || '')}" data-idx="${vIdx}" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="updateVisitSelectionUI()"></td><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${vCost.toLocaleString()}</div>${(v.doctorName || p.default_doctor_name) ? `<div style="font-size:11px;color:#38bdf8;font-weight:600;margin-top:2px">👨‍⚕️ ${esc(v.doctorName || p.default_doctor_name)}</div>` : ''}</td><td>${vPaid > 0 ? `<b>Rs. ${vPaid.toLocaleString()}</b>${v.paymentMethod ? `<div class="muted" style="font-size:10.5px">${esc(v.paymentMethod)}</div>` : ''}` : ''}${vDue > 0 ? `<div style="color:#ef4444;font-size:11px;font-weight:700;margin-top:${vPaid > 0 ? '2px' : '0'}">⏳ Due: Rs. ${vDue.toLocaleString()}</div>` : (vCost === 0 && vPaid === 0 ? `<div class="muted" style="font-size:11px">No Charge</div>` : '')}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button>${vDue > 0 ? `<button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px;color:#22c55e;border-color:#22c55e;font-weight:700" onclick="collectDueForBill('${esc(v.billNumber)}')">💰 Collect Due</button>` : ''}<button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit</button><button type="button" class="btn secondary" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:#ef4444" onclick="deleteSingleVisit('${p.id}', '${v.id || v.billNumber}')" title="Delete this visit">🗑️</button></div></td></tr>`;
+      }).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}
    </div>
    <div class="card">
      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -2059,6 +2115,10 @@ function proceedGenerateVisitNepalPayQr(amt) {
 function recalculatePatientFinancials(p) {
   if (!p) return;
   ensurePatientArrays(p);
+  // Auto-clean any legacy fake 0-amount payments
+  if (Array.isArray(p.PaymentHistory)) {
+    p.PaymentHistory = p.PaymentHistory.filter(pay => (Number(pay.amount) || 0) > 0);
+  }
   const visits = Array.isArray(p.VisitHistory) ? p.VisitHistory : [];
   const payments = Array.isArray(p.PaymentHistory) ? p.PaymentHistory : [];
 
@@ -2068,9 +2128,10 @@ function recalculatePatientFinancials(p) {
 
   p.Subtotal = totalSubtotal;
   p.FinalAmount = totalCost;
-  p.PaymentStatus = (totalPaid >= totalCost && totalCost > 0) ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Pending');
   if (totalCost === 0 && totalPaid === 0) {
-    p.PaymentStatus = 'Pending';
+    p.PaymentStatus = visits.length ? 'No Charge' : 'Pending';
+  } else {
+    p.PaymentStatus = (totalPaid >= totalCost && totalCost > 0) ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Pending');
   }
 }
 
@@ -4810,30 +4871,38 @@ async function collectBillingAndPrintA5(printAfterSave = true) {
       p.Treatments.push({ procedure: x.procedure, cost: x.cost, date, time, billNumber: billNo, doctorId, doctorName });
     });
 
-    p.PaymentHistory.unshift({
-      date,
-      time,
-      billNumber: billNo,
-      amount: payDone,
-      method: payMethod,
-      txnId: txnId || '',
-      status: payDone >= netTotal ? 'Paid' : payDone > 0 ? 'Partial' : 'Pending',
-      doctorId,
-      doctorName
-    });
+    const isPaid = (payDone > 0);
+    const isFree = (netTotal === 0);
 
-    p.PaymentStatus = payDone >= netTotal ? 'Paid' : payDone > 0 ? 'Partial' : 'Pending';
-    p.PaymentMethod = payMethod;
+    if (isPaid) {
+      p.PaymentHistory.unshift({
+        date,
+        time,
+        billNumber: billNo,
+        amount: payDone,
+        method: payMethod,
+        txnId: txnId || '',
+        status: payDone >= netTotal ? 'Paid' : 'Partial',
+        doctorId,
+        doctorName
+      });
+      p.PaymentStatus = payDone >= netTotal ? 'Paid' : 'Partial';
+      p.PaymentMethod = payMethod;
+    } else {
+      p.PaymentStatus = isFree ? 'No Charge' : 'Pending';
+      p.PaymentMethod = '';
+    }
+
     p.Subtotal = (Number(p.Subtotal) || 0) + subtotal;
     p.FinalAmount = (Number(p.FinalAmount) || 0) + netTotal;
 
     billingStagedProcedures = [];
     save();
 
-    if (payDone > 0) {
+    if (isPaid) {
       sendNiziCommand({ command: 'success', amount: payDone });
     }
-    if (payMethod === 'NepalPay QR' || (typeof payMethod === 'string' && payMethod.toLowerCase().includes('nepalpay'))) {
+    if (isPaid && (payMethod === 'NepalPay QR' || (typeof payMethod === 'string' && payMethod.toLowerCase().includes('nepalpay')))) {
       logNepalPayMoneyRecord({
         billNumber: billNo,
         patientName: p.Name,
@@ -4932,9 +5001,11 @@ function collectDueForBill(billNo) {
     status: newTotalPaid >= cost ? 'Paid' : 'Partial'
   });
 
+  recalculatePatientFinancials(p);
   save();
   sendNiziCommand({ command: 'success', amount: addPaid });
   renderBillingWorkspace();
+  renderProfile();
   showToast(`✓ Due payment of Rs. ${addPaid} collected!`, 'success');
   if (confirm(`Payment of Rs. ${addPaid} collected.\n\nPrint updated A5 Bill now?`)) {
     printBill(billNo);
@@ -5258,8 +5329,8 @@ async function startInAppUpdate(overrideUrl) {
   const bytesText = document.getElementById('downloadBytesText');
   const progressBar = document.getElementById('updateProgressBar');
   const inAppBtn = document.getElementById('inAppDownloadBtn');
-  const checkBtn = document.getElementById('checkUpdateBtn');
-  const installArea = document.getElementById('installActionsArea');
+  const checkBtn = document.getElementById('checkUpdateBtn') || document.getElementById('btnCheckUpdatesModal');
+  const installArea = document.getElementById('installActionsArea') || document.getElementById('updateInstallReadyArea');
 
   // Immediate visual feedback on click
   if (inAppBtn) {
@@ -9947,7 +10018,7 @@ function scrollToAttendedToday() {
 
 /* About System Modal & Dynamic Version Controller */
 async function syncAppVersionUI() {
-  let ver = '1.0.30';
+  let ver = '1.0.31';
   if (window.dentalApp && window.dentalApp.getVersion) {
     try {
       const v = await window.dentalApp.getVersion();
