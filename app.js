@@ -296,9 +296,44 @@ async function loadPriceList() {
     }
   }
   if (!PROCEDURES.length) PROCEDURES = [{ name: 'OPD Card', price: 100 }];
+  updateProcedureDatalist();
 }
 function renderProcedureOptions() {
   return PROCEDURES.map((x, i) => `<option value="${i}" data-cost="${procedureDefault(x)}" data-min="${x.min ?? ''}" data-max="${x.max ?? ''}">${esc(x.name)} — ${esc(priceText(x))}</option>`).join('');
+}
+
+function renderProcedureDatalistOptions() {
+  if (!Array.isArray(PROCEDURES) || !PROCEDURES.length) {
+    return '<option value="Consultation">Rs. 500 – 750</option><option value="OPD Card">Rs. 100</option>';
+  }
+  return PROCEDURES.map(x => `<option value="${esc(x.name)}">${esc(priceText(x))}</option>`).join('');
+}
+
+function updateProcedureDatalist() {
+  const dl = document.getElementById('procedureDatalist');
+  if (dl) dl.innerHTML = renderProcedureDatalistOptions();
+  const billDl = document.getElementById('billingPriceListOptions');
+  if (billDl) {
+    billDl.innerHTML = PROCEDURES.map(x => `<option value="${esc(x.name)}">${esc(priceText(x))}</option>`).join('');
+  }
+}
+
+function onVisitProcedureInput(val) {
+  let clean = (val || '').trim();
+  if (!clean) return;
+  if (clean.includes('—')) {
+    clean = clean.split('—')[0].trim();
+  }
+  const match = (Array.isArray(PROCEDURES) ? PROCEDURES : []).find(p => p.name.toLowerCase() === clean.toLowerCase());
+  if (match) {
+    const cost = procedureDefault(match);
+    const costEl = document.getElementById('visitCost');
+    if (costEl && cost > 0) {
+      costEl.value = cost;
+      delete costEl.dataset.syncedWithPaid;
+    }
+  }
+  updatePaymentChoice();
 }
 
 function applyQuickProcedure(name, cost) {
@@ -307,17 +342,9 @@ function applyQuickProcedure(name, cost) {
     costEl.value = cost;
     delete costEl.dataset.syncedWithPaid;
   }
-  const sel = document.getElementById('visitProcedure');
-  if (sel) {
-    let matched = false;
-    for (let i = 0; i < sel.options.length; i++) {
-      if (sel.options[i].text.toLowerCase().includes(name.toLowerCase())) {
-        sel.selectedIndex = i;
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) sel.value = '';
+  const procEl = document.getElementById('visitProcedure');
+  if (procEl) {
+    procEl.value = name;
   }
   updatePaymentChoice();
   showToast(`Selected: ${name} (Rs. ${cost})`, 'info');
@@ -345,11 +372,16 @@ function onVisitPaidInput(val) {
 }
 
 function updateVisitCost() {
-  const sel = document.getElementById('visitProcedure');
-  const opt = sel?.options[sel.selectedIndex];
-  const costEl = document.getElementById('visitCost');
-  if (costEl && opt && opt.value) {
-    costEl.value = opt.dataset.cost || 0;
+  const procEl = document.getElementById('visitProcedure');
+  if (!procEl) return;
+  if (procEl.tagName === 'SELECT') {
+    const opt = procEl.options[procEl.selectedIndex];
+    const costEl = document.getElementById('visitCost');
+    if (costEl && opt && opt.value) {
+      costEl.value = opt.dataset.cost || 0;
+    }
+  } else {
+    onVisitProcedureInput(procEl.value);
   }
   updatePaymentChoice();
 }
@@ -380,11 +412,17 @@ function ensurePatientArrays(p) {
 let pendingProcedures = [];
 
 function addPendingProcedure() {
-  const sel = document.getElementById('visitProcedure');
-  const opt = sel?.options[sel?.selectedIndex];
+  const procEl = document.getElementById('visitProcedure');
+  let procName = (procEl?.value || '').trim();
+  if (procEl?.tagName === 'SELECT') {
+    const opt = procEl.options[procEl.selectedIndex];
+    const item = (opt && opt.value) ? PROCEDURES[Number(opt.value)] : null;
+    procName = item ? item.name : (document.getElementById('customProcedureName')?.value?.trim() || 'General Dental Treatment');
+  }
+  if (!procName) {
+    procName = (document.getElementById('customProcedureName')?.value || '').trim() || 'General Dental Treatment';
+  }
   const cost = Number(document.getElementById('visitCost')?.value) || 0;
-  const item = (opt && opt.value) ? PROCEDURES[Number(opt.value)] : null;
-  const procName = item ? item.name : (document.getElementById('customProcedureName')?.value?.trim() || 'General Dental Treatment');
 
   if (cost <= 0) {
     showToast('Please enter a treatment amount before adding.', 'warn');
@@ -394,7 +432,7 @@ function addPendingProcedure() {
 
   pendingProcedures.push({ procedure: procName, cost });
   renderPendingProcedures();
-  if (sel) sel.value = '';
+  if (procEl) procEl.value = '';
   const costEl = document.getElementById('visitCost');
   if (costEl) costEl.value = '0';
   updatePaymentChoice();
@@ -549,14 +587,18 @@ function addVisit() {
 
   // Auto-stage procedure if none added to list yet
   if (!pendingProcedures.length) {
-    const sel = document.getElementById('visitProcedure');
-    const opt = sel?.options[sel?.selectedIndex];
-    const item = (opt && opt.value) ? PROCEDURES[Number(opt.value)] : null;
+    const procEl = document.getElementById('visitProcedure');
+    let typedName = (procEl?.value || '').trim();
+    if (procEl?.tagName === 'SELECT') {
+      const opt = procEl.options[procEl.selectedIndex];
+      const item = (opt && opt.value) ? PROCEDURES[Number(opt.value)] : null;
+      if (item) typedName = item.name;
+    }
     const directCost = Number(document.getElementById('visitCost')?.value) || 0;
     const paidInput = Number(document.getElementById('visitPaid')?.value) || 0;
     const finalCost = directCost > 0 ? directCost : (paidInput > 0 ? paidInput : 0);
 
-    const procName = item ? item.name : (document.getElementById('customProcedureName')?.value?.trim() || (finalCost > 0 ? 'General Dental Treatment' : 'General Dental Consultation & Checkup'));
+    const procName = typedName || (document.getElementById('customProcedureName')?.value?.trim() || (finalCost > 0 ? 'General Dental Treatment' : 'General Dental Consultation & Checkup'));
     pendingProcedures.push({ procedure: procName, cost: finalCost });
   }
 
@@ -604,15 +646,36 @@ function addVisit() {
       p.Appointment = { adDate: apptAd, bsDate: apptBs, time: apptT, status: 'scheduled', date: apptAd };
     }
 
-    // Doctor Assignment & First Visit Rule
-    const docSelect = document.getElementById('visitDoctor');
-    const chosenDocId = docSelect ? docSelect.value : '';
-    const chosenDoc = clinicDoctors.find(d => String(d.id) === String(chosenDocId)) || (p.default_doctor_id ? clinicDoctors.find(d => String(d.id) === String(p.default_doctor_id)) : null);
-    const doctorId = chosenDoc ? chosenDoc.id : (p.default_doctor_id || '');
-    const doctorName = chosenDoc ? chosenDoc.name : (p.default_doctor_name || '');
+    // Doctor Assignment & First Visit Rule (supports manual typing & dropdown selection)
+    const docInput = document.getElementById('visitDoctor');
+    const typedDoc = (docInput ? docInput.value : '').trim();
+    let chosenDoc = null;
+    let doctorId = '';
+    let doctorName = '';
 
-    // First visit rule: if patient does not yet have a default doctor, save chosen doctor as default
-    if (!p.default_doctor_id && doctorId) {
+    if (typedDoc) {
+      chosenDoc = clinicDoctors.find(d => 
+        d.name.toLowerCase() === typedDoc.toLowerCase() || 
+        String(d.id).toLowerCase() === typedDoc.toLowerCase()
+      );
+      if (chosenDoc) {
+        doctorId = chosenDoc.id;
+        doctorName = chosenDoc.name;
+      } else {
+        doctorName = typedDoc;
+        doctorId = 'doc-' + typedDoc.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || ('doc-' + Date.now());
+        registerNewDoctorIfAbsent(doctorId, doctorName);
+      }
+    } else if (p.default_doctor_name) {
+      doctorId = p.default_doctor_id || '';
+      doctorName = p.default_doctor_name || '';
+    } else if (clinicDoctors.length) {
+      doctorId = clinicDoctors[0].id;
+      doctorName = clinicDoctors[0].name;
+    }
+
+    // First visit rule: if patient does not yet have a default doctor, save chosen/typed doctor as default
+    if (!p.default_doctor_id && doctorName) {
       p.default_doctor_id = doctorId;
       p.default_doctor_name = doctorName;
     }
@@ -1585,24 +1648,38 @@ function renderProfile() {
 
      <!-- Assigned Doctor Row -->
      <div style="margin-bottom:12px">
-       <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px">
-         Treating Doctor for This Visit:
-         ${p.default_doctor_name ? `<span style="color:#38bdf8;font-weight:400;margin-left:6px">(Pre-selected: ${esc(p.default_doctor_name)})</span>` : '<span style="color:#f59e0b;font-weight:400;margin-left:6px">(First visit: selected doctor will be saved as default)</span>'}
-       </label>
-       <select id="visitDoctor" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-weight:600">
-         <option value="">-- Choose Treating Doctor --</option>
-         ${renderDoctorOptions(p.default_doctor_id || selectedDoctorId)}
-       </select>
+       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+         <label style="font-size:11px;font-weight:700;color:#94a3b8">
+           👨‍⚕️ Assign Treating Doctor:
+           <span id="visitDoctorHint" style="font-weight:400;margin-left:6px;color:${p.default_doctor_name ? '#38bdf8' : '#f59e0b'}">
+             ${p.default_doctor_name ? `(Pre-selected default: ${esc(p.default_doctor_name)})` : '(First visit: typed or selected doctor will be saved as default)'}
+           </span>
+         </label>
+         ${p.default_doctor_name ? `<button type="button" class="btn secondary" style="padding:2px 8px;font-size:10.5px" onclick="promptChangeDefaultDoctor('${esc(p.id)}')">⚙ Change Default</button>` : ''}
+       </div>
+       <div style="position:relative">
+         <input type="text" id="visitDoctor" list="doctorDatalist" 
+                value="${esc(p.default_doctor_name || (clinicDoctors[0]?.name || ''))}" 
+                placeholder="Type doctor's name manually or pick from list..." 
+                autocomplete="off"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-weight:600;font-size:13px">
+         <datalist id="doctorDatalist">${renderDoctorDatalistOptions()}</datalist>
+       </div>
      </div>
 
      <!-- Treatment Picker & Amount Row -->
      <div style="display:grid;grid-template-columns:1.8fr 1fr auto;gap:8px;align-items:center">
        <div>
-         <label style="font-size:11px;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Select Treatment</label>
-         <select id="visitProcedure" onchange="updateVisitCost()" style="width:100%;box-sizing:border-box">
-           <option value="">Select treatment from price list...</option>
-           ${renderProcedureOptions()}
-         </select>
+         <label style="font-size:11px;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">
+           Treatment / Procedure Name <span style="font-weight:400;color:#38bdf8">(Type manually or pick from list)</span>
+         </label>
+         <input type="text" id="visitProcedure" list="procedureDatalist" 
+                placeholder="Type treatment name or select from price list..." 
+                oninput="onVisitProcedureInput(this.value)" 
+                onchange="onVisitProcedureInput(this.value)"
+                autocomplete="off"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-size:13px">
+         <datalist id="procedureDatalist">${renderProcedureDatalistOptions()}</datalist>
        </div>
        <div>
          <label style="font-size:11px;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Treatment Amount (Rs.) *</label>
@@ -1737,7 +1814,7 @@ function renderProfile() {
          🗑️ Delete Selected (<span id="selectedVisitsCount">0</span>)
        </button>
      </div>
-     ${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th style="width:32px;text-align:center"><input type="checkbox" id="selectAllVisits" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="toggleSelectAllVisits(this)" title="Select All Visits"></th><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map((v, vIdx) => `<tr><td style="text-align:center"><input type="checkbox" class="visit-select-chk" data-bill="${esc(v.billNumber || '')}" data-id="${esc(v.id || '')}" data-idx="${vIdx}" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="updateVisitSelectionUI()"></td><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div></td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button><button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit</button><button type="button" class="btn secondary" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:#ef4444" onclick="deleteSingleVisit('${p.id}', '${v.id || v.billNumber}')" title="Delete this visit">🗑️</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}
+     ${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th style="width:32px;text-align:center"><input type="checkbox" id="selectAllVisits" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="toggleSelectAllVisits(this)" title="Select All Visits"></th><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map((v, vIdx) => `<tr><td style="text-align:center"><input type="checkbox" class="visit-select-chk" data-bill="${esc(v.billNumber || '')}" data-id="${esc(v.id || '')}" data-idx="${vIdx}" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="updateVisitSelectionUI()"></td><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${Number(v.cost || 0).toLocaleString()}</div>${(v.doctorName || p.default_doctor_name) ? `<div style="font-size:11px;color:#38bdf8;font-weight:600;margin-top:2px">👨‍⚕️ ${esc(v.doctorName || p.default_doctor_name)}</div>` : ''}</td><td>Rs. ${Number(v.paymentDone || v.amount || 0).toLocaleString()}${v.paymentMethod ? `<div class="muted">${esc(v.paymentMethod)}</div>` : ''}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button><button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit</button><button type="button" class="btn secondary" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:#ef4444" onclick="deleteSingleVisit('${p.id}', '${v.id || v.billNumber}')" title="Delete this visit">🗑️</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}
    </div>
    <div class="card">
      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -3177,8 +3254,45 @@ async function loadClinicDoctors() {
   if (!selectedDoctorId && clinicDoctors.length) {
     selectedDoctorId = clinicDoctors[0].id;
   }
+  updateDoctorDatalist();
   renderDoctorSelectOptions();
   renderDoctorCasesModule();
+}
+
+function renderDoctorDatalistOptions() {
+  if (!Array.isArray(clinicDoctors) || !clinicDoctors.length) {
+    return '<option value="Dr. Sankalpa Paudel">Chief Dental Surgeon / Prosthodontist</option>';
+  }
+  return clinicDoctors.map(d => {
+    const spec = d.specialty ? ` (${d.specialty})` : '';
+    return `<option value="${esc(d.name)}">${esc(d.name)}${esc(spec)}</option>`;
+  }).join('');
+}
+
+function updateDoctorDatalist() {
+  const dl = document.getElementById('doctorDatalist');
+  if (dl) dl.innerHTML = renderDoctorDatalistOptions();
+  const billDl = document.getElementById('billingDoctorDatalist');
+  if (billDl) billDl.innerHTML = renderDoctorDatalistOptions();
+}
+
+function registerNewDoctorIfAbsent(id, name, specialty = 'Visiting / Consulting Doctor') {
+  if (!name || !name.trim()) return;
+  const cleanName = name.trim();
+  const exists = clinicDoctors.some(d => d.name.toLowerCase() === cleanName.toLowerCase());
+  if (exists) return;
+  const newDoc = {
+    id: id || ('doc-' + Date.now()),
+    name: cleanName,
+    specialty: specialty || 'Dental Surgeon',
+    phone: '',
+    default_commission_percent: 40,
+    status: 'active'
+  };
+  clinicDoctors.push(newDoc);
+  updateDoctorDatalist();
+  renderDoctorSelectOptions();
+  doctorService.create(newDoc).catch(e => console.warn('[AutoDoctorRegister]', e));
 }
 
 function renderDoctorOptions(selectedId) {
@@ -3193,6 +3307,8 @@ function renderDoctorOptions(selectedId) {
 }
 
 function renderDoctorSelectOptions() {
+  updateDoctorDatalist();
+
   const staffSelect = document.getElementById('doctorCasesDoctorSelect');
   if (staffSelect) {
     staffSelect.innerHTML = clinicDoctors.map(d => {
@@ -3204,14 +3320,18 @@ function renderDoctorSelectOptions() {
 
   const billingSelect = document.getElementById('billingDoctorSelect');
   if (billingSelect) {
-    const currentVal = billingSelect.value;
-    billingSelect.innerHTML = '<option value="">-- Choose Treating Doctor --</option>' + renderDoctorOptions(currentVal);
+    if (billingSelect.tagName === 'SELECT') {
+      const currentVal = billingSelect.value;
+      billingSelect.innerHTML = '<option value="">-- Choose Treating Doctor --</option>' + renderDoctorOptions(currentVal);
+    }
   }
 
   const editVisitSelect = document.getElementById('editVisitDoctor');
   if (editVisitSelect) {
-    const currentVal = editVisitSelect.value;
-    editVisitSelect.innerHTML = '<option value="">-- Select Doctor --</option>' + renderDoctorOptions(currentVal);
+    if (editVisitSelect.tagName === 'SELECT') {
+      const currentVal = editVisitSelect.value;
+      editVisitSelect.innerHTML = '<option value="">-- Select Doctor --</option>' + renderDoctorOptions(currentVal);
+    }
   }
 }
 
@@ -3697,7 +3817,11 @@ function promptChangeDefaultDoctor(patientId) {
   if (idInp) idInp.value = p.id;
   if (info) info.textContent = `Assign default primary doctor for patient: ${p.Name} (OPD-${pad(p.OPDNumber)})`;
   if (sel) {
-    sel.innerHTML = '<option value="">-- No Default Doctor --</option>' + renderDoctorOptions(p.default_doctor_id);
+    if (sel.tagName === 'SELECT') {
+      sel.innerHTML = '<option value="">-- No Default Doctor --</option>' + renderDoctorOptions(p.default_doctor_id);
+    } else {
+      sel.value = p.default_doctor_name || '';
+    }
   }
   if (modal) modal.classList.add('show');
 }
@@ -3711,11 +3835,26 @@ function saveChangeDoctor() {
   const p = patients.find(x => x.id === patientId);
   if (!p) return;
   const sel = document.getElementById('changeDoctorSelect');
-  const chosenDocId = sel ? sel.value : '';
-  const chosenDoc = clinicDoctors.find(d => String(d.id) === String(chosenDocId));
+  const typedName = (sel ? sel.value : '').trim();
 
-  p.default_doctor_id = chosenDoc ? chosenDoc.id : '';
-  p.default_doctor_name = chosenDoc ? chosenDoc.name : '';
+  if (typedName) {
+    const matched = clinicDoctors.find(d => 
+      d.name.toLowerCase() === typedName.toLowerCase() || 
+      String(d.id).toLowerCase() === typedName.toLowerCase()
+    );
+    if (matched) {
+      p.default_doctor_id = matched.id;
+      p.default_doctor_name = matched.name;
+    } else {
+      const docId = 'doc-' + typedName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || ('doc-' + Date.now());
+      p.default_doctor_id = docId;
+      p.default_doctor_name = typedName;
+      registerNewDoctorIfAbsent(docId, typedName);
+    }
+  } else {
+    p.default_doctor_id = '';
+    p.default_doctor_name = '';
+  }
   save();
   closeChangeDoctorModal();
   renderProfile();
@@ -4334,11 +4473,15 @@ function renderBillingWorkspace() {
 
   const docSel = document.getElementById('billingDoctorSelect');
   if (docSel) {
-    docSel.innerHTML = '<option value="">-- Choose Treating Doctor --</option>' + renderDoctorOptions(p.default_doctor_id || selectedDoctorId);
+    if (docSel.tagName === 'SELECT') {
+      docSel.innerHTML = '<option value="">-- Choose Treating Doctor --</option>' + renderDoctorOptions(p.default_doctor_id || selectedDoctorId);
+    } else {
+      docSel.value = p.default_doctor_name || (clinicDoctors[0]?.name || '');
+    }
   }
   const hintEl = document.getElementById('billingDoctorHint');
   if (hintEl) {
-    hintEl.textContent = p.default_doctor_name ? `(Default Doctor: ${p.default_doctor_name})` : '(First visit: selected doctor will be saved as default)';
+    hintEl.textContent = p.default_doctor_name ? `(Default Doctor: ${p.default_doctor_name})` : '(First visit: typed or selected doctor will be saved as default)';
   }
 }
 
@@ -4610,14 +4753,35 @@ async function collectBillingAndPrintA5(printAfterSave = true) {
   const procNames = billingStagedProcedures.map(x => x.procedure).join(', ');
 
   function finalizeSave(payMethod, payDone, txnId) {
-    const docSelect = document.getElementById('billingDoctorSelect');
-    const chosenDocId = docSelect ? docSelect.value : '';
-    const chosenDoc = clinicDoctors.find(d => String(d.id) === String(chosenDocId)) || (p.default_doctor_id ? clinicDoctors.find(d => String(d.id) === String(p.default_doctor_id)) : null);
-    const doctorId = chosenDoc ? chosenDoc.id : (p.default_doctor_id || '');
-    const doctorName = chosenDoc ? chosenDoc.name : (p.default_doctor_name || '');
+    const docInput = document.getElementById('billingDoctorSelect');
+    const typedDoc = (docInput ? docInput.value : '').trim();
+    let chosenDoc = null;
+    let doctorId = '';
+    let doctorName = '';
+
+    if (typedDoc) {
+      chosenDoc = clinicDoctors.find(d => 
+        d.name.toLowerCase() === typedDoc.toLowerCase() || 
+        String(d.id).toLowerCase() === typedDoc.toLowerCase()
+      );
+      if (chosenDoc) {
+        doctorId = chosenDoc.id;
+        doctorName = chosenDoc.name;
+      } else {
+        doctorName = typedDoc;
+        doctorId = 'doc-' + typedDoc.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || ('doc-' + Date.now());
+        registerNewDoctorIfAbsent(doctorId, doctorName);
+      }
+    } else if (p.default_doctor_name) {
+      doctorId = p.default_doctor_id || '';
+      doctorName = p.default_doctor_name || '';
+    } else if (clinicDoctors.length) {
+      doctorId = clinicDoctors[0].id;
+      doctorName = clinicDoctors[0].name;
+    }
 
     // First visit rule: if patient does not yet have default doctor, save as default
-    if (!p.default_doctor_id && doctorId) {
+    if (!p.default_doctor_id && doctorName) {
       p.default_doctor_id = doctorId;
       p.default_doctor_name = doctorName;
     }
@@ -9529,7 +9693,11 @@ function openEditVisitModal(patientId, visitId) {
 
   const docSelect = document.getElementById('editVisitDoctor');
   if (docSelect) {
-    docSelect.innerHTML = '<option value="">-- Select Doctor --</option>' + renderDoctorOptions(v.doctorId || p.default_doctor_id);
+    if (docSelect.tagName === 'SELECT') {
+      docSelect.innerHTML = '<option value="">-- Select Doctor --</option>' + renderDoctorOptions(v.doctorId || p.default_doctor_id);
+    } else {
+      docSelect.value = v.doctorName || p.default_doctor_name || '';
+    }
   }
 
   recalcEditVisitTotals();
@@ -9577,15 +9745,24 @@ function saveEditedVisit() {
 
   const netTotal = Math.max(0, cost - disc);
 
-  const docSelect = document.getElementById('editVisitDoctor');
-  const chosenDocId = docSelect ? docSelect.value : '';
-  const chosenDoc = clinicDoctors.find(d => String(d.id) === String(chosenDocId));
-  if (chosenDoc) {
-    v.doctorId = chosenDoc.id;
-    v.doctorName = chosenDoc.name;
+  const docInput = document.getElementById('editVisitDoctor');
+  const typedDoc = (docInput ? docInput.value : '').trim();
+  if (typedDoc) {
+    const matched = clinicDoctors.find(d => 
+      d.name.toLowerCase() === typedDoc.toLowerCase() || 
+      String(d.id).toLowerCase() === typedDoc.toLowerCase()
+    );
+    if (matched) {
+      v.doctorId = matched.id;
+      v.doctorName = matched.name;
+    } else {
+      v.doctorName = typedDoc;
+      v.doctorId = 'doc-' + typedDoc.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || ('doc-' + Date.now());
+      registerNewDoctorIfAbsent(v.doctorId, v.doctorName);
+    }
     if (!p.default_doctor_id) {
-      p.default_doctor_id = chosenDoc.id;
-      p.default_doctor_name = chosenDoc.name;
+      p.default_doctor_id = v.doctorId;
+      p.default_doctor_name = v.doctorName;
     }
   }
 
@@ -9770,7 +9947,7 @@ function scrollToAttendedToday() {
 
 /* About System Modal & Dynamic Version Controller */
 async function syncAppVersionUI() {
-  let ver = '1.0.29';
+  let ver = '1.0.30';
   if (window.dentalApp && window.dentalApp.getVersion) {
     try {
       const v = await window.dentalApp.getVersion();
