@@ -274,6 +274,35 @@ function openDb(){
   } catch (seedErr) {
     console.warn('[SQLite Laboratories Seed]', seedErr.message);
   }
+
+  // Doctors Table
+  db.exec(`CREATE TABLE IF NOT EXISTS doctors (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    specialty TEXT,
+    phone TEXT,
+    default_commission_percent REAL DEFAULT 40,
+    status TEXT DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+
+  try {
+    const docCount = db.prepare('SELECT COUNT(*) as count FROM doctors').get();
+    if (!docCount || docCount.count === 0) {
+      const now = new Date().toISOString();
+      const insertDoc = db.prepare(`
+        INSERT INTO doctors (id, name, specialty, phone, default_commission_percent, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+      `);
+      insertDoc.run('doc-1', 'Dr. Sankalpa Paudel', 'Chief Dental Surgeon / Prosthodontist', '9841000001', 40, now, now);
+      insertDoc.run('doc-2', 'Dr. Pranisha KC', 'Dental Surgeon / Endodontist', '9841000002', 40, now, now);
+      insertDoc.run('doc-3', 'Dr. Aayush Shrestha', 'Orthodontist / Dental Surgeon', '9841000003', 40, now, now);
+      console.log('✓ [SQLite Doctors Seed] Seeded default clinic doctors');
+    }
+  } catch (seedDocErr) {
+    console.warn('[SQLite Doctors Seed]', seedDocErr.message);
+  }
 }
 
 let mainWindow = null;
@@ -1544,6 +1573,79 @@ ipcMain.handle('labs:update', async (_event, lab) => {
     return { success: true };
   } catch (e) {
     console.error('[labs:update]', e);
+    return { success: false, error: e.message };
+  }
+});
+
+// Doctors IPC Handlers
+ipcMain.handle('doctors:list', async () => {
+  try {
+    if (!db) openDb();
+    const rows = db.prepare('SELECT * FROM doctors ORDER BY name ASC').all();
+    return { success: true, doctors: rows, data: rows };
+  } catch (e) {
+    console.error('[doctors:list]', e);
+    return { success: false, error: e.message, doctors: [], data: [] };
+  }
+});
+
+ipcMain.handle('doctors:create', async (_event, doc) => {
+  try {
+    if (!db) openDb();
+    const id = doc.id || ('doc-' + Date.now());
+    const now = new Date().toISOString();
+    const name = String(doc.name || '').trim();
+    if (!name) return { success: false, error: 'Doctor name is required' };
+    const specialty = String(doc.specialty || '').trim();
+    const phone = String(doc.phone || '').trim();
+    const commission = Number(doc.default_commission_percent != null ? doc.default_commission_percent : 40);
+    const status = doc.status || 'active';
+
+    db.prepare(`
+      INSERT INTO doctors (id, name, specialty, phone, default_commission_percent, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, name, specialty, phone, commission, status, now, now);
+
+    return { success: true, id, doctor: { id, name, specialty, phone, default_commission_percent: commission, status, created_at: now, updated_at: now } };
+  } catch (e) {
+    console.error('[doctors:create]', e);
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('doctors:update', async (_event, id, doc) => {
+  try {
+    if (!db) openDb();
+    const now = new Date().toISOString();
+    const existing = db.prepare('SELECT * FROM doctors WHERE id = ?').get(id);
+    if (!existing) return { success: false, error: 'Doctor not found' };
+
+    const name = doc.name ? String(doc.name).trim() : existing.name;
+    const specialty = doc.specialty !== undefined ? String(doc.specialty).trim() : existing.specialty;
+    const phone = doc.phone !== undefined ? String(doc.phone).trim() : existing.phone;
+    const commission = doc.default_commission_percent != null ? Number(doc.default_commission_percent) : existing.default_commission_percent;
+    const status = doc.status || existing.status;
+
+    db.prepare(`
+      UPDATE doctors 
+      SET name = ?, specialty = ?, phone = ?, default_commission_percent = ?, status = ?, updated_at = ?
+      WHERE id = ?
+    `).run(name, specialty, phone, commission, status, now, id);
+
+    return { success: true };
+  } catch (e) {
+    console.error('[doctors:update]', e);
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('doctors:delete', async (_event, id) => {
+  try {
+    if (!db) openDb();
+    db.prepare('DELETE FROM doctors WHERE id = ?').run(id);
+    return { success: true };
+  } catch (e) {
+    console.error('[doctors:delete]', e);
     return { success: false, error: e.message };
   }
 });

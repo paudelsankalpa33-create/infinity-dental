@@ -59,3 +59,10 @@ contextBridge.exposeInMainWorld('dentalLabs', {
   create: (lab) => ipcRenderer.invoke('labs:create', lab),
   update: (lab) => ipcRenderer.invoke('labs:update', lab)
 });
+
+contextBridge.exposeInMainWorld('dentalDoctors', {
+  list: () => ipcRenderer.invoke('doctors:list'),
+  create: (doc) => ipcRenderer.invoke('doctors:create', doc),
+  update: (id, doc) => ipcRenderer.invoke('doctors:update', id, doc),
+  delete: (id) => ipcRenderer.invoke('doctors:delete', id)
+});

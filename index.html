@@ -101,7 +101,7 @@
   <div id="updateBanner" class="update-banner">
     <div style="display:flex;align-items:center;gap:8px">
       <span>🚀 <b>Software Update Available!</b></span>
-      <span id="updateBannerVersion" class="update-pill-badge">v1.0.27</span>
+      <span id="updateBannerVersion" class="update-pill-badge">v1.0.28</span>
       <span id="updateBannerTitle" style="opacity:0.9">A new official update is available for Infinity Dental
         Clinic.</span>
     </div>
@@ -245,7 +245,7 @@
             <button id="settingsUpdateBtn" class="settings-flyout-item"
               onclick="openUpdateModal(); closeSettingsMenu();">
               <span class="settings-item-title">Updates</span>
-              <span id="settingsVersionBadge" class="header-version-pill">v1.0.27</span>
+              <span id="settingsVersionBadge" class="header-version-pill">v1.0.28</span>
             </button>
             <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
               <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
@@ -507,10 +507,10 @@
 
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span class="muted" style="font-size:11.5px;font-weight:700">CUSTOM RANGE:</span>
-              <input id="txDateFrom" type="text" placeholder="From (YYYY-MM-DD)" style="width:130px;padding:5px 9px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" />
+              <input id="txDateFrom" type="text" placeholder="From (YYYY-MM-DD)" oninput="applyTransactionCustomRange(true)" onchange="applyTransactionCustomRange(true)" style="width:130px;padding:5px 9px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" />
               <span class="muted" style="font-size:12px">to</span>
-              <input id="txDateTo" type="text" placeholder="To (YYYY-MM-DD)" style="width:130px;padding:5px 9px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" />
-              <button class="btn primary" style="padding:5px 12px;font-size:11.5px" onclick="applyTransactionCustomRange()">Apply</button>
+              <input id="txDateTo" type="text" placeholder="To (YYYY-MM-DD)" oninput="applyTransactionCustomRange(true)" onchange="applyTransactionCustomRange(true)" style="width:130px;padding:5px 9px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" />
+              <button class="btn primary" style="padding:5px 12px;font-size:11.5px" onclick="applyTransactionCustomRange(false)">Apply</button>
               <button class="btn secondary" style="padding:5px 9px;font-size:11.5px" onclick="resetTransactionFilters()">✕</button>
             </div>
           </div>
@@ -672,6 +672,17 @@
                   <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('Dental X-Ray', 300)">📸 X-Ray (Rs. 300)</button>
                   <button type="button" class="quick-proc-pill" onclick="applyBillingQuickProcedure('Ceramic Crown', 7000)">👑 Crown (Rs. 7,000)</button>
                 </div>
+              </div>
+
+              <!-- Assigned Treating Doctor -->
+              <div class="field" style="margin-bottom:12px">
+                <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px">
+                  Assigned Treating Doctor:
+                  <span id="billingDoctorHint" style="color:#38bdf8;font-weight:400;margin-left:6px">(Select treating doctor for this visit)</span>
+                </label>
+                <select id="billingDoctorSelect" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-weight:600">
+                  <option value="">-- Choose Treating Doctor --</option>
+                </select>
               </div>
 
               <!-- Custom Treatment & Price List Row -->
@@ -1163,146 +1174,314 @@
   <section id="staff" class="page">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
       <div>
-        <div class="title">Staff Accounts &amp; Access Management</div>
-        <div class="muted">Super Admin portal: create and manage Manager login IDs (starting with 'm') and
-          passwords.</div>
+        <div class="title">Staff Accounts &amp; Doctor Case Settlements</div>
+        <div class="muted">Manage doctors, case records, charge deductions, percentile commission settlements, and staff login accounts.</div>
       </div>
       <div class="badge" style="background:#e0f2fe;color:#0369a1;font-size:12px;padding:6px 12px">
         🛡️ Super Admin Control Center
       </div>
     </div>
 
-    <div class="cards" style="margin-top:16px;grid-template-columns:repeat(3,1fr)">
-      <div class="card">
-        <div class="muted">Total Accounts</div>
-        <div class="stat" id="statStaffTotal">2</div>
+    <!-- Sub-tabs Navigation -->
+    <div class="tabs" style="margin-top:16px;margin-bottom:16px">
+      <button id="tabBtnDoctorCases" class="tab active" onclick="switchStaffTab('doctorCases')">🩺 Doctor Cases &amp; Commission Settlement</button>
+      <button id="tabBtnStaffLogins" class="tab" onclick="switchStaffTab('staffLogins')">👥 Staff &amp; Manager Login Accounts</button>
+    </div>
+
+    <!-- TAB 1: Doctor Cases & Commission Settlement -->
+    <div id="staffDoctorCasesView">
+      <!-- Doctor Selector & Actions Bar -->
+      <div class="card" style="padding:14px 18px;background:#090d16;border:1px solid #1e293b;border-radius:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span class="muted" style="font-size:12px;font-weight:700">SELECT DOCTOR:</span>
+            <select id="doctorCasesDoctorSelect" onchange="onDoctorCasesDoctorChange(this.value)" style="min-width:260px;padding:7px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-weight:700;font-size:13px">
+              <option value="">-- Choose Doctor --</option>
+            </select>
+            <button class="btn primary" style="font-size:12px;padding:6px 14px" onclick="openAddDoctorModal()">+ Add New Doctor</button>
+            <button class="btn secondary" style="font-size:12px;padding:6px 12px" onclick="openEditDoctorModal()">✎ Edit Doctor</button>
+            <button class="btn secondary" style="font-size:12px;padding:6px 10px;color:#ef4444;border-color:#ef4444" onclick="deleteSelectedDoctor()" title="Delete selected doctor">🗑️</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn secondary" style="font-size:12px;padding:6px 14px;display:inline-flex;align-items:center;gap:6px" onclick="printDoctorSettlementStatement()">
+              🖨️ Print Settlement Statement
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <div class="muted">Manager Accounts (ID: m...)</div>
-        <div class="stat" id="statStaffManagers" style="color:#0284c7">1</div>
+
+      <!-- Date Filter Bar -->
+      <div class="card" style="margin-top:14px;padding:12px 16px;background:#090d16;border:1px solid #1e293b;border-radius:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="muted" style="font-size:11.5px;font-weight:700">CALENDAR:</span>
+            <div class="toolbar" style="margin:0;gap:4px">
+              <button id="docModeBS" class="btn primary" style="padding:5px 9px;font-size:11.5px" onclick="setDoctorCalendarMode('BS')">BS (Nepali)</button>
+              <button id="docModeAD" class="btn secondary" style="padding:5px 9px;font-size:11.5px" onclick="setDoctorCalendarMode('AD')">AD (English)</button>
+            </div>
+            <span class="muted" style="font-size:11.5px;font-weight:700;margin-left:10px">PERIOD:</span>
+            <div class="toolbar" style="margin:0;gap:4px">
+              <button id="docToday" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setDoctorRange('today')">Today</button>
+              <button id="docWeek" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setDoctorRange('week')">This Week</button>
+              <button id="docMonthBs" class="btn primary" style="padding:5px 10px;font-size:11.5px" onclick="setDoctorRange('this_month_bs')">This Month (BS)</button>
+              <button id="docMonthAd" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setDoctorRange('this_month_ad')">This Month (AD)</button>
+              <button id="docAll" class="btn secondary" style="padding:5px 10px;font-size:11.5px" onclick="setDoctorRange('all')">All Time</button>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="muted" style="font-size:11.5px;font-weight:700">CUSTOM RANGE:</span>
+            <input id="docDateFrom" type="text" placeholder="From (YYYY-MM-DD)" oninput="applyDoctorCustomRange(true)" onchange="applyDoctorCustomRange(true)" style="width:130px;padding:5px 9px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" />
+            <span class="muted" style="font-size:12px">to</span>
+            <input id="docDateTo" type="text" placeholder="To (YYYY-MM-DD)" oninput="applyDoctorCustomRange(true)" onchange="applyDoctorCustomRange(true)" style="width:130px;padding:5px 9px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" />
+            <button class="btn primary" style="padding:5px 12px;font-size:11.5px" onclick="applyDoctorCustomRange(false)">Apply</button>
+            <button class="btn secondary" style="padding:5px 9px;font-size:11.5px" onclick="resetDoctorFilters()">✕</button>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <div class="muted">Super Admin Accounts</div>
-        <div class="stat" id="statStaffAdmins" style="color:#15803d">1</div>
+
+      <!-- Doctor Commission & Charge Deduction Settings -->
+      <div class="card" style="margin-top:14px;padding:14px 18px;background:#090d16;border:1px solid #1e293b;border-radius:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+          <!-- Percentile Selector -->
+          <div>
+            <div class="muted" style="font-size:11.5px;font-weight:700;margin-bottom:6px">DOCTOR PERCENTILE (%):</div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <button type="button" class="btn secondary doc-pct-btn" data-pct="20" onclick="setDoctorCommissionPercent(20)">20%</button>
+              <button type="button" class="btn secondary doc-pct-btn" data-pct="30" onclick="setDoctorCommissionPercent(30)">30%</button>
+              <button type="button" class="btn primary doc-pct-btn" data-pct="40" onclick="setDoctorCommissionPercent(40)">40%</button>
+              <button type="button" class="btn secondary doc-pct-btn" data-pct="50" onclick="setDoctorCommissionPercent(50)">50%</button>
+              <div style="display:flex;align-items:center;gap:4px;margin-left:6px">
+                <span class="muted" style="font-size:12px">Custom:</span>
+                <input id="docCommissionInput" type="number" min="0" max="100" step="1" value="40" style="width:65px;padding:5px 8px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155;text-align:center;font-weight:700" oninput="onDoctorCommissionPercentInput(this.value)">
+                <span class="muted" style="font-size:12px">%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Deduction Toggles -->
+          <div>
+            <div class="muted" style="font-size:11.5px;font-weight:700;margin-bottom:6px">CHARGE DEDUCTIONS:</div>
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:12px">
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                <input type="checkbox" id="chkDeductOpdCard" checked onchange="onDeductionSettingsChange()" style="accent-color:#0284c7;width:15px;height:15px">
+                <span>Deduct OPD Card / Reg. Charges</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                <input type="checkbox" id="chkDeductMedicine" checked onchange="onDeductionSettingsChange()" style="accent-color:#0284c7;width:15px;height:15px">
+                <span>Deduct Medicine / Pharmacy Charges</span>
+              </label>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span class="muted">Other Flat Ded. (Rs.):</span>
+                <input id="docOtherDeduction" type="number" min="0" step="1" value="0" placeholder="0" style="width:80px;padding:4px 8px;font-size:12px;border-radius:6px;background:#0f172a;color:#f8fafc;border:1px solid #334155" oninput="onDeductionSettingsChange()">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Payout KPI Summary Cards -->
+      <div class="cards" style="margin-top:16px;grid-template-columns:repeat(6,1fr)">
+        <div class="card" style="padding:14px">
+          <div class="muted" style="font-size:11.5px">Total Cases</div>
+          <div class="stat" id="docCasesTotalCount" style="font-size:22px">0</div>
+          <div class="sub-stat" id="docCasesPeriodSub" style="font-size:11px;color:var(--muted);margin-top:4px">In Selected Period</div>
+        </div>
+        <div class="card" style="padding:14px">
+          <div class="muted" style="font-size:11.5px">Gross Collection</div>
+          <div class="stat" id="docCasesGrossTotal" style="font-size:20px;color:#f8fafc">Rs. 0</div>
+          <div class="sub-stat" style="font-size:11px;color:var(--muted);margin-top:4px">Total procedure charges</div>
+        </div>
+        <div class="card" style="padding:14px">
+          <div class="muted" style="font-size:11.5px">Less Deductions</div>
+          <div class="stat" id="docCasesTotalDeductions" style="font-size:20px;color:#ef4444">- Rs. 0</div>
+          <div class="sub-stat" id="docCasesDeductionBreakdown" style="font-size:10.5px;color:var(--muted);margin-top:4px">OPD + Meds + Other</div>
+        </div>
+        <div class="card" style="padding:14px">
+          <div class="muted" style="font-size:11.5px">Net Commissionable</div>
+          <div class="stat" id="docCasesNetTotal" style="font-size:20px;color:#38bdf8">Rs. 0</div>
+          <div class="sub-stat" style="font-size:11px;color:var(--muted);margin-top:4px">Gross less deductions</div>
+        </div>
+        <div class="card" style="padding:14px;background:#052e16;border:1px solid #166534">
+          <div class="muted" style="font-size:11.5px;color:#86efac;font-weight:700" id="docCasesDoctorShareTitle">Doctor Share (40%)</div>
+          <div class="stat" id="docCasesDoctorShare" style="font-size:22px;color:#4ade80;font-weight:900">Rs. 0</div>
+          <div class="sub-stat" style="font-size:11px;color:#86efac;margin-top:4px">Eligible Payout</div>
+        </div>
+        <div class="card" style="padding:14px;background:#082f49;border:1px solid #0369a1">
+          <div class="muted" style="font-size:11.5px;color:#7dd3fc;font-weight:700" id="docCasesClinicShareTitle">Clinic Share (60%)</div>
+          <div class="stat" id="docCasesClinicShare" style="font-size:22px;color:#38bdf8;font-weight:900">Rs. 0</div>
+          <div class="sub-stat" style="font-size:11px;color:#7dd3fc;margin-top:4px">Retained by Clinic</div>
+        </div>
+      </div>
+
+      <!-- Individual Case Records Table (Per Doctor) -->
+      <div class="card" style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="section-title" id="doctorCasesTableHeading" style="margin:0">Doctor Case Ledger &amp; Work Records</div>
+            <div class="muted" style="font-size:12px" id="doctorCasesTableSubheading">Detailed list of visits, procedures performed, and net settlement calculation.</div>
+          </div>
+          <button class="btn secondary" style="font-size:12px;padding:6px 12px" onclick="renderDoctorCasesModule()">🔄 Refresh Cases</button>
+        </div>
+
+        <div class="tablewrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date (BS / AD)</th>
+                <th>OPD No. &amp; Patient</th>
+                <th>Procedures Done</th>
+                <th style="text-align:right">Gross Amount</th>
+                <th style="text-align:right">Deductions</th>
+                <th style="text-align:right">Net Eligible</th>
+                <th style="text-align:right">Doctor Share</th>
+                <th>Payment / Status</th>
+              </tr>
+            </thead>
+            <tbody id="doctorCasesTableRows">
+              <tr>
+                <td colspan="8" class="empty">Select a doctor to view case records.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <div class="grid2" style="margin-top:18px;align-items:start">
-      <!-- Card 1: Create Manager Account -->
-      <div class="card">
-        <div class="section-title" style="display:flex;align-items:center;gap:8px">
-          <span>👤</span>
-          <span>Create Manager Login</span>
+    <!-- TAB 2: Staff & Manager Login Accounts -->
+    <div id="staffLoginsView" style="display:none">
+      <div class="cards" style="margin-top:16px;grid-template-columns:repeat(3,1fr)">
+        <div class="card">
+          <div class="muted">Total Accounts</div>
+          <div class="stat" id="statStaffTotal">2</div>
         </div>
-        <div class="muted" style="margin-bottom:14px">
-          Manager IDs must start with the letter <b>'m'</b> (example: <code>m123456</code>, <code>m101</code>). The
-          manager will log in using this ID and password.
+        <div class="card">
+          <div class="muted">Manager Accounts (ID: m...)</div>
+          <div class="stat" id="statStaffManagers" style="color:#0284c7">1</div>
         </div>
-
-        <div class="field" style="margin-bottom:12px">
-          <label>Manager User ID * <span style="font-size:11px;color:#0284c7;font-weight:600">(Must start with
-              'm')</span></label>
-          <div style="display:flex;gap:6px">
-            <input id="newManagerUsername" placeholder="e.g. m123456" oninput="validateManagerIdInput()" style="flex:1">
-            <button class="btn secondary" type="button" onclick="generateRandomManagerId()"
-              title="Auto-generate ID starting with 'm'">🎲 Generate ID</button>
-          </div>
-          <div id="managerIdValidationHint" style="font-size:11px;margin-top:3px;color:#64748b">Example: m123456
-            (User ID starts with 'm')</div>
+        <div class="card">
+          <div class="muted">Super Admin Accounts</div>
+          <div class="stat" id="statStaffAdmins" style="color:#15803d">1</div>
         </div>
-
-        <div class="field" style="margin-bottom:12px">
-          <label>Manager Full Name / Staff Name *</label>
-          <input id="newManagerName" placeholder="e.g. Ramesh Shrestha (Front Desk)">
-        </div>
-
-        <div class="field" style="margin-bottom:14px">
-          <label>Login Password *</label>
-          <div style="display:flex;gap:6px">
-            <input id="newManagerPassword" type="password" placeholder="Enter password (min 4 chars)" style="flex:1">
-            <button class="btn secondary" type="button" onclick="togglePasswordVisibility('newManagerPassword')"
-              title="Show/Hide">👁️</button>
-            <button class="btn secondary" type="button" onclick="generateRandomPassword('newManagerPassword')"
-              title="Suggest Password">🎲 Suggest</button>
-          </div>
-        </div>
-
-        <div id="createManagerAlert"
-          style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
-
-        <button class="btn primary" style="width:100%" onclick="submitCreateManager()">+ CREATE MANAGER
-          ACCOUNT</button>
       </div>
 
-      <!-- Card 2: Super Admin Credentials -->
-      <div class="card">
-        <div class="section-title" style="display:flex;align-items:center;gap:8px">
-          <span>🛡️</span>
-          <span>Super Admin Credentials</span>
-        </div>
-        <div class="muted" style="margin-bottom:14px">
-          Super Admin login ID has no symbolic prefix requirement (standard username). Update your username and
-          master password below.
-        </div>
-
-        <div class="field" style="margin-bottom:12px">
-          <label>Super Admin Username * <span style="font-size:11px;color:#64748b;font-weight:600">(No symbolic
-              prefix required)</span></label>
-          <input id="adminUsernameInput" value="admin" placeholder="e.g. admin">
-        </div>
-
-        <div class="field" style="margin-bottom:12px">
-          <label>New Password (leave blank to keep current)</label>
-          <div style="display:flex;gap:6px">
-            <input id="adminPasswordInput" type="password" placeholder="Enter new password" style="flex:1">
-            <button class="btn secondary" type="button" onclick="togglePasswordVisibility('adminPasswordInput')"
-              title="Show/Hide">👁️</button>
+      <div class="grid2" style="margin-top:18px;align-items:start">
+        <!-- Card 1: Create Manager Account -->
+        <div class="card">
+          <div class="section-title" style="display:flex;align-items:center;gap:8px">
+            <span>👤</span>
+            <span>Create Manager Login</span>
           </div>
+          <div class="muted" style="margin-bottom:14px">
+            Manager IDs must start with the letter <b>'m'</b> (example: <code>m123456</code>, <code>m101</code>). The
+            manager will log in using this ID and password.
+          </div>
+
+          <div class="field" style="margin-bottom:12px">
+            <label>Manager User ID * <span style="font-size:11px;color:#0284c7;font-weight:600">(Must start with
+                'm')</span></label>
+            <div style="display:flex;gap:6px">
+              <input id="newManagerUsername" placeholder="e.g. m123456" oninput="validateManagerIdInput()" style="flex:1">
+              <button class="btn secondary" type="button" onclick="generateRandomManagerId()"
+                title="Auto-generate ID starting with 'm'">🎲 Generate ID</button>
+            </div>
+            <div id="managerIdValidationHint" style="font-size:11px;margin-top:3px;color:#64748b">Example: m123456
+              (User ID starts with 'm')</div>
+          </div>
+
+          <div class="field" style="margin-bottom:12px">
+            <label>Manager Full Name / Staff Name *</label>
+            <input id="newManagerName" placeholder="e.g. Ramesh Shrestha (Front Desk)">
+          </div>
+
+          <div class="field" style="margin-bottom:14px">
+            <label>Login Password *</label>
+            <div style="display:flex;gap:6px">
+              <input id="newManagerPassword" type="password" placeholder="Enter password (min 4 chars)" style="flex:1">
+              <button class="btn secondary" type="button" onclick="togglePasswordVisibility('newManagerPassword')"
+                title="Show/Hide">👁️</button>
+              <button class="btn secondary" type="button" onclick="generateRandomPassword('newManagerPassword')"
+                title="Suggest Password">🎲 Suggest</button>
+            </div>
+          </div>
+
+          <div id="createManagerAlert"
+            style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
+
+          <button class="btn primary" style="width:100%" onclick="submitCreateManager()">+ CREATE MANAGER
+            ACCOUNT</button>
         </div>
 
-        <div class="field" style="margin-bottom:14px">
-          <label>Confirm New Password</label>
-          <input id="adminPasswordConfirmInput" type="password" placeholder="Re-enter new password">
+        <!-- Card 2: Super Admin Credentials -->
+        <div class="card">
+          <div class="section-title" style="display:flex;align-items:center;gap:8px">
+            <span>🛡️</span>
+            <span>Super Admin Credentials</span>
+          </div>
+          <div class="muted" style="margin-bottom:14px">
+            Super Admin login ID has no symbolic prefix requirement (standard username). Update your username and
+            master password below.
+          </div>
+
+          <div class="field" style="margin-bottom:12px">
+            <label>Super Admin Username * <span style="font-size:11px;color:#64748b;font-weight:600">(No symbolic
+                prefix required)</span></label>
+            <input id="adminUsernameInput" value="admin" placeholder="e.g. admin">
+          </div>
+
+          <div class="field" style="margin-bottom:12px">
+            <label>New Password (leave blank to keep current)</label>
+            <div style="display:flex;gap:6px">
+              <input id="adminPasswordInput" type="password" placeholder="Enter new password" style="flex:1">
+              <button class="btn secondary" type="button" onclick="togglePasswordVisibility('adminPasswordInput')"
+                title="Show/Hide">👁️</button>
+            </div>
+          </div>
+
+          <div class="field" style="margin-bottom:14px">
+            <label>Confirm New Password</label>
+            <input id="adminPasswordConfirmInput" type="password" placeholder="Re-enter new password">
+          </div>
+
+          <div id="updateAdminAlert"
+            style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
+
+          <button class="btn secondary" style="width:100%;font-weight:700" onclick="submitUpdateAdminCredentials()">💾
+            UPDATE SUPER ADMIN CREDENTIALS</button>
         </div>
-
-        <div id="updateAdminAlert"
-          style="margin-bottom:12px;font-size:12px;display:none;padding:8px 12px;border-radius:7px"></div>
-
-        <button class="btn secondary" style="width:100%;font-weight:700" onclick="submitUpdateAdminCredentials()">💾
-          UPDATE SUPER ADMIN CREDENTIALS</button>
       </div>
-    </div>
 
-    <!-- Card 3: Staff & Manager Accounts Table -->
-    <div class="card" style="margin-top:18px">
-      <div
-        style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div>
-          <div class="section-title" style="margin:0">Active Staff &amp; Manager Accounts</div>
-          <div class="muted" style="font-size:12px">List of authorized clinic users with role and login ID.</div>
+      <!-- Card 3: Staff & Manager Accounts Table -->
+      <div class="card" style="margin-top:18px">
+        <div
+          style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="section-title" style="margin:0">Active Staff &amp; Manager Accounts</div>
+            <div class="muted" style="font-size:12px">List of authorized clinic users with role and login ID.</div>
+          </div>
+          <button class="btn secondary" style="font-size:12px;padding:6px 12px" onclick="loadStaffAccounts()">🔄
+            Refresh List</button>
         </div>
-        <button class="btn secondary" style="font-size:12px;padding:6px 12px" onclick="loadStaffAccounts()">🔄
-          Refresh List</button>
-      </div>
 
-      <div class="tablewrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Role</th>
-              <th>Login ID / Username</th>
-              <th>Staff Name</th>
-              <th>Status</th>
-              <th>Created Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="staffTableRows">
-            <tr>
-              <td colspan="6" class="empty">Loading staff accounts...</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="tablewrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Login ID / Username</th>
+                <th>Staff Name</th>
+                <th>Status</th>
+                <th>Created Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staffTableRows">
+              <tr>
+                <td colspan="6" class="empty">Loading staff accounts...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
@@ -2034,7 +2213,7 @@
       <button type="button" class="system-info-badge" onclick="openAboutSystemModal()" title="View System Information & Licensing">
         <span class="info-badge-dot"></span>
         <span class="info-badge-text">System Info</span>
-        <span class="info-badge-ver" id="footerVersionBadge">v1.0.27</span>
+        <span class="info-badge-ver" id="footerVersionBadge">v1.0.28</span>
       </button>
     </div>
     <div class="app-footer-right">
@@ -2158,7 +2337,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:12px;font-weight:700;color:#000000">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.27</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.28</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:700;color:#000000">Update Server:</span>
@@ -2680,9 +2859,16 @@
             <input id="editVisitProcedures" type="text" placeholder="e.g. Scaling &amp; Polishing, Composite Filling" required />
           </div>
           <div class="field">
-            <label>Tooth Numbers / Quadrants (Optional)</label>
-            <input id="editVisitTeeth" type="text" placeholder="e.g. 16, 26, Upper Right" />
+            <label>Treating Doctor for This Visit</label>
+            <select id="editVisitDoctor" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc">
+              <option value="">-- Select Doctor --</option>
+            </select>
           </div>
+        </div>
+
+        <div class="field" style="margin-top:10px">
+          <label>Tooth Numbers / Quadrants (Optional)</label>
+          <input id="editVisitTeeth" type="text" placeholder="e.g. 16, 26, Upper Right" />
         </div>
 
         <div class="formgrid" style="margin-top:12px">
@@ -2839,7 +3025,7 @@
       <div class="about-system-header">
         <div style="display:flex;align-items:center;gap:10px">
           <span class="about-system-title">Infinity Dental Management</span>
-          <span class="about-system-badge" id="aboutModalVersionBadge">v1.0.27</span>
+          <span class="about-system-badge" id="aboutModalVersionBadge">v1.0.28</span>
         </div>
         <button type="button" class="about-system-close" onclick="closeAboutSystemModal()" title="Close">✕</button>
       </div>
@@ -2871,6 +3057,78 @@
       </div>
       <div class="about-system-footer">
         Developed by <a href="https://sankalpapaudel.com.np" target="_blank" rel="noopener noreferrer" class="about-author-link"><strong>3P</strong></a> • Built with ❤️ and legacy
+      </div>
+    </div>
+  </div>
+
+  <!-- Doctor Add / Edit Modal -->
+  <div id="doctorModal" class="modal" onclick="if(event.target===this)closeDoctorModal()">
+    <div class="modal-card" style="max-width:480px;background:#090d16;border:1px solid #1e293b;border-radius:12px;padding:22px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #1e293b">
+        <div class="section-title" id="doctorModalTitle" style="margin:0">Add New Doctor</div>
+        <button type="button" class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeDoctorModal()">✕</button>
+      </div>
+
+      <input type="hidden" id="docModalId" value="" />
+
+      <div class="field" style="margin-bottom:12px">
+        <label style="font-size:11.5px;font-weight:700;color:#94a3b8">Doctor Full Name *</label>
+        <input id="docModalName" placeholder="e.g. Dr. Sankalpa Paudel" required style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc">
+      </div>
+
+      <div class="field" style="margin-bottom:12px">
+        <label style="font-size:11.5px;font-weight:700;color:#94a3b8">Specialization / Department</label>
+        <input id="docModalSpecialty" placeholder="e.g. Chief Dental Surgeon / Prosthodontist" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc">
+      </div>
+
+      <div class="grid2" style="gap:10px;margin-bottom:14px">
+        <div class="field" style="margin:0">
+          <label style="font-size:11.5px;font-weight:700;color:#94a3b8">Phone / Contact</label>
+          <input id="docModalPhone" placeholder="e.g. 9841000000" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc">
+        </div>
+        <div class="field" style="margin:0">
+          <label style="font-size:11.5px;font-weight:700;color:#94a3b8">Default Commission (%)</label>
+          <input id="docModalCommission" type="number" min="0" max="100" step="1" value="40" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc">
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:18px">
+        <label style="font-size:11.5px;font-weight:700;color:#94a3b8">Status</label>
+        <select id="docModalStatus" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc">
+          <option value="active">Active (Available for appointments &amp; cases)</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button type="button" class="btn secondary" onclick="closeDoctorModal()">Cancel</button>
+        <button type="button" class="btn primary" onclick="saveDoctorModal()">💾 Save Doctor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Default Doctor Modal -->
+  <div id="changeDoctorModal" class="modal" onclick="if(event.target===this)closeChangeDoctorModal()">
+    <div class="modal-card" style="max-width:440px;background:#090d16;border:1px solid #1e293b;border-radius:12px;padding:22px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #1e293b">
+        <div class="section-title" style="margin:0">Change Assigned Doctor</div>
+        <button type="button" class="btn secondary" style="padding:4px 8px;font-size:14px" onclick="closeChangeDoctorModal()">✕</button>
+      </div>
+
+      <div id="changeDoctorPatientInfo" class="muted" style="font-size:12px;margin-bottom:14px">Assign default doctor for this patient:</div>
+
+      <input type="hidden" id="changeDoctorPatientId" value="" />
+
+      <div class="field" style="margin-bottom:18px">
+        <label style="font-size:11.5px;font-weight:700;color:#94a3b8">Default Doctor</label>
+        <select id="changeDoctorSelect" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-weight:600">
+          <option value="">-- No Default Doctor --</option>
+        </select>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button type="button" class="btn secondary" onclick="closeChangeDoctorModal()">Cancel</button>
+        <button type="button" class="btn primary" onclick="saveChangeDoctor()">✓ Update Assignment</button>
       </div>
     </div>
   </div>

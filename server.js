@@ -533,6 +533,35 @@ function initDatabase() {
       console.warn('[SQLite Laboratories Seed]', seedErr.message);
     }
 
+    // Doctors Table
+    db.exec(`CREATE TABLE IF NOT EXISTS doctors (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      specialty TEXT,
+      phone TEXT,
+      default_commission_percent REAL DEFAULT 40,
+      status TEXT DEFAULT 'active',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+    try {
+      const docCount = db.prepare('SELECT COUNT(*) as count FROM doctors').get();
+      if (!docCount || docCount.count === 0) {
+        const now = new Date().toISOString();
+        const insertDoc = db.prepare(`
+          INSERT INTO doctors (id, name, specialty, phone, default_commission_percent, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+        `);
+        insertDoc.run('doc-1', 'Dr. Sankalpa Paudel', 'Chief Dental Surgeon / Prosthodontist', '9841000001', 40, now, now);
+        insertDoc.run('doc-2', 'Dr. Pranisha KC', 'Dental Surgeon / Endodontist', '9841000002', 40, now, now);
+        insertDoc.run('doc-3', 'Dr. Aayush Shrestha', 'Orthodontist / Dental Surgeon', '9841000003', 40, now, now);
+        console.log('✓ [SQLite Doctors Seed] Seeded default clinic doctors in server');
+      }
+    } catch (seedDocErr) {
+      console.warn('[SQLite Doctors Seed]', seedDocErr.message);
+    }
+
 
     // --- LAB, PURCHASES & STOCKS DATABASE TABLES ---
 
@@ -1949,6 +1978,92 @@ const server = http.createServer(async (req, res) => {
       db.prepare('DELETE FROM users WHERE id = ?').run(userId);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, message: 'Manager account deleted successfully.' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // --- DOCTORS API ENDPOINTS ---
+  if (pathname === '/api/doctors' && req.method === 'GET') {
+    try {
+      const doctors = db.prepare('SELECT * FROM doctors ORDER BY name ASC').all();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, data: doctors, doctors }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/doctors' && req.method === 'POST') {
+    try {
+      const { name, specialty, phone, default_commission_percent, status } = await parseJsonBody(req);
+      const cleanName = String(name || '').trim();
+      if (!cleanName) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Doctor name is required.' }));
+        return;
+      }
+      const id = 'doc-' + Date.now();
+      const now = new Date().toISOString();
+      const commission = Number(default_commission_percent != null ? default_commission_percent : 40);
+      const docStatus = status || 'active';
+
+      db.prepare(`
+        INSERT INTO doctors (id, name, specialty, phone, default_commission_percent, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, cleanName, String(specialty || '').trim(), String(phone || '').trim(), commission, docStatus, now, now);
+
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, id, doctor: { id, name: cleanName, specialty, phone, default_commission_percent: commission, status: docStatus, created_at: now, updated_at: now } }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith('/api/doctors/') && req.method === 'PUT') {
+    try {
+      const docId = pathname.replace('/api/doctors/', '').trim();
+      const { name, specialty, phone, default_commission_percent, status } = await parseJsonBody(req);
+      const existing = db.prepare('SELECT * FROM doctors WHERE id = ?').get(docId);
+      if (!existing) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Doctor not found.' }));
+        return;
+      }
+      const now = new Date().toISOString();
+      const newName = name ? String(name).trim() : existing.name;
+      const newSpecialty = specialty !== undefined ? String(specialty).trim() : existing.specialty;
+      const newPhone = phone !== undefined ? String(phone).trim() : existing.phone;
+      const newCommission = default_commission_percent != null ? Number(default_commission_percent) : existing.default_commission_percent;
+      const newStatus = status || existing.status;
+
+      db.prepare(`
+        UPDATE doctors
+        SET name = ?, specialty = ?, phone = ?, default_commission_percent = ?, status = ?, updated_at = ?
+        WHERE id = ?
+      `).run(newName, newSpecialty, newPhone, newCommission, newStatus, now, docId);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Doctor updated successfully.' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith('/api/doctors/') && req.method === 'DELETE') {
+    try {
+      const docId = pathname.replace('/api/doctors/', '').trim();
+      db.prepare('DELETE FROM doctors WHERE id = ?').run(docId);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Doctor deleted successfully.' }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: e.message }));
