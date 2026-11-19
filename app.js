@@ -681,8 +681,8 @@ function addVisit() {
     let doctorName = '';
 
     if (typedDoc) {
-      chosenDoc = clinicDoctors.find(d => 
-        d.name.toLowerCase() === typedDoc.toLowerCase() || 
+      chosenDoc = clinicDoctors.find(d =>
+        d.name.toLowerCase() === typedDoc.toLowerCase() ||
         String(d.id).toLowerCase() === typedDoc.toLowerCase()
       );
       if (chosenDoc) {
@@ -898,8 +898,8 @@ function printBill(billNo) {
       <td style="text-align:center;color:#64748b">${i + 1}</td>
       <td style="font-weight:600;color:#0f172a">${esc(x.procedure || 'Dental Consultation / Treatment')}</td>
       <td style="text-align:center">1</td>
-      <td style="text-align:right">Rs. ${Number(x.cost || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-      <td style="text-align:right;font-weight:700;color:#0f172a">Rs. ${Number(x.cost || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+      <td style="text-align:right">Rs. ${Number(x.cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+      <td style="text-align:right;font-weight:700;color:#0f172a">Rs. ${Number(x.cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
     </tr>
   `).join('');
 
@@ -1399,24 +1399,24 @@ function printBill(billNo) {
       <div class="totals-card">
         <div class="calc-row">
           <span>Subtotal:</span>
-          <span>NPR ${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+          <span>NPR ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         ${showDiscount ? `
         <div class="calc-row discount-row">
           <span>Discount ${discountPercent ? `(${discountPercent.toFixed(1)}%)` : ''}:</span>
-          <span>- NPR ${discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+          <span>- NPR ${discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>` : ''}
         <div class="calc-row grand-total">
           <span>${showDiscount ? 'Total After Discount:' : 'Total Amount:'}</span>
-          <span>NPR ${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+          <span>NPR ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div class="calc-row paid-row">
           <span>Amount Paid:</span>
-          <span>NPR ${paid.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+          <span>NPR ${paid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div class="calc-row ${due > 0 ? 'due-row' : ''}">
           <span>Balance Due:</span>
-          <span>NPR ${due.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+          <span>NPR ${due.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
       </div>
     </div>
@@ -1811,7 +1811,7 @@ function renderProfile() {
        <div class="formgrid">
          <div class="field">
            <label>English Date (AD) — Click to pick or type</label>
-           <input id="appointmentAdDate" type="date" onclick="this.showPicker &amp;&amp; this.showPicker()" onchange="onAppointmentAdChange(this.value)">
+           <input id="appointmentAdDate" type="date" onclick="if(this.showPicker)this.showPicker()" onchange="onAppointmentAdChange(this.value)">
          </div>
          <div class="field">
            <label>Nepali Date (BS) — Write / Edit</label>
@@ -1833,7 +1833,7 @@ function renderProfile() {
        <div class="formgrid" style="margin-top:12px;align-items:flex-end">
          <div class="field">
            <label>Appointment Time</label>
-           <input id="appointmentTime" type="time" onclick="this.showPicker &amp;&amp; this.showPicker()" value="10:00">
+           <input id="appointmentTime" type="time" onclick="if(this.showPicker)this.showPicker()" value="10:00">
          </div>
          <div class="field">
            <label class="muted" style="font-size:11px">Common Time Slots:</label>
@@ -1866,11 +1866,11 @@ function renderProfile() {
        </button>
      </div>
      ${visits.length ? `<div class="tablewrap"><table class="table"><thead><tr><th style="width:32px;text-align:center"><input type="checkbox" id="selectAllVisits" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="toggleSelectAllVisits(this)" title="Select All Visits"></th><th>Date</th><th>Time</th><th>Procedures Done</th><th>Payment Done</th><th>Action</th></tr></thead><tbody>${visits.map((v, vIdx) => {
-        const vCost = Number(v.cost || v.subtotal || 0);
-        const vPaid = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
-        const vDue = Math.max(0, vCost - vPaid);
-        return `<tr><td style="text-align:center"><input type="checkbox" class="visit-select-chk" data-bill="${esc(v.billNumber || '')}" data-id="${esc(v.id || '')}" data-idx="${vIdx}" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="updateVisitSelectionUI()"></td><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${vCost.toLocaleString()}</div>${(v.doctorName || p.default_doctor_name) ? `<div style="font-size:11px;color:#38bdf8;font-weight:600;margin-top:2px">👨‍⚕️ ${esc(v.doctorName || p.default_doctor_name)}</div>` : ''}</td><td>${vPaid > 0 ? `<b>Rs. ${vPaid.toLocaleString()}</b>${v.paymentMethod ? `<div class="muted" style="font-size:10.5px">${esc(v.paymentMethod)}</div>` : ''}` : ''}${vDue > 0 ? `<div style="color:#ef4444;font-size:11px;font-weight:700;margin-top:${vPaid > 0 ? '2px' : '0'}">⏳ Due: Rs. ${vDue.toLocaleString()}</div>` : (vCost === 0 && vPaid === 0 ? `<div class="muted" style="font-size:11px">No Charge</div>` : '')}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button>${vDue > 0 ? `<button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px;color:#22c55e;border-color:#22c55e;font-weight:700" onclick="collectDueForBill('${esc(v.billNumber)}')">💰 Collect Due</button>` : ''}<button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit</button><button type="button" class="btn secondary" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:#ef4444" onclick="deleteSingleVisit('${p.id}', '${v.id || v.billNumber}')" title="Delete this visit">🗑️</button></div></td></tr>`;
-      }).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}
+    const vCost = Number(v.cost || v.subtotal || 0);
+    const vPaid = Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+    const vDue = Math.max(0, vCost - vPaid);
+    return `<tr><td style="text-align:center"><input type="checkbox" class="visit-select-chk" data-bill="${esc(v.billNumber || '')}" data-id="${esc(v.id || '')}" data-idx="${vIdx}" style="width:15px;height:15px;cursor:pointer;accent-color:#0284c7" onchange="updateVisitSelectionUI()"></td><td>${esc(v.date || '—')}</td><td>${esc(v.time || '—')}</td><td>${esc(v.procedures || v.treatment || '—')}<div class="muted">Cost: Rs. ${vCost.toLocaleString()}</div>${(v.doctorName || p.default_doctor_name) ? `<div style="font-size:11px;color:#38bdf8;font-weight:600;margin-top:2px">👨‍⚕️ ${esc(v.doctorName || p.default_doctor_name)}</div>` : ''}</td><td>${vPaid > 0 ? `<b>Rs. ${vPaid.toLocaleString()}</b>${v.paymentMethod ? `<div class="muted" style="font-size:10.5px">${esc(v.paymentMethod)}</div>` : ''}` : ''}${vDue > 0 ? `<div style="color:#ef4444;font-size:11px;font-weight:700;margin-top:${vPaid > 0 ? '2px' : '0'}">⏳ Due: Rs. ${vDue.toLocaleString()}</div>` : (vCost === 0 && vPaid === 0 ? `<div class="muted" style="font-size:11px">No Charge</div>` : '')}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><button type="button" class="btn primary" style="padding:3px 8px;font-size:11px" onclick="printBill('${esc(v.billNumber)}')">🖨️ A5 BILL</button>${vDue > 0 ? `<button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px;color:#22c55e;border-color:#22c55e;font-weight:700" onclick="collectDueForBill('${esc(v.billNumber)}')">💰 Collect Due</button>` : ''}<button type="button" class="btn secondary" style="padding:3px 8px;font-size:11px" onclick="onEditVisitClick('${p.id}', '${v.id || v.billNumber}')">✎ Edit</button><button type="button" class="btn secondary" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:#ef4444" onclick="deleteSingleVisit('${p.id}', '${v.id || v.billNumber}')" title="Delete this visit">🗑️</button></div></td></tr>`;
+  }).join('')}</tbody></table></div>` : '<div class="empty">No visits recorded yet.</div>'}
    </div>
    <div class="card">
      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -2048,7 +2048,7 @@ function generateVisitNepalPayQr() {
     showToast('Please select a patient first.', 'warn');
     return;
   }
-  
+
   let amt = parseFloat(document.getElementById('visitPaid')?.value);
   if (isNaN(amt) || amt <= 0) {
     amt = parseFloat(document.getElementById('visitCost')?.value);
@@ -3899,8 +3899,8 @@ function saveChangeDoctor() {
   const typedName = (sel ? sel.value : '').trim();
 
   if (typedName) {
-    const matched = clinicDoctors.find(d => 
-      d.name.toLowerCase() === typedName.toLowerCase() || 
+    const matched = clinicDoctors.find(d =>
+      d.name.toLowerCase() === typedName.toLowerCase() ||
       String(d.id).toLowerCase() === typedName.toLowerCase()
     );
     if (matched) {
@@ -4277,7 +4277,7 @@ function loadClinicStampConfig() {
       const parsed = JSON.parse(raw);
       clinicStampConfig = { ...clinicStampConfig, ...parsed };
     }
-  } catch (_) {}
+  } catch (_) { }
 
   if (window.dentalStamp && window.dentalStamp.get) {
     window.dentalStamp.get().then(res => {
@@ -4286,7 +4286,7 @@ function loadClinicStampConfig() {
         localStorage.setItem('infinity_dental_clinic_stamp', JSON.stringify(clinicStampConfig));
         renderStampPreview();
       }
-    }).catch(() => {});
+    }).catch(() => { });
   } else {
     fetch('/api/clinic/stamp').then(r => r.json()).then(res => {
       if (res && res.success && res.stamp) {
@@ -4294,7 +4294,7 @@ function loadClinicStampConfig() {
         localStorage.setItem('infinity_dental_clinic_stamp', JSON.stringify(clinicStampConfig));
         renderStampPreview();
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }
 }
 
@@ -4378,7 +4378,7 @@ async function saveClinicStampConfig() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(clinicStampConfig)
-    }).catch(() => {});
+    }).catch(() => { });
   }
   showToast('✓ Clinic Stamp settings saved successfully!', 'success');
   closeClinicStampModal();
@@ -4586,13 +4586,13 @@ function renderBillingRecentAndDuePatients() {
         <thead><tr><th>OPD</th><th>Patient Name</th><th style="text-align:right">Due (Rs.)</th><th>Action</th></tr></thead>
         <tbody>
           ${dueList.map(p => {
-            let billed = 0, paid = 0;
-            p.VisitHistory.forEach(v => {
-              billed += Number(v.cost || v.subtotal || 0);
-              paid += Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
-            });
-            const due = Math.max(0, billed - paid);
-            return `
+      let billed = 0, paid = 0;
+      p.VisitHistory.forEach(v => {
+        billed += Number(v.cost || v.subtotal || 0);
+        paid += Number(v.paymentDone != null ? v.paymentDone : (v.amount || 0));
+      });
+      const due = Math.max(0, billed - paid);
+      return `
               <tr class="clickable" onclick="selectBillingPatient('${p.id}')">
                 <td><span class="badge">OPD-${pad(p.OPDNumber)}</span></td>
                 <td style="font-weight:700">${esc(p.Name)}</td>
@@ -4600,7 +4600,7 @@ function renderBillingRecentAndDuePatients() {
                 <td><button class="btn secondary" style="padding:3px 8px;font-size:11px;color:#ef4444" onclick="event.stopPropagation();selectBillingPatient('${p.id}')">Collect Due</button></td>
               </tr>
             `;
-          }).join('')}
+    }).join('')}
         </tbody>
       </table></div>
     ` : '<div class="empty" style="color:#10b981">✓ All registered patients are fully paid. No pending dues!</div>';
@@ -4716,8 +4716,8 @@ function updateBillingCalculations() {
   const subLabel = document.getElementById('billingSubtotalLabel');
   const netLabel = document.getElementById('billingNetTotalLabel');
 
-  if (subLabel) subLabel.textContent = `Rs. ${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-  if (netLabel) netLabel.textContent = `Rs. ${netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+  if (subLabel) subLabel.textContent = `Rs. ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  if (netLabel) netLabel.textContent = `Rs. ${netTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   updateBillingPaymentCalculations();
 }
@@ -4761,7 +4761,7 @@ function updateBillingDueBalance() {
 
   const dueDisplay = document.getElementById('billingDueBalanceDisplay');
   if (dueDisplay) {
-    dueDisplay.textContent = `Rs. ${due.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+    dueDisplay.textContent = `Rs. ${due.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
     dueDisplay.style.color = due > 0 ? '#ef4444' : '#10b981';
   }
 }
@@ -4821,8 +4821,8 @@ async function collectBillingAndPrintA5(printAfterSave = true) {
     let doctorName = '';
 
     if (typedDoc) {
-      chosenDoc = clinicDoctors.find(d => 
-        d.name.toLowerCase() === typedDoc.toLowerCase() || 
+      chosenDoc = clinicDoctors.find(d =>
+        d.name.toLowerCase() === typedDoc.toLowerCase() ||
         String(d.id).toLowerCase() === typedDoc.toLowerCase()
       );
       if (chosenDoc) {
@@ -5522,7 +5522,7 @@ function openExternalUrl(url) {
 /* Appointments section */
 let appointmentMode = 'BS';
 let appointmentSelectedAD = apptIsoDate(new Date());
-let appointmentView = (function() {
+let appointmentView = (function () {
   const d = new Date();
   const bs = apptBsFromAd(apptIsoDate(d));
   if (bs) {
@@ -7488,7 +7488,7 @@ async function confirmAdminPinModal() {
       }
       return;
     }
-  } catch (_) {}
+  } catch (_) { }
 
   // Local fallback
   if (pin === '1234' || pin === 'admin123' || pin === '2468') {
@@ -9045,7 +9045,7 @@ async function logNepalPayMoneyRecord(record) {
     nepalPayAuditLogsCache = [fullRecord, ...nepalPayAuditLogsCache.filter(x => x.id !== fullRecord.id)];
     try {
       localStorage.setItem('infinity_nepalpay_audit_logs_v1', JSON.stringify(nepalPayAuditLogsCache.slice(0, 500)));
-    } catch (_) {}
+    } catch (_) { }
 
     // Persist to SQLite
     if (window.dentalNepalPayLogs && window.dentalNepalPayLogs.add) {
@@ -9819,8 +9819,8 @@ function saveEditedVisit() {
   const docInput = document.getElementById('editVisitDoctor');
   const typedDoc = (docInput ? docInput.value : '').trim();
   if (typedDoc) {
-    const matched = clinicDoctors.find(d => 
-      d.name.toLowerCase() === typedDoc.toLowerCase() || 
+    const matched = clinicDoctors.find(d =>
+      d.name.toLowerCase() === typedDoc.toLowerCase() ||
       String(d.id).toLowerCase() === typedDoc.toLowerCase()
     );
     if (matched) {
@@ -9994,15 +9994,15 @@ function renderAttendedTodayList(attendedItems) {
     </thead>
     <tbody>
       ${items.map(item => {
-        const p = item.patient;
-        return `<tr class="clickable" onclick="openProfile('${p.id}')">
+    const p = item.patient;
+    return `<tr class="clickable" onclick="openProfile('${p.id}')">
           <td style="font-weight:700;color:#0284c7">OPD-${pad(p.OPDNumber)}</td>
           <td style="font-weight:700;color:var(--text)">${esc(p.Name)}</td>
           <td>${esc(p.Contact || '—')}</td>
           <td>${esc(item.reason)}</td>
           <td>${item.badgeHtml}</td>
         </tr>`;
-      }).join('')}
+  }).join('')}
     </tbody>
   </table></div>`;
 }
@@ -10023,7 +10023,7 @@ async function syncAppVersionUI() {
     try {
       const v = await window.dentalApp.getVersion();
       if (v) ver = v;
-    } catch (_) {}
+    } catch (_) { }
   }
   const formattedVer = ver.startsWith('v') ? ver : 'v' + ver;
 
