@@ -8,7 +8,7 @@ import AboutSystemModal from './AboutSystemModal';
  * @param {Object} props
  * @param {string} [props.clientName="Infinity Dental Clinic"] - Client or clinic name
  * @param {string} [props.appName="Infinity Dental Management"] - Software name passed to AboutSystemModal
- * @param {string} [props.version="v1.0.28"] - Version tag
+ * @param {string} [props.version="v1.0.29"] - Version tag
  * @param {Function} [props.onOpenSystemInfo] - Optional external handler for opening AboutSystemModal
  * @param {number} [props.currentYear] - Optional explicit year (defaults to current year)
  * @param {string} [props.className=""] - Optional extra CSS classes
@@ -16,7 +16,7 @@ import AboutSystemModal from './AboutSystemModal';
 export default function AppFooter({
   clientName = "Infinity Dental Clinic",
   appName = "Infinity Dental Management",
-  version = "v1.0.28",
+  version = "v1.0.29",
   onOpenSystemInfo,
   currentYear = new Date().getFullYear(),
   className = "",

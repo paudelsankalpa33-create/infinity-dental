@@ -101,7 +101,7 @@
   <div id="updateBanner" class="update-banner">
     <div style="display:flex;align-items:center;gap:8px">
       <span>🚀 <b>Software Update Available!</b></span>
-      <span id="updateBannerVersion" class="update-pill-badge">v1.0.28</span>
+      <span id="updateBannerVersion" class="update-pill-badge">v1.0.29</span>
       <span id="updateBannerTitle" style="opacity:0.9">A new official update is available for Infinity Dental
         Clinic.</span>
     </div>
@@ -245,7 +245,7 @@
             <button id="settingsUpdateBtn" class="settings-flyout-item"
               onclick="openUpdateModal(); closeSettingsMenu();">
               <span class="settings-item-title">Updates</span>
-              <span id="settingsVersionBadge" class="header-version-pill">v1.0.28</span>
+              <span id="settingsVersionBadge" class="header-version-pill">v1.0.29</span>
             </button>
             <button id="settingsThemeBtn" class="settings-flyout-item" onclick="toggleTheme();">
               <span class="settings-item-title" id="settingsThemeLabel">Light Mode</span>
@@ -2213,7 +2213,7 @@
       <button type="button" class="system-info-badge" onclick="openAboutSystemModal()" title="View System Information & Licensing">
         <span class="info-badge-dot"></span>
         <span class="info-badge-text">System Info</span>
-        <span class="info-badge-ver" id="footerVersionBadge">v1.0.28</span>
+        <span class="info-badge-ver" id="footerVersionBadge">v1.0.29</span>
       </button>
     </div>
     <div class="app-footer-right">
@@ -2222,6 +2222,43 @@
   </footer>
 
   </main>
+  </div>
+
+  <!-- QR Amount Prompt Modal (When form price is empty or zero) -->
+  <div id="qrAmountPromptModal" class="modal" onclick="if(event.target===this)closeQrAmountPromptModal()">
+    <div class="modal-box" style="width:min(440px,100%);background:#090d16;border:1px solid #1e293b;color:#f8fafc">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #1e293b;padding-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">📱</span>
+          <b style="font-size:15px;color:#38bdf8">Generate NepalPay Dynamic QR</b>
+        </div>
+        <button type="button" class="btn secondary" style="padding:2px 7px;font-size:12px" onclick="closeQrAmountPromptModal()">✕</button>
+      </div>
+      <p style="font-size:12.5px;color:#94a3b8;margin:0 0 12px 0">
+        Enter the payment amount (Rs.) to generate a dynamic NepalPay QR code &amp; push to NiZi POS Soundbox:
+      </p>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px">Payment Amount (Rs.) *</label>
+        <input id="qrPromptAmountInput" type="number" min="1" max="1000000" step="any" value="500" placeholder="e.g. 500"
+          style="width:100%;box-sizing:border-box;font-size:20px;font-weight:800;padding:10px;border-radius:8px;background:#030712;color:#10b981;border:1.5px solid #0284c7;text-align:center"
+          onkeydown="if(event.key==='Enter')confirmQrPromptAmount()">
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:600">Quick Amount Presets:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" class="btn secondary" style="font-size:11px;padding:5px 9px" onclick="setQrPromptAmount(100)">Rs. 100</button>
+          <button type="button" class="btn secondary" style="font-size:11px;padding:5px 9px" onclick="setQrPromptAmount(500)">Rs. 500</button>
+          <button type="button" class="btn secondary" style="font-size:11px;padding:5px 9px" onclick="setQrPromptAmount(1000)">Rs. 1,000</button>
+          <button type="button" class="btn secondary" style="font-size:11px;padding:5px 9px" onclick="setQrPromptAmount(1500)">Rs. 1,500</button>
+          <button type="button" class="btn secondary" style="font-size:11px;padding:5px 9px" onclick="setQrPromptAmount(2000)">Rs. 2,000</button>
+          <button type="button" class="btn secondary" style="font-size:11px;padding:5px 9px" onclick="setQrPromptAmount(5000)">Rs. 5,000</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" class="btn secondary" onclick="closeQrAmountPromptModal()">Cancel</button>
+        <button type="button" class="btn primary" style="background:#0284c7;font-weight:800;padding:8px 18px" onclick="confirmQrPromptAmount()">⚡ Generate QR</button>
+      </div>
+    </div>
   </div>
 
   <!-- NepalPay Dynamic QR Modal -->
@@ -2337,7 +2374,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:12px;font-weight:700;color:#000000">Current Installed Version:</span>
-          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.28</span>
+          <span class="badge" id="modalCurrentVersion" style="font-size:12px;font-weight:800;background:#0f172a;color:#ffffff">v1.0.29</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:700;color:#000000">Update Server:</span>
@@ -3025,7 +3062,7 @@
       <div class="about-system-header">
         <div style="display:flex;align-items:center;gap:10px">
           <span class="about-system-title">Infinity Dental Management</span>
-          <span class="about-system-badge" id="aboutModalVersionBadge">v1.0.28</span>
+          <span class="about-system-badge" id="aboutModalVersionBadge">v1.0.29</span>
         </div>
         <button type="button" class="about-system-close" onclick="closeAboutSystemModal()" title="Close">✕</button>
       </div>

@@ -56,6 +56,7 @@ const APPT_BS_ANCHOR = { y: 2083, m: 5, d: 27, ad: '2026-09-12' };
 
 function apptPad(n) { return String(n).padStart(2, '0') }
 function apptIsoDate(d) { return d.getFullYear() + '-' + apptPad(d.getMonth() + 1) + '-' + apptPad(d.getDate()) }
+function todayIso(d = new Date()) { return d.getFullYear() + '-' + apptPad(d.getMonth() + 1) + '-' + apptPad(d.getDate()) }
 function apptParseIso(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); if (!m) return null; const d = new Date(+m[1], +m[2] - 1, +m[3]); return d.getFullYear() == +m[1] && d.getMonth() == +m[2] - 1 && d.getDate() == +m[3] ? d : null }
 function apptBsToIndex(y, m, d) { let idx = 0; for (let yy = APPT_BS_START_YEAR; yy < y; yy++) { const lens = APPT_BS_LENGTHS[yy]; if (!lens) return null; idx += lens.reduce((x, v) => x + v, 0) } for (let mm = 1; mm < m; mm++)idx += APPT_BS_LENGTHS[y]?.[mm - 1] || 0; return idx + (d - 1) }
 function apptAdFromBs(bs) { const parts = String(bs).split('-').map(Number); if (parts.length !== 3) return null; const [y, m, d] = parts, lens = APPT_BS_LENGTHS[y]; if (!lens || m < 1 || m > 12 || d < 1 || d > lens[m - 1]) return null; const anchorBs = apptBsToIndex(2083, 5, 27), target = apptBsToIndex(y, m, d); if (anchorBs == null || target == null) return null; const base = new Date(2026, 8, 12); base.setDate(base.getDate() + target - anchorBs); return apptIsoDate(base) }
@@ -1850,8 +1851,66 @@ function selectVisitPaymentMode(mode) {
   }
 }
 
+function openQrAmountPromptModal(defaultAmt = 500) {
+  const modal = document.getElementById('qrAmountPromptModal');
+  const input = document.getElementById('qrPromptAmountInput');
+  if (input) {
+    input.value = defaultAmt > 0 ? defaultAmt : 500;
+  }
+  if (modal) {
+    modal.classList.add('show');
+    setTimeout(() => {
+      input?.focus();
+      input?.select();
+    }, 60);
+  }
+}
+
+function closeQrAmountPromptModal() {
+  const modal = document.getElementById('qrAmountPromptModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function setQrPromptAmount(amt) {
+  const input = document.getElementById('qrPromptAmountInput');
+  if (input) {
+    input.value = amt;
+    input.focus();
+  }
+}
+
+function confirmQrPromptAmount() {
+  const input = document.getElementById('qrPromptAmountInput');
+  const amt = parseFloat(input?.value);
+  if (isNaN(amt) || amt <= 0) {
+    showToast('Please enter an amount greater than 0.', 'warn');
+    input?.focus();
+    return;
+  }
+  closeQrAmountPromptModal();
+
+  const costEl = document.getElementById('visitCost');
+  if (costEl && (Number(costEl.value) || 0) <= 0) {
+    costEl.value = amt;
+  }
+  const paidEl = document.getElementById('visitPaid');
+  if (paidEl) paidEl.value = amt;
+  updatePaymentChoice();
+
+  proceedGenerateVisitNepalPayQr(amt);
+}
+
 function generateVisitNepalPayQr() {
-  const p = patients.find(x => x.id === selectedId);
+  let p = patients.find(x => x.id === selectedId);
+  if (!p) {
+    const opdText = document.querySelector('.profile-head .badge')?.textContent || '';
+    const match = opdText.match(/\d+/);
+    if (match) {
+      const opdNum = parseInt(match[0], 10);
+      p = patients.find(x => Number(x.OPDNumber) === opdNum);
+      if (p) selectedId = p.id;
+    }
+  }
   if (!p) {
     showToast('Please select a patient first.', 'warn');
     return;
@@ -1859,13 +1918,32 @@ function generateVisitNepalPayQr() {
   
   let amt = parseFloat(document.getElementById('visitPaid')?.value);
   if (isNaN(amt) || amt <= 0) {
+    amt = parseFloat(document.getElementById('visitCost')?.value);
+  }
+  if (isNaN(amt) || amt <= 0) {
     amt = getVisitFinalTotal();
   }
-  if (!amt || amt <= 0) {
-    showToast('Please enter an amount in Amount Paid (Rs.) or select a procedure first.', 'warn');
-    document.getElementById('visitPaid')?.focus();
+  if (isNaN(amt) || amt <= 0) {
+    // Open dedicated amount modal for seamless user experience
+    openQrAmountPromptModal(500);
     return;
   }
+
+  proceedGenerateVisitNepalPayQr(amt);
+}
+
+function proceedGenerateVisitNepalPayQr(amt) {
+  let p = patients.find(x => x.id === selectedId);
+  if (!p) {
+    const opdText = document.querySelector('.profile-head .badge')?.textContent || '';
+    const match = opdText.match(/\d+/);
+    if (match) {
+      const opdNum = parseInt(match[0], 10);
+      p = patients.find(x => Number(x.OPDNumber) === opdNum);
+      if (p) selectedId = p.id;
+    }
+  }
+  if (!p) return;
 
   // Select NepalPay QR payment mode and sync input field
   selectVisitPaymentMode('NepalPay QR');
@@ -6563,9 +6641,36 @@ async function openNepalPayModal({ amount, billNumber, remarks, patientName, pat
   const parsedAmount = Number(amount || 0);
   amountEl.textContent = 'Rs. ' + parsedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 });
   infoEl.textContent = `Patient: ${patientName || 'Walk-in'} | Bill: ${billNumber || '—'} | OPD: ${opdNumber ? pad(opdNumber) : '—'}`;
-  canvasWrap.innerHTML = '<div style="padding:40px;color:var(--muted)">Generating NepalPay QR...</div>';
-  statusPill.textContent = 'Connecting to NCHL ConnectIPS...';
+
+  // Instant Display: Generate and render the client NepalQR immediately so modal is never blank
+  const safeBillNo = billNumber || ('B-' + Date.now());
+  const initialTraceId = 'TRC' + Date.now();
+  const initialQr = buildClientNepalPayQr({
+    amount: parsedAmount,
+    billNumber: safeBillNo,
+    remarks: remarks || 'Dental Treatment'
+  });
+
+  activeQrTransaction = {
+    validationTraceId: initialTraceId,
+    billNumber: safeBillNo,
+    amount: parsedAmount,
+    patientName: patientName || 'Walk-in',
+    qrString: initialQr,
+    isLiveNchl: false
+  };
+
+  renderQrToElement(canvasWrap, initialQr, 190, 190);
+  statusPill.textContent = 'Active (Ready to Scan)';
   statusPill.className = 'status-pill live';
+
+  sendNiziCommand({
+    command: 'show_qr',
+    payload: initialQr,
+    amount: parsedAmount,
+    title: 'Infinity Dental',
+    billNumber: safeBillNo
+  });
 
   const existingNotice = document.getElementById('modalNchlNotice');
   if (existingNotice) existingNotice.remove();
@@ -7054,10 +7159,7 @@ function f(id) {
 
 const rs = n => 'Rs. ' + Number(n || 0).toLocaleString('en-IN');
 const sumArr = a => (Array.isArray(a) ? a.reduce((x, y) => x + y, 0) : 0);
-const todayIso = () => {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-};
+// todayIso is hoisted globally at the top of app.js
 
 // --- In-Memory State Linked to SQLite REST Backend ---
 let stockItemsList = [];
@@ -9668,7 +9770,7 @@ function scrollToAttendedToday() {
 
 /* About System Modal & Dynamic Version Controller */
 async function syncAppVersionUI() {
-  let ver = '1.0.28';
+  let ver = '1.0.29';
   if (window.dentalApp && window.dentalApp.getVersion) {
     try {
       const v = await window.dentalApp.getVersion();
